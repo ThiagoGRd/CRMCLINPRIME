@@ -41,5 +41,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`\n🤖 Servidor Estático Apex CRM rodando em http://localhost:${PORT}/\n`);
+  console.log(`\n🤖 Servidor Estático ClinPrime CRM rodando em http://localhost:${PORT}/\n`);
 });

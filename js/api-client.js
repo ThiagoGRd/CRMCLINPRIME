@@ -1,13 +1,13 @@
 /* ==========================================================================
-   Apex Odonto CRM — Serverless API Client (Conexão Direta ao Supabase Online)
+   ClinPrime CRM — Serverless API Client (Conexão Direta ao Supabase Online)
    Comunica-se diretamente com o Supabase REST API e gerencia webhooks do n8n.
    ========================================================================== */
 
-const SUPABASE_URL = 'https://ywepsusvdibltpmeyrwj.supabase.co/rest/v1';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl3ZXBzdXN2ZGlibHRwbWV5cndqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNTIyMTEsImV4cCI6MjA5NjYyODIxMX0.SMtcXpcDxHt2OE9syAzsX79F1G90LVc9JpODPYrblTI';
+const SUPABASE_URL = 'https://sterdootrqzlnbbidkcj.supabase.co/rest/v1';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0ZXJkb290cnF6bG5iYmlka2NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4Mzk2OTIsImV4cCI6MjA5NTQxNTY5Mn0.tpB94R0XYFHCsjrNa3hElkRUAtg8Vh2GYRlJptfagsM';
 
 // URL do n8n salva localmente no navegador (permite trocar na UI)
-let N8N_BASE_URL = localStorage.getItem('apex_n8n_url') || 'http://localhost:5678/webhook';
+let N8N_BASE_URL = localStorage.getItem('clinprime_n8n_url') || 'https://n8n.clinprime.shop/webhook';
 
 /**
  * Wrapper para chamadas diretas à API REST do Supabase
@@ -55,9 +55,9 @@ async function triggerN8NWebhook(webhookPath, payload) {
   try {
     const url = `${N8N_BASE_URL}/${webhookPath}`;
     const evolutionConfig = {
-      url: localStorage.getItem('apex_evolution_url') || 'http://localhost:8080',
-      key: localStorage.getItem('apex_evolution_key') || 'sua_api_key_global',
-      instance: localStorage.getItem('apex_evolution_instance') || 'apex-odonto'
+      url: localStorage.getItem('clinprime_evolution_url') || 'http://localhost:8080',
+      key: localStorage.getItem('clinprime_evolution_key') || 'sua_api_key_global',
+      instance: localStorage.getItem('clinprime_evolution_instance') || 'Thiago Cruz'
     };
 
     const res = await fetch(url, {
@@ -66,7 +66,7 @@ async function triggerN8NWebhook(webhookPath, payload) {
       body: JSON.stringify({
         ...payload,
         evolution: evolutionConfig,
-        _source: 'apex-odonto-crm-frontend',
+        _source: 'clinprime-crm-frontend',
         _timestamp: new Date().toISOString()
       })
     });
@@ -314,7 +314,7 @@ const MessagesAPI = {
 
   async getWhatsAppStatus() {
     // Consulta simulada via n8n ou retorna online padrão no modo frontend direto
-    const localStatus = localStorage.getItem('apex_whatsapp_connected') === 'true';
+    const localStatus = localStorage.getItem('clinprime_whatsapp_connected') === 'true';
     return { success: true, data: { connected: localStatus, state: localStatus ? 'open' : 'closed' } };
   },
 
@@ -487,12 +487,12 @@ window.ApexAPI = {
   // Helper para atualizar URLs de conexão na interface
   updateConfig(n8nUrl, evolutionUrl, evolutionKey, evolutionInstance) {
     if (n8nUrl) {
-      localStorage.setItem('apex_n8n_url', n8nUrl);
+      localStorage.setItem('clinprime_n8n_url', n8nUrl);
       N8N_BASE_URL = n8nUrl;
     }
-    if (evolutionUrl) localStorage.setItem('apex_evolution_url', evolutionUrl);
-    if (evolutionKey) localStorage.setItem('apex_evolution_key', evolutionKey);
-    if (evolutionInstance) localStorage.setItem('apex_evolution_instance', evolutionInstance);
+    if (evolutionUrl) localStorage.setItem('clinprime_evolution_url', evolutionUrl);
+    if (evolutionKey) localStorage.setItem('clinprime_evolution_key', evolutionKey);
+    if (evolutionInstance) localStorage.setItem('clinprime_evolution_instance', evolutionInstance);
   }
 };
 

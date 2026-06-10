@@ -70,7 +70,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=https://ywepsusvdibltpmeyrwj.supabase.co/rest/v1/patients?phone=eq.{{ $json.phone }}&select=id",
+        "url": "=https://sterdootrqzlnbbidkcj.supabase.co/rest/v1/crm_patients?phone=eq.{{ $json.phone }}&select=id",
         "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
@@ -132,7 +132,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://ywepsusvdibltpmeyrwj.supabase.co/rest/v1/patients",
+        "url": "https://sterdootrqzlnbbidkcj.supabase.co/rest/v1/crm_patients",
         "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
@@ -165,7 +165,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://ywepsusvdibltpmeyrwj.supabase.co/rest/v1/deals",
+        "url": "https://sterdootrqzlnbbidkcj.supabase.co/rest/v1/crm_deals",
         "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
@@ -212,7 +212,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://ywepsusvdibltpmeyrwj.supabase.co/rest/v1/messages",
+        "url": "https://sterdootrqzlnbbidkcj.supabase.co/rest/v1/crm_messages",
         "authentication": "none",
         "sendHeaders": true,
         "headerParameters": {
