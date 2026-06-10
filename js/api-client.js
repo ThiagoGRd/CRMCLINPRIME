@@ -9,15 +9,90 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // URL do n8n salva localmente no navegador (permite trocar na UI)
 let N8N_BASE_URL = localStorage.getItem('clinprime_n8n_url') || 'https://n8n.clinprime.shop/webhook';
 
+/* ==========================================================================
+   AUTENTICAÇÃO — Supabase Auth (login obrigatório; RLS protege os dados)
+   ========================================================================== */
+const SUPABASE_ROOT_URL = SUPABASE_URL.replace('/rest/v1', '');
+// Cliente único: auth + realtime compartilham a sessão do usuário
+window.sb = window.supabase
+  ? window.supabase.createClient(SUPABASE_ROOT_URL, SUPABASE_KEY)
+  : null;
+
+let AUTH_TOKEN = null;
+let CURRENT_ORG = null; // { id, name, role, contact_label }
+
+if (window.sb) {
+  window.sb.auth.onAuthStateChange((_event, session) => {
+    AUTH_TOKEN = session?.access_token || null;
+  });
+}
+
+const AuthAPI = {
+  async getSession() {
+    const { data: { session } } = await window.sb.auth.getSession();
+    AUTH_TOKEN = session?.access_token || null;
+    return session;
+  },
+
+  async signIn(email, password) {
+    const { data, error } = await window.sb.auth.signInWithPassword({ email, password });
+    if (error) return { success: false, error: error.message };
+    AUTH_TOKEN = data.session?.access_token || null;
+    return { success: true, user: data.user };
+  },
+
+  async signUp(email, password, orgName) {
+    const { data, error } = await window.sb.auth.signUp({ email, password });
+    if (error) return { success: false, error: error.message };
+    if (!data.session) {
+      return { success: false, error: 'Confirme seu e-mail para ativar a conta e depois faça login.' };
+    }
+    AUTH_TOKEN = data.session.access_token;
+    // Cria (ou reivindica) a organização do usuário
+    await this.createOrganization(orgName || 'Minha Empresa');
+    return { success: true, user: data.user };
+  },
+
+  async createOrganization(name) {
+    const { data, error } = await window.sb.rpc('create_my_organization', { p_name: name });
+    if (error) return { success: false, error: error.message };
+    return { success: true, orgId: data };
+  },
+
+  async loadMyOrg() {
+    // Garante org mesmo para quem logou sem ter (cria/reivindica)
+    let res = await supabaseFetch('/org_members?select=role,display_name,org_id,organizations(id,name,contact_label,logo_url)&limit=1');
+    if (res.success && res.data.length === 0) {
+      await this.createOrganization('Minha Empresa');
+      res = await supabaseFetch('/org_members?select=role,display_name,org_id,organizations(id,name,contact_label,logo_url)&limit=1');
+    }
+    if (res.success && res.data.length > 0) {
+      const m = res.data[0];
+      CURRENT_ORG = { id: m.org_id, role: m.role, displayName: m.display_name, ...(m.organizations || {}) };
+      return CURRENT_ORG;
+    }
+    return null;
+  },
+
+  getOrg() { return CURRENT_ORG; },
+
+  async signOut() {
+    await window.sb.auth.signOut();
+    AUTH_TOKEN = null; CURRENT_ORG = null;
+    location.reload();
+  }
+};
+
 /**
  * Wrapper para chamadas diretas à API REST do Supabase
+ * Usa o JWT do usuário logado (RLS aplica o isolamento por organização)
  */
 async function supabaseFetch(path, options = {}) {
   try {
     const headers = {
       'Content-Type': 'application/json',
       'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Authorization': `Bearer ${AUTH_TOKEN || SUPABASE_KEY}`,
       ...options.headers,
     };
 
@@ -118,7 +193,8 @@ const PatientsAPI = {
         email: patientData.email || null,
         treatment_interest: patientData.treatment_interest || null,
         treatment_value: patientData.treatment_value || null,
-        source: patientData.source || 'manual'
+        source: patientData.source || 'manual',
+        org_id: CURRENT_ORG?.id
       }
     });
 
@@ -133,7 +209,8 @@ const PatientsAPI = {
         body: {
           patient_id: newPatient.id,
           stage_id: stagesRes.data[0].id,
-          position: 0
+          position: 0,
+          org_id: CURRENT_ORG?.id
         }
       });
     }
@@ -282,7 +359,17 @@ const MessagesAPI = {
     if (!patientRes.success) return { success: false, error: 'Paciente não encontrado' };
     const patient = patientRes.data;
 
-    // 2. Criar mensagem no Supabase com status pendente
+    // 2. Enviar de verdade pelo WhatsApp (Edge Function → Evolution API)
+    const sendRes = await edgeInvoke('send_text', {
+      phone: patient.phone,
+      text: content,
+      org_id: CURRENT_ORG?.id
+    });
+    if (!sendRes.success) {
+      return { success: false, error: sendRes.error || 'Falha no envio via WhatsApp' };
+    }
+
+    // 3. Registrar a mensagem no histórico
     const msgRes = await supabaseFetch('/messages', {
       method: 'POST',
       headers: { 'Prefer': 'return=representation' },
@@ -291,20 +378,12 @@ const MessagesAPI = {
         direction: 'outbound',
         content,
         message_type: messageType,
-        status: 'sent'
+        status: 'sent',
+        org_id: CURRENT_ORG?.id
       }
     });
 
     if (!msgRes.success) return msgRes;
-
-    // 3. Disparar webhook no n8n para enviar a mensagem via WhatsApp real
-    triggerN8NWebhook('enviar-whatsapp', {
-      event: 'message_send',
-      phone: patient.phone,
-      content,
-      patient_id: patientId,
-      message_id: msgRes.data[0].id
-    });
 
     // 4. Registrar logs
     await LogActivity(patientId, 'message_sent', { content: content.substring(0, 80) });
@@ -341,7 +420,8 @@ const AppointmentsAPI = {
         title: appointmentData.title,
         scheduled_at: appointmentData.scheduled_at,
         duration_minutes: appointmentData.duration_minutes || 60,
-        status: 'scheduled'
+        status: 'scheduled',
+        org_id: CURRENT_ORG?.id
       }
     });
 
@@ -442,7 +522,8 @@ async function LogActivity(patientId, action, details = {}) {
       body: {
         patient_id: patientId,
         action,
-        details
+        details,
+        org_id: CURRENT_ORG?.id
       }
     });
   } catch (err) {
@@ -518,21 +599,109 @@ const ChatControlAPI = {
 };
 
 /* ==========================================================================
-   Supabase Realtime — push de mensagens/contatos ao vivo (WebSocket)
+   Edge Function — proxy seguro para a Evolution API (multi-tenant)
    ========================================================================== */
-const SUPABASE_ROOT = SUPABASE_URL.replace('/rest/v1', '');
-let _realtimeClient = null;
+async function edgeInvoke(action, payload = {}) {
+  const res = await fetch(`${SUPABASE_ROOT_URL}/functions/v1/evolution-proxy`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${AUTH_TOKEN || SUPABASE_KEY}`,
+    },
+    body: JSON.stringify({ action, payload }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { success: false, error: data.error || `Erro ${res.status}`, detail: data.detail };
+  return { success: true, data };
+}
 
+/* ==========================================================================
+   API de Canais (WhatsApp / Instagram por organização)
+   ========================================================================== */
+const ChannelsAPI = {
+  async list() {
+    return supabaseFetch('/channels?order=created_at.asc');
+  },
+  async createWhatsApp(displayName) {
+    return edgeInvoke('create_instance', { display_name: displayName, org_id: CURRENT_ORG?.id });
+  },
+  async getQr(channelId) {
+    return edgeInvoke('get_qr', { channel_id: channelId });
+  },
+  async status(channelId) {
+    return edgeInvoke('status', { channel_id: channelId });
+  },
+  async disconnect(channelId) {
+    return edgeInvoke('disconnect', { channel_id: channelId });
+  },
+  async remove(channelId) {
+    return edgeInvoke('delete_instance', { channel_id: channelId });
+  },
+};
+
+/* ==========================================================================
+   API de Respostas Rápidas
+   ========================================================================== */
+const QuickRepliesAPI = {
+  async list() { return supabaseFetch('/quick_replies?order=shortcut.asc'); },
+  async create(shortcut, content) {
+    return supabaseFetch('/quick_replies', {
+      method: 'POST', headers: { 'Prefer': 'return=representation' },
+      body: { shortcut, content, org_id: CURRENT_ORG?.id }
+    });
+  },
+  async remove(id) { return supabaseFetch(`/quick_replies?id=eq.${id}`, { method: 'DELETE' }); },
+};
+
+/* ==========================================================================
+   API do Builder de Automações
+   ========================================================================== */
+const AutomationsBuilderAPI = {
+  async list() { return supabaseFetch('/automations?order=created_at.desc'); },
+  async create(automation) {
+    return supabaseFetch('/automations', {
+      method: 'POST', headers: { 'Prefer': 'return=representation' },
+      body: { ...automation, org_id: CURRENT_ORG?.id }
+    });
+  },
+  async update(id, updates) {
+    return supabaseFetch(`/automations?id=eq.${id}`, { method: 'PATCH', body: updates });
+  },
+  async remove(id) { return supabaseFetch(`/automations?id=eq.${id}`, { method: 'DELETE' }); },
+};
+
+/* ==========================================================================
+   API de Equipe (membros da organização)
+   ========================================================================== */
+const TeamAPI = {
+  async list() {
+    return supabaseFetch('/org_members?select=user_id,role,display_name&order=created_at.asc');
+  },
+};
+
+/* ==========================================================================
+   Helpers de Inbox — tags e atribuição de atendente
+   ========================================================================== */
+const InboxAPI = {
+  async setTags(patientId, tags) {
+    return supabaseFetch(`/patients?id=eq.${patientId}`, { method: 'PATCH', body: { tags } });
+  },
+  async assign(patientId, userId) {
+    return supabaseFetch(`/patients?id=eq.${patientId}`, { method: 'PATCH', body: { assigned_to: userId || null } });
+  },
+};
+
+/* ==========================================================================
+   Supabase Realtime — push de mensagens/contatos ao vivo (WebSocket)
+   Usa o cliente autenticado (RLS aplica isolamento por organização)
+   ========================================================================== */
 function getRealtimeClient() {
-  if (_realtimeClient) return _realtimeClient;
-  if (!window.supabase || !window.supabase.createClient) {
+  if (!window.sb) {
     console.warn('supabase-js não carregado — Realtime indisponível, usando polling.');
     return null;
   }
-  _realtimeClient = window.supabase.createClient(SUPABASE_ROOT, SUPABASE_KEY, {
-    realtime: { params: { eventsPerSecond: 10 } }
-  });
-  return _realtimeClient;
+  return window.sb;
 }
 
 const RealtimeAPI = {
@@ -557,7 +726,7 @@ const RealtimeAPI = {
   },
 
   unsubscribe(channel) {
-    if (channel && _realtimeClient) _realtimeClient.removeChannel(channel);
+    if (channel && window.sb) window.sb.removeChannel(channel);
   }
 };
 
@@ -565,11 +734,17 @@ const RealtimeAPI = {
    Exportar APIs como globais para uso no app.js
    ========================================================================== */
 window.ApexAPI = {
+  auth: AuthAPI,
   patients: PatientsAPI,
   pipeline: PipelineAPI,
   messages: MessagesAPI,
   appointments: AppointmentsAPI,
   automations: AutomationsAPI,
+  automationsBuilder: AutomationsBuilderAPI,
+  channels: ChannelsAPI,
+  quickReplies: QuickRepliesAPI,
+  team: TeamAPI,
+  inbox: InboxAPI,
   chatControl: ChatControlAPI,
   realtime: RealtimeAPI,
   startMessagePolling,

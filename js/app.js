@@ -19,33 +19,57 @@ let state = {
   }
 };
 
-// Mapeamentos de Estágios: HTML Kanban <=> IDs do Banco de Dados (crm_pipeline_stages)
-const STAGE_MAP = {
-  'lead':        '2e1ca1e7-8451-4a09-930f-58c7049e369e', // Novo Lead
-  'contacted':   '1d429739-bddd-4787-9bc4-524ea8c160c8', // Contato Feito
-  'proposal':    '4ce6fd78-c73d-4305-85b5-affc7f09774b', // Avaliação Agendada
-  'negotiating': '8a56e933-8c13-45d1-851b-a7c248ce36f4', // Avaliação Realizada
-  'won':         'ed689051-b283-4e85-87d1-6466aeeefdef',  // Orçamento Enviado
-  'concluded':   '67db7da0-e10f-4c4e-b3f0-ffac10c4b608'  // Tratamento Iniciado
-};
+// Mapeamentos de Estágios: construídos DINAMICAMENTE a partir das etapas da organização
+// (cada cliente tem suas próprias etapas no crm_pipeline_stages)
+let STAGE_MAP = {};
+let STAGE_REV_MAP = {};
 
-const STAGE_REV_MAP = {
-  '2e1ca1e7-8451-4a09-930f-58c7049e369e': 'lead',
-  '1d429739-bddd-4787-9bc4-524ea8c160c8': 'contacted',
-  '4ce6fd78-c73d-4305-85b5-affc7f09774b': 'proposal',
-  '8a56e933-8c13-45d1-851b-a7c248ce36f4': 'negotiating',
-  'ed689051-b283-4e85-87d1-6466aeeefdef': 'won',
-  '67db7da0-e10f-4c4e-b3f0-ffac10c4b608': 'concluded',
-  '68f1a9bb-e5cc-428e-8065-d3db8bbb2548': 'concluded'  // Concluído → mesmo bucket
-};
+function buildStageMaps(stages) {
+  const buckets = ['lead', 'contacted', 'proposal', 'negotiating', 'won', 'concluded'];
+  const sorted = [...stages].sort((a, b) => a.position - b.position);
+  STAGE_MAP = {}; STAGE_REV_MAP = {};
+  sorted.forEach((s, i) => {
+    const key = buckets[Math.min(i, buckets.length - 1)];
+    if (!STAGE_MAP[key]) STAGE_MAP[key] = s.id;
+    STAGE_REV_MAP[s.id] = key;
+  });
+}
 
-// Inicialização da Aplicação
+// Inicialização da Aplicação — exige login (SaaS)
 document.addEventListener("DOMContentLoaded", async () => {
-  showToast("Conectando ao banco de dados Supabase...", "info");
-  
-  // Executa carga inicial de dados
+  initAuthScreen();
+  const session = await window.ApexAPI.auth.getSession();
+  if (session) {
+    await bootApp();
+  }
+  // sem sessão: a tela de login (já visível) cuida do resto
+});
+
+async function bootApp() {
+  const org = await window.ApexAPI.auth.loadMyOrg();
+  if (!org) {
+    showToast("Não foi possível carregar sua organização.", "danger");
+    return;
+  }
+
+  // Identidade do usuário logado (para filtros "Minhas" e atribuição)
+  try {
+    const { data: { session } } = await window.sb.auth.getSession();
+    state.myUserId = session?.user?.id || null;
+  } catch (e) { state.myUserId = null; }
+
+  // Membros da equipe (para o select de atribuição)
+  try {
+    const teamRes = await window.ApexAPI.team.list();
+    state.teamMembers = teamRes.success ? teamRes.data : [];
+  } catch (e) { state.teamMembers = []; }
+
+  document.getElementById("auth-screen").style.display = "none";
+  document.getElementById("app-wrapper").style.display = "";
+  renderSidebarUser(org);
+
   await refreshState();
-  
+
   initSidebar();
   initLeadsTable();
   initKanban();
@@ -57,12 +81,75 @@ document.addEventListener("DOMContentLoaded", async () => {
   initModals();
   initAutomationRulesUI();
   initAPIConfigUI();
-  
-  // Verificar conexão inicial do WhatsApp
-  if (window.ApexAPI && window.ApexAPI.checkWhatsAppConnection) {
-    window.ApexAPI.checkWhatsAppConnection();
+  initConnections();
+  initInboxPro();
+  initAutomationBuilder();
+}
+
+/* ==========================================================================
+   Tela de Login / Cadastro
+   ========================================================================== */
+function initAuthScreen() {
+  const tabLogin = document.getElementById("auth-tab-login");
+  const tabSignup = document.getElementById("auth-tab-signup");
+  const orgGroup = document.getElementById("auth-org-group");
+  const form = document.getElementById("form-auth");
+  const submitBtn = document.getElementById("btn-auth-submit");
+  const errorBox = document.getElementById("auth-error");
+  let mode = "login";
+
+  function setMode(m) {
+    mode = m;
+    const active = "flex:1; background:none; border:none; color:var(--text-white); padding:10px; font-weight:700; border-bottom:2px solid var(--color-primary); cursor:pointer;";
+    const inactive = "flex:1; background:none; border:none; color:var(--text-muted); padding:10px; font-weight:600; border-bottom:2px solid transparent; cursor:pointer;";
+    tabLogin.style.cssText = m === "login" ? active : inactive;
+    tabSignup.style.cssText = m === "signup" ? active : inactive;
+    orgGroup.style.display = m === "signup" ? "" : "none";
+    submitBtn.textContent = m === "login" ? "Entrar" : "Criar conta grátis";
+    errorBox.style.display = "none";
   }
-});
+  tabLogin.addEventListener("click", () => setMode("login"));
+  tabSignup.addEventListener("click", () => setMode("signup"));
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    errorBox.style.display = "none";
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Aguarde...";
+    try {
+      const email = document.getElementById("auth-email").value.trim();
+      const password = document.getElementById("auth-password").value;
+      let res;
+      if (mode === "signup") {
+        const orgName = document.getElementById("auth-org").value.trim() || "Minha Empresa";
+        res = await window.ApexAPI.auth.signUp(email, password, orgName);
+      } else {
+        res = await window.ApexAPI.auth.signIn(email, password);
+      }
+      if (!res.success) {
+        errorBox.textContent = res.error === "Invalid login credentials" ? "E-mail ou senha incorretos." : res.error;
+        errorBox.style.display = "";
+        return;
+      }
+      await bootApp();
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = mode === "login" ? "Entrar" : "Criar conta grátis";
+    }
+  });
+}
+
+function renderSidebarUser(org) {
+  const name = org.displayName || "Usuário";
+  document.getElementById("sidebar-user-name").textContent = name;
+  document.getElementById("sidebar-org-name").textContent = org.name || "";
+  document.getElementById("sidebar-user-avatar").textContent = name.substring(0, 2).toUpperCase();
+  const btnLogout = document.getElementById("btn-logout");
+  if (btnLogout && !btnLogout.dataset.bound) {
+    btnLogout.dataset.bound = "1";
+    btnLogout.addEventListener("click", () => window.ApexAPI.auth.signOut());
+  }
+}
 
 // Sincronizar estado com o Banco de Dados Real (Substitui o localStorage antigo)
 async function refreshState() {
@@ -72,6 +159,12 @@ async function refreshState() {
   }
 
   try {
+    // 0. Carregar etapas da organização e montar o mapa dinâmico do kanban
+    try {
+      const stagesRes = await window.ApexAPI.pipeline.getStages();
+      if (stagesRes.success && stagesRes.data.length) buildStageMaps(stagesRes.data);
+    } catch (e) { console.warn('Falha ao carregar etapas:', e.message); }
+
     // 1. Carregar Pacientes
     const patientsRes = await window.ApexAPI.patients.getAll();
     if (patientsRes.success) {
@@ -81,6 +174,10 @@ async function refreshState() {
         email: p.email || '',
         phone: formatPhoneDisplay(p.phone),
         phoneRaw: p.phone, // telefone cru (com código do país) para casar com a tabela chats
+        tags: p.tags || [],
+        assignedTo: p.assigned_to || null,
+        channel: p.channel || 'whatsapp',
+        createdAt: p.created_at,
         value: parseFloat(p.treatment_value || 0),
         stage: STAGE_REV_MAP[p.deal?.[0]?.stage_id || p.deal?.stage_id] || 'lead',
         source: p.treatment_interest || p.source || 'Geral',
@@ -105,7 +202,8 @@ async function refreshState() {
           title: m.title,
           leadId: m.patient_id,
           date: `${y}-${mo}-${d}`,
-          time: `${h}:${mi}`
+          time: `${h}:${mi}`,
+          dateObj: m.scheduled_at
         };
       });
     }
@@ -176,6 +274,10 @@ function initSidebar() {
       } else if (panelId === 'chat') {
         renderChatList();
         renderActiveChat();
+      } else if (panelId === 'connections') {
+        renderChannelsList();
+      } else if (panelId === 'automation') {
+        renderAutomationsList();
       }
     });
   });
@@ -201,6 +303,18 @@ function updateDashboardKPIs() {
   
   const averageTicket = wonLeads.length > 0 ? totalRevenue / wonLeads.length : 0;
   document.getElementById("kpi-ticket").textContent = formatCurrency(averageTicket);
+
+  // Tendências REAIS calculadas dos dados (substitui textos decorativos)
+  const now = Date.now();
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  const newThisWeek = state.leads.filter(l => l.createdAt && (now - new Date(l.createdAt).getTime()) < weekMs).length;
+  const meetingsAhead = state.meetings.filter(m => m.dateObj && new Date(m.dateObj).getTime() > now).length;
+
+  const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  set("kpi-revenue-trend", wonLeads.length ? `${wonLeads.length} tratamentos fechados` : "nenhum fechamento ainda");
+  set("kpi-leads-trend", `+${newThisWeek} novos esta semana`);
+  set("kpi-conversion-trend", `${wonLeads.length} de ${totalLeads || 0} contatos`);
+  set("kpi-ticket-trend", meetingsAhead ? `${meetingsAhead} consultas agendadas` : "agenda livre");
 }
 
 function initCharts() {
@@ -596,11 +710,7 @@ function initRealtime() {
 
     if (lead) {
       // Conversa já existe na memória: anexa a bolha
-      const bubble = {
-        sender: msg.direction === 'inbound' ? 'incoming' : 'outgoing',
-        text: msg.content,
-        time: new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-      };
+      const bubble = mapDbMessage(msg);
       lead.messages = lead.messages || [];
       // Evita duplicar (Realtime + feedback otimista do envio)
       const dup = lead.messages.some(m => m.text === bubble.text && m.sender === bubble.sender);
@@ -704,46 +814,69 @@ function hideAiControls() {
 function renderChatList() {
   const container = document.getElementById("chat-list-container");
   if (!container) return;
-  
+
   container.innerHTML = "";
-  
-  if (state.leads.length === 0) {
-    container.innerHTML = `<div style="font-size: 13px; color: var(--text-muted); text-align: center; padding: 24px;">Nenhum contato ativo.</div>`;
+
+  // Busca + filtros (Todas / Minhas / Sem dono)
+  const search = (state.chatSearch || '').toLowerCase();
+  const filter = state.chatFilter || 'all';
+  let list = state.leads;
+  if (search) list = list.filter(l => l.name.toLowerCase().includes(search) || (l.phoneRaw || '').includes(search.replace(/\D/g, '') || '___'));
+  if (filter === 'mine') list = list.filter(l => l.assignedTo === state.myUserId);
+  if (filter === 'unassigned') list = list.filter(l => !l.assignedTo);
+
+  if (list.length === 0) {
+    container.innerHTML = `<div style="font-size: 13px; color: var(--text-muted); text-align: center; padding: 24px;">Nenhuma conversa encontrada.</div>`;
     return;
   }
-  
-  state.leads.forEach(lead => {
+
+  list.forEach(lead => {
     const activeClass = state.activeChatLeadId === lead.id ? 'active' : '';
-    const lastMsg = lead.messages && lead.messages.length > 0 
-      ? lead.messages[lead.messages.length - 1].text 
+    const lastMsg = lead.messages && lead.messages.length > 0
+      ? lead.messages[lead.messages.length - 1].text
       : "Clique para abrir o chat";
     const initials = lead.name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
-    
-    let badgeColor = '#10b981';
-    if (state.activeChannel === 'instagram') badgeColor = 'var(--color-accent-purple)';
-    if (state.activeChannel === 'email') badgeColor = 'var(--color-primary)';
-    
-    const unreadMarkup = lead.unread > 0 
-      ? `<span class="badge badge-danger" style="margin-left:auto; border-radius:50%; width:18px; height:18px; padding:0; display:flex; align-items:center; justify-content:center; font-size:10px;">${lead.unread}</span>` 
+
+    const channelIcon = lead.channel === 'instagram' ? '📸' : '💬';
+    const badgeColor = lead.channel === 'instagram' ? '#e1306c' : '#10b981';
+
+    const tagsMarkup = (lead.tags || []).slice(0, 3).map(t =>
+      `<span style="font-size:9px; padding:1px 6px; border-radius:8px; background:rgba(108,92,231,.25); color:#a29bfe;">${t}</span>`
+    ).join(' ');
+
+    const unreadMarkup = lead.unread > 0
+      ? `<span class="badge badge-danger" style="margin-left:auto; border-radius:50%; width:18px; height:18px; padding:0; display:flex; align-items:center; justify-content:center; font-size:10px;">${lead.unread}</span>`
       : '';
-      
+
     const item = document.createElement("div");
     item.className = `chat-item ${activeClass}`;
     item.innerHTML = `
       <div class="chat-item-avatar">
         ${initials}
-        <div class="chat-item-badge" style="background-color: ${badgeColor};"></div>
+        <div class="chat-item-badge" style="background-color: ${badgeColor};" title="${lead.channel}"></div>
       </div>
       <div class="chat-item-details">
-        <div class="chat-item-name">${lead.name}</div>
-        <div class="chat-item-msg">${lastMsg}</div>
+        <div class="chat-item-name">${channelIcon} ${lead.name}</div>
+        <div class="chat-item-msg">${(lastMsg || '').substring(0, 42)}</div>
+        ${tagsMarkup ? `<div style="display:flex; gap:4px; margin-top:3px;">${tagsMarkup}</div>` : ''}
       </div>
       ${unreadMarkup}
     `;
-    
+
     item.addEventListener("click", () => selectActiveChat(lead.id));
     container.appendChild(item);
   });
+}
+
+// Converte mensagem do banco para o formato da UI (com suporte a mídia e notas internas)
+function mapDbMessage(m) {
+  return {
+    sender: m.direction === 'inbound' ? 'incoming' : 'outgoing',
+    text: m.content,
+    type: m.message_type || 'text',
+    mediaUrl: m.media_url || null,
+    time: new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  };
 }
 
 async function selectActiveChat(leadId) {
@@ -757,11 +890,7 @@ async function selectActiveChat(leadId) {
   try {
     const res = await window.ApexAPI.messages.getHistory(leadId);
     if (res.success && lead) {
-      lead.messages = res.data.map(m => ({
-        sender: m.direction === 'inbound' ? 'incoming' : 'outgoing',
-        text: m.content,
-        time: new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-      }));
+      lead.messages = res.data.map(mapDbMessage);
       renderActiveChat();
     }
   } catch (err) {
@@ -781,6 +910,7 @@ async function selectActiveChat(leadId) {
     } catch (err) {
       hideAiControls();
     }
+    renderChatSidePanel(lead);
   }
 }
 
@@ -834,10 +964,22 @@ function renderActiveChat() {
   lead.messages.forEach(msg => {
     const bubble = document.createElement("div");
     bubble.className = `chat-bubble ${msg.sender}`;
-    bubble.innerHTML = `
-      <div>${msg.text}</div>
-      <div class="chat-bubble-time">${msg.time}</div>
-    `;
+
+    let body = '';
+    if (msg.type === 'internal_note') {
+      bubble.style.cssText = 'background:rgba(245,158,11,.12); border:1px dashed rgba(245,158,11,.4); align-self:center; max-width:80%;';
+      body = `<div style="font-size:11px; color:#f59e0b; font-weight:700; margin-bottom:2px;">📝 Nota interna</div><div>${msg.text}</div>`;
+    } else if (msg.type === 'image' && msg.mediaUrl) {
+      body = `<img src="${msg.mediaUrl}" style="max-width:240px; border-radius:8px; display:block; margin-bottom:4px;" loading="lazy">` + (msg.text ? `<div>${msg.text}</div>` : '');
+    } else if (msg.type === 'audio' && msg.mediaUrl) {
+      body = `<audio controls src="${msg.mediaUrl}" style="max-width:240px;"></audio>`;
+    } else if (msg.type === 'document' && msg.mediaUrl) {
+      body = `<a href="${msg.mediaUrl}" target="_blank" style="color:var(--color-primary);">📎 ${msg.text || 'Documento'}</a>`;
+    } else {
+      body = `<div>${msg.text}</div>`;
+    }
+
+    bubble.innerHTML = `${body}<div class="chat-bubble-time">${msg.time}</div>`;
     messagesContainer.appendChild(bubble);
   });
   
@@ -1622,3 +1764,389 @@ function initAPIConfigUI() {
   }
 }
 
+
+/* ==========================================================================
+   CONEXÕES — WhatsApp (QR via Evolution) e Instagram
+   ========================================================================== */
+let waQrPollTimer = null;
+let waActiveChannelId = null;
+
+function initConnections() {
+  const btnWa = document.getElementById("btn-connect-whatsapp");
+  const btnIg = document.getElementById("btn-connect-instagram");
+  const btnCreate = document.getElementById("btn-wa-create");
+  const modalClose = document.getElementById("modal-whatsapp-close");
+
+  if (!btnWa) return;
+
+  btnWa.addEventListener("click", () => {
+    document.getElementById("whatsapp-step-name").style.display = "";
+    document.getElementById("whatsapp-step-qr").style.display = "none";
+    document.getElementById("wa-display-name").value = "";
+    openModal("modal-whatsapp");
+  });
+
+  btnIg.addEventListener("click", () => {
+    showToast("Instagram Direct: integração via app Meta em homologação. O WhatsApp já está 100% disponível.", "info");
+  });
+
+  modalClose.addEventListener("click", () => {
+    stopQrPolling();
+    closeModal("modal-whatsapp");
+    renderChannelsList();
+  });
+
+  btnCreate.addEventListener("click", async () => {
+    const name = document.getElementById("wa-display-name").value.trim() || "WhatsApp";
+    btnCreate.disabled = true;
+    btnCreate.textContent = "Criando instância...";
+    try {
+      const res = await window.ApexAPI.channels.createWhatsApp(name);
+      if (!res.success) {
+        showToast("Erro ao criar instância: " + (res.error || ""), "danger");
+        return;
+      }
+      waActiveChannelId = res.data.channel?.id;
+      document.getElementById("whatsapp-step-name").style.display = "none";
+      document.getElementById("whatsapp-step-qr").style.display = "";
+      renderQr(res.data.qr);
+      startQrPolling();
+    } finally {
+      btnCreate.disabled = false;
+      btnCreate.textContent = "Gerar QR Code";
+    }
+  });
+
+  renderChannelsList();
+}
+
+function renderQr(qrBase64) {
+  const box = document.getElementById("wa-qr-box");
+  if (!box) return;
+  if (qrBase64) {
+    const src = qrBase64.startsWith("data:") ? qrBase64 : `data:image/png;base64,${qrBase64}`;
+    box.innerHTML = `<img src="${src}" style="width:240px; height:240px; display:block;">`;
+  } else {
+    box.innerHTML = `<span style="color:#333; font-size:13px;">Gerando QR... aguarde</span>`;
+  }
+}
+
+function startQrPolling() {
+  stopQrPolling();
+  let attempts = 0;
+  waQrPollTimer = setInterval(async () => {
+    attempts++;
+    if (!waActiveChannelId || attempts > 40) { stopQrPolling(); return; }
+    try {
+      const st = await window.ApexAPI.channels.status(waActiveChannelId);
+      const statusEl = document.getElementById("wa-qr-status");
+      if (st.success && st.data.status === "connected") {
+        stopQrPolling();
+        if (statusEl) statusEl.innerHTML = `<span style="color:#10b981; font-weight:700;">✅ WhatsApp conectado com sucesso!</span>`;
+        showToast("📱 WhatsApp conectado! Mensagens já caem no Multiatendimento.", "success");
+        setTimeout(() => { closeModal("modal-whatsapp"); renderChannelsList(); }, 1800);
+      } else if (attempts % 6 === 0) {
+        // QR expira ~40s — renova
+        const qr = await window.ApexAPI.channels.getQr(waActiveChannelId);
+        if (qr.success && qr.data.qr) renderQr(qr.data.qr);
+      }
+    } catch (e) { /* segue tentando */ }
+  }, 3000);
+}
+
+function stopQrPolling() {
+  if (waQrPollTimer) { clearInterval(waQrPollTimer); waQrPollTimer = null; }
+}
+
+async function renderChannelsList() {
+  const container = document.getElementById("channels-list");
+  if (!container) return;
+  try {
+    const res = await window.ApexAPI.channels.list();
+    if (!res.success || res.data.length === 0) {
+      container.innerHTML = `<div style="font-size:13px; color:var(--text-muted);">Nenhum canal conectado ainda. Clique em "Conectar WhatsApp" para começar.</div>`;
+      return;
+    }
+    container.innerHTML = "";
+    res.data.forEach(ch => {
+      const isConnected = ch.status === "connected";
+      const dot = isConnected ? "#10b981" : (ch.status === "connecting" ? "#f59e0b" : "#ef4444");
+      const statusLabel = isConnected ? "Conectado" : (ch.status === "connecting" ? "Aguardando QR" : "Desconectado");
+      const icon = ch.type === "instagram" ? "📸" : "💬";
+      const card = document.createElement("div");
+      card.className = "card";
+      card.style.cssText = "padding:16px 20px; display:flex; align-items:center; gap:14px;";
+      card.innerHTML = `
+        <div style="font-size:22px;">${icon}</div>
+        <div style="flex:1;">
+          <div style="font-weight:700; color:var(--text-white);">${ch.display_name || ch.instance_name}</div>
+          <div style="font-size:12px; color:var(--text-muted);">${ch.instance_name}</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; font-size:13px;">
+          <span style="width:9px; height:9px; border-radius:50%; background:${dot}; display:inline-block;"></span>
+          ${statusLabel}
+        </div>
+        <button class="btn btn-secondary btn-sm" data-act="qr" data-id="${ch.id}">QR</button>
+        <button class="btn btn-secondary btn-sm" data-act="remove" data-id="${ch.id}" style="color:#ef4444;">Excluir</button>
+      `;
+      card.querySelector('[data-act="qr"]').addEventListener("click", async () => {
+        waActiveChannelId = ch.id;
+        document.getElementById("whatsapp-step-name").style.display = "none";
+        document.getElementById("whatsapp-step-qr").style.display = "";
+        openModal("modal-whatsapp");
+        const qr = await window.ApexAPI.channels.getQr(ch.id);
+        renderQr(qr.success ? qr.data.qr : null);
+        startQrPolling();
+      });
+      card.querySelector('[data-act="remove"]').addEventListener("click", async () => {
+        if (!confirm(`Excluir o canal "${ch.display_name || ch.instance_name}"? O WhatsApp será desconectado.`)) return;
+        const r = await window.ApexAPI.channels.remove(ch.id);
+        if (r.success) { showToast("Canal removido.", "success"); renderChannelsList(); }
+        else showToast("Erro ao remover: " + (r.error || ""), "danger");
+      });
+      container.appendChild(card);
+    });
+  } catch (e) {
+    container.innerHTML = `<div style="font-size:13px; color:#ef4444;">Erro ao carregar canais: ${e.message}</div>`;
+  }
+}
+
+/* ==========================================================================
+   INBOX PRO — busca, filtros, tags, atribuição e respostas rápidas
+   ========================================================================== */
+function initInboxPro() {
+  // Busca
+  const search = document.getElementById("chat-search");
+  if (search) search.addEventListener("input", () => {
+    state.chatSearch = search.value;
+    renderChatList();
+  });
+
+  // Filtros (Todas / Minhas / Sem dono)
+  document.querySelectorAll(".chat-filter-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll(".chat-filter-chip").forEach(c => {
+        c.style.background = "transparent"; c.style.color = "var(--text-muted)";
+      });
+      chip.style.background = "var(--color-primary)"; chip.style.color = "#fff";
+      state.chatFilter = chip.dataset.filter;
+      renderChatList();
+    });
+  });
+
+  // Atribuição de atendente
+  const assignSelect = document.getElementById("chat-assign-select");
+  if (assignSelect) {
+    assignSelect.innerHTML = `<option value="">Sem atendente</option>` +
+      (state.teamMembers || []).map(m => `<option value="${m.user_id}">${m.display_name || 'Membro'}</option>`).join("");
+    assignSelect.addEventListener("change", async () => {
+      const lead = state.leads.find(l => l.id === state.activeChatLeadId);
+      if (!lead) return;
+      const r = await window.ApexAPI.inbox.assign(lead.id, assignSelect.value || null);
+      if (r.success) {
+        lead.assignedTo = assignSelect.value || null;
+        showToast(assignSelect.value ? "Conversa atribuída." : "Atribuição removida.", "success");
+        renderChatList();
+      }
+    });
+  }
+
+  // Tags
+  const tagInput = document.getElementById("chat-tag-input");
+  if (tagInput) {
+    tagInput.addEventListener("keypress", async (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      const lead = state.leads.find(l => l.id === state.activeChatLeadId);
+      const val = tagInput.value.trim().toLowerCase();
+      if (!lead || !val) return;
+      if (!(lead.tags || []).includes(val)) {
+        lead.tags = [...(lead.tags || []), val];
+        await window.ApexAPI.inbox.setTags(lead.id, lead.tags);
+        renderChatSidePanel(lead);
+        renderChatList();
+      }
+      tagInput.value = "";
+    });
+  }
+
+  // Respostas rápidas
+  const btnQR = document.getElementById("btn-quick-replies");
+  const input = document.getElementById("chat-message-input");
+  if (btnQR) btnQR.addEventListener("click", () => toggleQuickReplies());
+  if (input) input.addEventListener("input", () => {
+    if (input.value === "/") { input.value = ""; toggleQuickReplies(true); }
+  });
+}
+
+function renderChatSidePanel(lead) {
+  const assignSelect = document.getElementById("chat-assign-select");
+  if (assignSelect) assignSelect.value = lead.assignedTo || "";
+
+  const tagsBox = document.getElementById("chat-tags-container");
+  if (tagsBox) {
+    tagsBox.innerHTML = (lead.tags || []).map(t =>
+      `<span style="font-size:11px; padding:3px 9px; border-radius:10px; background:rgba(108,92,231,.2); color:#a29bfe; display:inline-flex; align-items:center; gap:5px;">${t}<b style="cursor:pointer;" data-tag="${t}">×</b></span>`
+    ).join("");
+    tagsBox.querySelectorAll("b[data-tag]").forEach(x => {
+      x.addEventListener("click", async () => {
+        lead.tags = (lead.tags || []).filter(t => t !== x.dataset.tag);
+        await window.ApexAPI.inbox.setTags(lead.id, lead.tags);
+        renderChatSidePanel(lead);
+        renderChatList();
+      });
+    });
+  }
+}
+
+async function toggleQuickReplies(forceOpen = false) {
+  const picker = document.getElementById("quick-replies-picker");
+  if (!picker) return;
+  const isOpen = picker.style.display !== "none";
+  if (isOpen && !forceOpen) { picker.style.display = "none"; return; }
+
+  picker.style.display = "";
+  picker.innerHTML = `<div style="font-size:12px; color:var(--text-muted); padding:8px;">Carregando...</div>`;
+  const res = await window.ApexAPI.quickReplies.list();
+  const items = res.success ? res.data : [];
+
+  picker.innerHTML = "";
+  items.forEach(qr => {
+    const row = document.createElement("div");
+    row.style.cssText = "padding:8px 10px; border-radius:8px; cursor:pointer; display:flex; gap:10px; align-items:center;";
+    row.onmouseenter = () => row.style.background = "var(--bg-tertiary)";
+    row.onmouseleave = () => row.style.background = "transparent";
+    row.innerHTML = `<span style="font-size:11px; font-weight:700; color:var(--color-primary); min-width:70px;">/${qr.shortcut}</span><span style="font-size:12px; color:var(--text-white); flex:1;">${qr.content.substring(0, 60)}</span><b style="color:#ef4444; cursor:pointer;" title="Excluir">×</b>`;
+    row.querySelector("b").addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await window.ApexAPI.quickReplies.remove(qr.id);
+      toggleQuickReplies(true);
+    });
+    row.addEventListener("click", () => {
+      const input = document.getElementById("chat-message-input");
+      const lead = state.leads.find(l => l.id === state.activeChatLeadId);
+      input.value = qr.content.replace(/\{nome\}/gi, lead ? lead.name.split(" ")[0] : "");
+      picker.style.display = "none";
+      input.focus();
+    });
+    picker.appendChild(row);
+  });
+
+  const addRow = document.createElement("div");
+  addRow.style.cssText = "padding:8px 10px; font-size:12px; color:var(--color-primary); cursor:pointer; border-top:1px solid var(--bg-tertiary); margin-top:4px;";
+  addRow.textContent = "+ Criar resposta rápida";
+  addRow.addEventListener("click", async () => {
+    const shortcut = prompt("Atalho (ex: boasvindas):");
+    if (!shortcut) return;
+    const content = prompt("Texto da resposta (use {nome} para personalizar):");
+    if (!content) return;
+    await window.ApexAPI.quickReplies.create(shortcut.replace(/\W/g, ""), content);
+    toggleQuickReplies(true);
+  });
+  picker.appendChild(addRow);
+}
+
+/* ==========================================================================
+   BUILDER DE AUTOMAÇÕES — gatilho → condição → ação
+   ========================================================================== */
+const TRIGGER_LABELS = {
+  new_contact: "👤 Novo contato",
+  new_message: "💬 Nova mensagem",
+  stage_change: "📊 Mudança de etapa",
+  tag_added: "🏷️ Tag adicionada",
+  inactivity: "⏰ Inatividade 24h+",
+  appointment_created: "📅 Agendamento criado",
+};
+const ACTION_LABELS = {
+  send_message: "Enviar WhatsApp",
+  add_tag: "Adicionar tag",
+  move_stage: "Mover etapa",
+  notify_team: "Notificar equipe",
+};
+
+function initAutomationBuilder() {
+  const btnNew = document.getElementById("btn-new-automation");
+  if (!btnNew) return;
+
+  btnNew.addEventListener("click", () => {
+    document.getElementById("form-automation").reset();
+    document.getElementById("automation-id").value = "";
+    document.getElementById("modal-automation-title").textContent = "Nova Automação";
+    openModal("modal-automation");
+  });
+  document.getElementById("modal-automation-close").addEventListener("click", () => closeModal("modal-automation"));
+  document.getElementById("btn-cancel-automation").addEventListener("click", () => closeModal("modal-automation"));
+
+  document.getElementById("form-automation").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const id = document.getElementById("automation-id").value;
+    const data = {
+      name: document.getElementById("automation-name").value.trim(),
+      trigger_type: document.getElementById("automation-trigger").value,
+      conditions: { raw: document.getElementById("automation-condition").value.trim() || null },
+      actions: [{
+        type: document.getElementById("automation-action").value,
+        value: document.getElementById("automation-action-value").value.trim(),
+      }],
+      is_active: true,
+    };
+    const res = id
+      ? await window.ApexAPI.automationsBuilder.update(id, data)
+      : await window.ApexAPI.automationsBuilder.create(data);
+    if (res.success) {
+      showToast("Automação salva! ⚡", "success");
+      closeModal("modal-automation");
+      renderAutomationsList();
+    } else {
+      showToast("Erro ao salvar automação.", "danger");
+    }
+  });
+
+  renderAutomationsList();
+}
+
+async function renderAutomationsList() {
+  const container = document.getElementById("automations-list");
+  if (!container) return;
+  const res = await window.ApexAPI.automationsBuilder.list();
+  const items = res.success ? res.data : [];
+
+  if (items.length === 0) {
+    container.innerHTML = `<div style="font-size:13px; color:var(--text-muted);">Nenhuma automação ainda. Crie a primeira — ex: enviar boas-vindas quando um novo contato chegar.</div>`;
+    return;
+  }
+
+  container.innerHTML = "";
+  items.forEach(a => {
+    const action = (a.actions && a.actions[0]) || {};
+    const row = document.createElement("div");
+    row.className = "card";
+    row.style.cssText = "padding:14px 18px; display:flex; align-items:center; gap:14px; background:var(--bg-tertiary);";
+    row.innerHTML = `
+      <label style="position:relative; display:inline-block; width:36px; height:20px; flex-shrink:0;">
+        <input type="checkbox" ${a.is_active ? "checked" : ""} style="opacity:0; width:0; height:0;">
+        <span style="position:absolute; inset:0; border-radius:20px; background:${a.is_active ? "var(--color-primary)" : "#444"}; transition:.2s;"></span>
+        <span style="position:absolute; top:2px; left:${a.is_active ? "18px" : "2px"}; width:16px; height:16px; border-radius:50%; background:#fff; transition:.2s;"></span>
+      </label>
+      <div style="flex:1;">
+        <div style="font-weight:700; color:var(--text-white); font-size:14px;">${a.name}</div>
+        <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">
+          ${TRIGGER_LABELS[a.trigger_type] || a.trigger_type} → ${ACTION_LABELS[action.type] || action.type || "?"}
+          ${action.value ? `: "${String(action.value).substring(0, 50)}..."` : ""}
+        </div>
+      </div>
+      <span style="font-size:11px; color:var(--text-muted);">${a.runs_count || 0} execuções</span>
+      <button class="btn btn-secondary btn-sm" data-act="del" style="color:#ef4444;">Excluir</button>
+    `;
+    row.querySelector("input[type=checkbox]").addEventListener("change", async (e) => {
+      await window.ApexAPI.automationsBuilder.update(a.id, { is_active: e.target.checked });
+      renderAutomationsList();
+    });
+    row.querySelector('[data-act="del"]').addEventListener("click", async () => {
+      if (!confirm(`Excluir a automação "${a.name}"?`)) return;
+      await window.ApexAPI.automationsBuilder.remove(a.id);
+      renderAutomationsList();
+    });
+    container.appendChild(row);
+  });
+}
