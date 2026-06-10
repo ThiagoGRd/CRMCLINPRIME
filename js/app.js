@@ -19,23 +19,24 @@ let state = {
   }
 };
 
-// Mapeamentos de Estágios: HTML Kanban <=> IDs do Banco de Dados
+// Mapeamentos de Estágios: HTML Kanban <=> IDs do Banco de Dados (crm_pipeline_stages)
 const STAGE_MAP = {
-  'lead': '9cc16adf-3c10-491a-95a3-697bfeaff056',        // Pré-Avaliação
-  'contacted': '8570e7f9-90d1-4bc2-b703-00c2517fb310',   // Consulta Agendada
-  'proposal': 'e7ba0e1d-fa8c-4154-8e0e-235bfc4ed11d',    // Avaliação Realizada
-  'negotiating': 'b15655e9-f800-48af-be45-26bf6ed3c6b1', // Orçamento Enviado
-  'won': 'ac959a7f-a337-4a78-8c1a-f18edb24be4a',         // Tratamento Iniciado
-  'concluded': 'cf96c3c6-02fc-425c-9b0a-cfb50aaf4f01'     // Concluído
+  'lead':        '2e1ca1e7-8451-4a09-930f-58c7049e369e', // Novo Lead
+  'contacted':   '1d429739-bddd-4787-9bc4-524ea8c160c8', // Contato Feito
+  'proposal':    '4ce6fd78-c73d-4305-85b5-affc7f09774b', // Avaliação Agendada
+  'negotiating': '8a56e933-8c13-45d1-851b-a7c248ce36f4', // Avaliação Realizada
+  'won':         'ed689051-b283-4e85-87d1-6466aeeefdef',  // Orçamento Enviado
+  'concluded':   '67db7da0-e10f-4c4e-b3f0-ffac10c4b608'  // Tratamento Iniciado
 };
 
 const STAGE_REV_MAP = {
-  '9cc16adf-3c10-491a-95a3-697bfeaff056': 'lead',
-  '8570e7f9-90d1-4bc2-b703-00c2517fb310': 'contacted',
-  'e7ba0e1d-fa8c-4154-8e0e-235bfc4ed11d': 'proposal',
-  'b15655e9-f800-48af-be45-26bf6ed3c6b1': 'negotiating',
-  'ac959a7f-a337-4a78-8c1a-f18edb24be4a': 'won',
-  'cf96c3c6-02fc-425c-9b0a-cfb50aaf4f01': 'concluded'
+  '2e1ca1e7-8451-4a09-930f-58c7049e369e': 'lead',
+  '1d429739-bddd-4787-9bc4-524ea8c160c8': 'contacted',
+  '4ce6fd78-c73d-4305-85b5-affc7f09774b': 'proposal',
+  '8a56e933-8c13-45d1-851b-a7c248ce36f4': 'negotiating',
+  'ed689051-b283-4e85-87d1-6466aeeefdef': 'won',
+  '67db7da0-e10f-4c4e-b3f0-ffac10c4b608': 'concluded',
+  '68f1a9bb-e5cc-428e-8065-d3db8bbb2548': 'concluded'  // Concluído → mesmo bucket
 };
 
 // Inicialização da Aplicação
