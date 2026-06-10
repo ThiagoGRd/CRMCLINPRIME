@@ -1,0 +1,80 @@
+{
+  "name": "Apex Odonto - Novo Lead Boas-Vindas",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "novo-lead",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-novo-lead",
+      "name": "Webhook Novo Lead",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.evolution.url }}/message/sendText/{{ $json.evolution.instance }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $json.evolution.key }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $json.patient.phone }}"
+            },
+            {
+              "name": "text",
+              "value": "Olá {{ $json.patient.name }}! 😊\n\nBem-vindo(a) à nossa clínica odontológica! 🦷\n\nRecebemos seu interesse em {{ $json.patient.treatment_interest || 'nossos serviços' }}.\n\nEm breve nossa equipe entrará em contato para agendar sua avaliação sem compromisso.\n\nQualquer dúvida, estamos aqui! 💬"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "enviar-whatsapp-boas-vindas",
+      "name": "Enviar WhatsApp Boas-Vindas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Boas-vindas enviada' }) }}"
+      },
+      "id": "responder-webhook",
+      "name": "Responder Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [750, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Novo Lead": {
+      "main": [
+        [{ "node": "Enviar WhatsApp Boas-Vindas", "type": "main", "index": 0 }]
+      ]
+    },
+    "Enviar WhatsApp Boas-Vindas": {
+      "main": [
+        [{ "node": "Responder Webhook", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{ "name": "Apex Odonto CRM" }]
+}

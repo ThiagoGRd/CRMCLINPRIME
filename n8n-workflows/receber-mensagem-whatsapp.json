@@ -1,0 +1,310 @@
+{
+  "name": "Apex Odonto - Receber Mensagem WhatsApp (Evolution API -> CRM)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "receber-whatsapp",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-evolution-inbound",
+      "name": "Webhook Evolution Inbound",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.data.key.fromMe }}",
+              "value2": true
+            }
+          ],
+          "string": [
+            {
+              "value1": "={{ $json.event }}",
+              "value2": "messages.upsert"
+            }
+          ]
+        }
+      },
+      "id": "verificar-inbound-valido",
+      "name": "Filtrar Inbound (Mensagem do Paciente)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [320, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "phone",
+              "value": "={{ $json.data.key.remoteJid.split('@')[0] }}"
+            },
+            {
+              "name": "name",
+              "value": "={{ $json.data.pushName || 'Novo Paciente' }}"
+            },
+            {
+              "name": "content",
+              "value": "={{ $json.data.message.conversation || $json.data.message.extendedTextMessage?.text || $json.data.message.imageMessage?.caption || 'Mensagem de Mídia/Outros' }}"
+            },
+            {
+              "name": "whatsapp_message_id",
+              "value": "={{ $json.data.key.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "normalizar-campos",
+      "name": "Normalizar Dados",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [540, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://ywepsusvdibltpmeyrwj.supabase.co/rest/v1/patients?phone=eq.{{ $json.phone }}&select=id",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sua_chave_anon_aqui"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sua_chave_anon_aqui"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "buscar-paciente-supabase",
+      "name": "Buscar Paciente no CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [760, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.length }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "paciente-existe",
+      "name": "Paciente Existe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [980, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "patient_id",
+              "value": "={{ $json[0].id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "definir-id-paciente-existente",
+      "name": "Usar ID Existente",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1200, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ywepsusvdibltpmeyrwj.supabase.co/rest/v1/patients",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sua_chave_anon_aqui"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sua_chave_anon_aqui"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: $('Normalizar Dados').item.json.name, phone: $('Normalizar Dados').item.json.phone, source: 'whatsapp' }) }}",
+        "options": {}
+      },
+      "id": "criar-paciente-supabase",
+      "name": "Criar Novo Paciente",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ywepsusvdibltpmeyrwj.supabase.co/rest/v1/deals",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sua_chave_anon_aqui"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sua_chave_anon_aqui"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ patient_id: $json[0].id, stage_id: '9cc16adf-3c10-491a-95a3-697bfeaff056' }) }}",
+        "options": {}
+      },
+      "id": "criar-oportunidade-deal",
+      "name": "Criar Oportunidade no Funil",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1420, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "patient_id",
+              "value": "={{ $('Criar Novo Paciente').item.json[0].id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "definir-id-paciente-novo",
+      "name": "Usar ID Novo",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1640, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ywepsusvdibltpmeyrwj.supabase.co/rest/v1/messages",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sua_chave_anon_aqui"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer sua_chave_anon_aqui"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ patient_id: $json.patient_id, direction: 'inbound', content: $('Normalizar Dados').item.json.content, whatsapp_message_id: $('Normalizar Dados').item.json.whatsapp_message_id, status: 'delivered' }) }}",
+        "options": {}
+      },
+      "id": "salvar-mensagem-supabase",
+      "name": "Salvar Mensagem no CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1880, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Mensagem recebida e gravada no CRM Supabase' }) }}"
+      },
+      "id": "responder-webhook-sucesso",
+      "name": "Responder Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2100, 200]
+    }
+  ],
+  "connections": {
+    "Webhook Evolution Inbound": {
+      "main": [
+        [{ "node": "Filtrar Inbound (Mensagem do Paciente)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Filtrar Inbound (Mensagem do Paciente)": {
+      "main": [
+        [{ "node": "Normalizar Dados", "type": "main", "index": 0 }]
+      ]
+    },
+    "Normalizar Dados": {
+      "main": [
+        [{ "node": "Buscar Paciente no CRM", "type": "main", "index": 0 }]
+      ]
+    },
+    "Buscar Paciente no CRM": {
+      "main": [
+        [{ "node": "Paciente Existe?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Paciente Existe?": {
+      "main": [
+        [{ "node": "Usar ID Existente", "type": "main", "index": 0 }],
+        [{ "node": "Criar Novo Paciente", "type": "main", "index": 0 }]
+      ]
+    },
+    "Usar ID Existente": {
+      "main": [
+        [{ "node": "Salvar Mensagem no CRM", "type": "main", "index": 0 }]
+      ]
+    },
+    "Criar Novo Paciente": {
+      "main": [
+        [{ "node": "Criar Oportunidade no Funil", "type": "main", "index": 0 }]
+      ]
+    },
+    "Criar Oportunidade no Funil": {
+      "main": [
+        [{ "node": "Usar ID Novo", "type": "main", "index": 0 }]
+      ]
+    },
+    "Usar ID Novo": {
+      "main": [
+        [{ "node": "Salvar Mensagem no CRM", "type": "main", "index": 0 }]
+      ]
+    },
+    "Salvar Mensagem no CRM": {
+      "main": [
+        [{ "node": "Responder Sucesso", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{ "name": "Apex Odonto CRM" }]
+}

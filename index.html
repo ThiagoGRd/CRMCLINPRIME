@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apex Odonto CRM | CRM Inteligente para Clínicas Odontológicas</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Chart.js para os gráficos do Dashboard -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <div class="app-wrapper">
+    
+    <!-- Sidebar de Navegação -->
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="logo-container">
+          <div class="logo-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+            </svg>
+          </div>
+          <span class="logo-text">Apex Odonto</span>
+        </div>
+        
+        <nav class="sidebar-nav">
+          <div class="nav-item active" data-panel="dashboard">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 14.25v2.25m3-4.5v4.5m3-6.75v6.75m3-9v9M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" />
+            </svg>
+            Dashboard Clínico
+          </div>
+          <div class="nav-item" data-panel="pipeline">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5v15m6-15v15m-12-3h18m-18-6h18m-18-6h18" />
+            </svg>
+            Funil de Tratamentos
+          </div>
+          <div class="nav-item" data-panel="contacts">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+            </svg>
+            Pacientes (Leads)
+          </div>
+          <div class="nav-divider"></div>
+          <div class="nav-item" data-panel="chat">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+            </svg>
+            Multiatendimento
+          </div>
+          <div class="nav-item" data-panel="automation">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.097-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+            </svg>
+            n8n Automations
+          </div>
+          <div class="nav-item" data-panel="calendar">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75" />
+            </svg>
+            Agenda Clínica
+          </div>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="user-avatar">DR</div>
+        <div class="user-info">
+          <span class="user-name">Dr. Henrique</span>
+          <span class="user-role">Clínico Geral / Diretor</span>
+        </div>
+        <div id="whatsapp-status-indicator" class="status-dot offline" title="WhatsApp: Verificando..." style="width:10px;height:10px;border-radius:50%;background:#ef4444;margin-left:auto;flex-shrink:0;"></div>
+      </div>
+    </aside>
+
+    <!-- Conteúdo Principal -->
+    <main class="main-content">
+      
+      <!-- Header do App -->
+      <header class="main-header">
+        <div class="header-title-container">
+          <h1 id="header-active-title">Dashboard Clínico</h1>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" id="btn-quick-automation">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 16px; height: 16px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.61 3.75a14.98 14.98 0 00-6.16 12.12A14.98 14.98 0 009.61 19.5m5.98-5.13l-.01-.01m0 0L21 9m-5.4 5.37L9 21" />
+            </svg>
+            Simular Lead Ads
+          </button>
+          <button class="btn btn-primary" id="btn-add-lead-header">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 16px; height: 16px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Cadastrar Paciente
+          </button>
+        </div>
+      </header>
+
+      <!-- Painel 1: Dashboard -->
+      <section class="content-panel active" id="panel-dashboard">
+        <!-- Grid de KPIs -->
+        <div class="metrics-grid">
+          <div class="card metric-card">
+            <div class="metric-header">
+              <span>Tratamentos Contratados</span>
+              <div class="metric-icon-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 18px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <div class="metric-value" id="kpi-revenue">R$ 0,00</div>
+            <div class="metric-change positive">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 12px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
+              </svg>
+              <span>+22.4% este mês</span>
+            </div>
+          </div>
+          <div class="card metric-card">
+            <div class="metric-header">
+              <span>Pacientes Ativos</span>
+              <div class="metric-icon-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 18px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.097-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                </svg>
+              </div>
+            </div>
+            <div class="metric-value" id="kpi-leads">0</div>
+            <div class="metric-change positive">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 12px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
+              </svg>
+              <span>+6 triagens esta semana</span>
+            </div>
+          </div>
+          <div class="card metric-card">
+            <div class="metric-header">
+              <span>Conversão Orçamentos</span>
+              <div class="metric-icon-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 18px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <div class="metric-value" id="kpi-conversion">0.0%</div>
+            <div class="metric-change positive">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 12px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
+              </svg>
+              <span>+3.4% comparecimento</span>
+            </div>
+          </div>
+          <div class="card metric-card">
+            <div class="metric-header">
+              <span>Ticket do Tratamento</span>
+              <div class="metric-icon-wrapper">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 18px;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
+                </svg>
+              </div>
+            </div>
+            <div class="metric-value" id="kpi-ticket">R$ 0,00</div>
+            <div class="metric-change positive">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 12px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" />
+              </svg>
+              <span>+5.6% Implantes/Invisalign</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gráficos e Atividades -->
+        <div class="charts-grid">
+          <div class="card chart-card">
+            <div class="chart-header">
+              <span class="chart-title">Desempenho Comercial Clínico</span>
+              <span class="chart-subtitle">Faturamento e planos de tratamento contratados</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="salesChart"></canvas>
+            </div>
+          </div>
+          
+          <div class="card chart-card">
+            <div class="chart-header">
+              <span class="chart-title">Eventos Recentes</span>
+              <span class="chart-subtitle">Ações recentes de triagem e agenda</span>
+            </div>
+            <div class="activity-list" id="recent-activity-list">
+              <!-- Inserido dinamicamente via JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Painel 2: Funil de Tratamentos -->
+      <section class="content-panel" id="panel-pipeline">
+        <div class="kanban-board" id="kanban-board">
+          <!-- Coluna 1: Pré-Avaliação -->
+          <div class="kanban-column" data-stage="lead">
+            <div class="column-header">
+              <span class="column-title"><span class="badge badge-primary">●</span> Pré-Avaliação</span>
+              <span class="column-count" id="count-lead">0</span>
+            </div>
+            <span class="column-value" id="value-lead">R$ 0</span>
+            <div class="nav-divider" style="margin: 8px 0;"></div>
+            <div class="column-cards-wrapper" id="cards-lead" ondragover="allowDrop(event)" ondrop="drop(event, 'lead')">
+              <!-- Cards inseridos dinamicamente -->
+            </div>
+          </div>
+
+          <!-- Coluna 2: Consulta Agendada -->
+          <div class="kanban-column" data-stage="contacted">
+            <div class="column-header">
+              <span class="column-title"><span class="badge badge-warning">●</span> Consulta Agendada</span>
+              <span class="column-count" id="count-contacted">0</span>
+            </div>
+            <span class="column-value" id="value-contacted">R$ 0</span>
+            <div class="nav-divider" style="margin: 8px 0;"></div>
+            <div class="column-cards-wrapper" id="cards-contacted" ondragover="allowDrop(event)" ondrop="drop(event, 'contacted')">
+              <!-- Cards inseridos dinamicamente -->
+            </div>
+          </div>
+
+          <!-- Coluna 3: Avaliação Realizada -->
+          <div class="kanban-column" data-stage="proposal">
+            <div class="column-header">
+              <span class="column-title"><span class="badge badge-primary">●</span> Avaliação Realizada</span>
+              <span class="column-count" id="count-proposal">0</span>
+            </div>
+            <span class="column-value" id="value-proposal">R$ 0</span>
+            <div class="nav-divider" style="margin: 8px 0;"></div>
+            <div class="column-cards-wrapper" id="cards-proposal" ondragover="allowDrop(event)" ondrop="drop(event, 'proposal')">
+              <!-- Cards inseridos dinamicamente -->
+            </div>
+          </div>
+
+          <!-- Coluna 4: Orçamento Enviado -->
+          <div class="kanban-column" data-stage="negotiating">
+            <div class="column-header">
+              <span class="column-title"><span class="badge badge-warning">●</span> Orçamento Enviado</span>
+              <span class="column-count" id="count-negotiating">0</span>
+            </div>
+            <span class="column-value" id="value-negotiating">R$ 0</span>
+            <div class="nav-divider" style="margin: 8px 0;"></div>
+            <div class="column-cards-wrapper" id="cards-negotiating" ondragover="allowDrop(event)" ondrop="drop(event, 'negotiating')">
+              <!-- Cards inseridos dinamicamente -->
+            </div>
+          </div>
+
+          <!-- Coluna 5: Tratamento Iniciado -->
+          <div class="kanban-column" data-stage="won">
+            <div class="column-header">
+              <span class="column-title"><span class="badge badge-success">●</span> Tratamento Iniciado</span>
+              <span class="column-count" id="count-won">0</span>
+            </div>
+            <span class="column-value" id="value-won">R$ 0</span>
+            <div class="nav-divider" style="margin: 8px 0;"></div>
+            <div class="column-cards-wrapper" id="cards-won" ondragover="allowDrop(event)" ondrop="drop(event, 'won')">
+              <!-- Cards inseridos dinamicamente -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Painel 3: Contatos -->
+      <section class="content-panel" id="panel-contacts">
+        <div class="card">
+          <div class="table-actions">
+            <div class="search-input-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 18px; height: 18px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+              <input type="text" class="form-control search-input" id="search-leads" placeholder="Buscar paciente por nome, email ou telefone...">
+            </div>
+            <select class="form-control" style="width: 220px;" id="filter-stage">
+              <option value="all">Todas as etapas do tratamento</option>
+              <option value="lead">Pré-Avaliação</option>
+              <option value="contacted">Consulta Agendada</option>
+              <option value="proposal">Avaliação Realizada</option>
+              <option value="negotiating">Orçamento Enviado</option>
+              <option value="won">Tratamento Iniciado</option>
+            </select>
+          </div>
+
+          <div class="leads-table-container">
+            <table class="leads-table">
+              <thead>
+                <tr>
+                  <th>Paciente</th>
+                  <th>E-mail</th>
+                  <th>Telefone</th>
+                  <th>Plano de Tratamento</th>
+                  <th>Etapa Clínica</th>
+                  <th>Origem/Ads</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="leads-table-body">
+                <!-- Preenchido via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Painel 4: Multiatendimento (Chat) -->
+      <section class="content-panel" id="panel-chat">
+        <div class="chat-layout">
+          <!-- Esquerda: Lista de Conversas -->
+          <div class="chat-panel-left">
+            <div class="channel-selector">
+              <div class="channel-tab active" data-channel="whatsapp">WhatsApp</div>
+              <div class="channel-tab" data-channel="instagram">Instagram</div>
+              <div class="channel-tab" data-channel="email">E-mail</div>
+            </div>
+            <div class="chat-list" id="chat-list-container">
+              <!-- Conversas inseridas dinamicamente -->
+            </div>
+          </div>
+
+          <!-- Centro: Conversa Ativa -->
+          <div class="chat-panel-center">
+            <div class="chat-header-active">
+              <div class="chat-user-profile" id="chat-active-profile">
+                <div class="chat-user-avatar">?</div>
+                <div>
+                  <div class="chat-user-name">Selecione uma conversa</div>
+                  <div class="chat-user-status">Canais de Atendimento</div>
+                </div>
+              </div>
+              <div>
+                <button class="btn btn-secondary btn-sm" id="btn-chat-schedule">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 14px; height: 14px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25" />
+                  </svg>
+                  Agendar Consulta
+                </button>
+              </div>
+            </div>
+
+            <!-- Histórico de Mensagens -->
+            <div class="chat-history" id="chat-messages-container">
+              <div style="margin: auto; text-align: center; color: var(--text-muted); font-size: 13px;">
+                Selecione um paciente ao lado para gerenciar as comunicações e confirmar agendamentos.
+              </div>
+            </div>
+
+            <!-- Entrada de Texto -->
+            <div class="chat-input-area">
+              <div class="chat-input-wrapper">
+                <div class="chat-input-controls">
+                  <input type="text" class="form-control chat-input" id="chat-message-input" placeholder="Digite uma mensagem para o paciente ou use scripts rápidos...">
+                </div>
+                <button class="btn btn-primary" id="btn-send-message">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 16px; height: 16px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Direita: Informações do Paciente -->
+          <div class="chat-panel-right">
+            <div>
+              <div class="right-section-title">Paciente Clínico</div>
+              <div class="card" style="padding: 16px; background-color: var(--bg-tertiary);">
+                <div class="meta-info-item">
+                  <span class="meta-info-label">E-mail:</span>
+                  <span class="meta-info-val" id="chat-meta-email">-</span>
+                </div>
+                <div class="meta-info-item">
+                  <span class="meta-info-label">WhatsApp:</span>
+                  <span class="meta-info-val" id="chat-meta-phone">-</span>
+                </div>
+                <div class="meta-info-item">
+                  <span class="meta-info-label">Orçamento:</span>
+                  <span class="meta-info-val" id="chat-meta-value">-</span>
+                </div>
+                <div class="meta-info-item">
+                  <span class="meta-info-label">Fase Clínica:</span>
+                  <span class="meta-info-val" id="chat-meta-stage">-</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div class="right-section-title">Confirmações n8n & IA</div>
+              <div class="card" style="padding: 16px; background-color: var(--bg-tertiary);">
+                <div style="font-size: 13px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                  <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background-color:var(--color-success)"></span>
+                  Agente n8n Rodando
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px;">
+                  Qualificador e Assistente IA de Agendamento integrados via fluxos webhook do n8n.
+                </p>
+                <button class="btn btn-ai btn-sm" style="width: 100%; justify-content: center;" id="btn-generate-script">
+                  Script de Confirmação IA
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Painel 5: n8n Automations -->
+      <section class="content-panel" id="panel-automation">
+        <div style="display: grid; grid-template-rows: auto auto; gap: 32px;">
+          
+          <!-- Primeira Linha: n8n Flow Builder e Terminal de Logs -->
+          <div style="display: grid; grid-template-columns: 1fr 320px; gap: 24px; height: 500px;">
+            
+            <!-- Editor Visual do n8n -->
+            <div class="flow-builder-container" style="height: 100%;">
+              <div class="flow-builder-header">
+                <div>
+                  <h2 style="font-family: var(--font-heading); font-size: 18px; font-weight: 700; display:flex; align-items:center; gap:8px;">
+                    <span style="color: #FF6C37;">n8n</span> Workflow: Captura & Confirmação de Consultas
+                  </h2>
+                  <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Gatilhos automáticos integrados via webhook com IA e WhatsApp</p>
+                </div>
+                <button class="btn btn-primary" id="btn-test-flow" style="background-color:#FF6C37; box-shadow:0 4px 14px rgba(255,108,55,0.3)">
+                  Disparar Teste n8n
+                </button>
+              </div>
+              
+              <div class="flow-canvas" id="flow-canvas-container" style="padding: 24px 40px;">
+                <!-- Gatilho Webhook -->
+                <div class="flow-node" id="node-webhook">
+                  <div class="flow-node-icon flow-node-trigger" style="background-color: rgba(255, 108, 55, 0.1); color: #FF6C37;">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 20px;">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-.778.099-1.533.284-2.253" />
+                    </svg>
+                  </div>
+                  <div class="flow-node-details">
+                    <div class="flow-node-type" style="color: #FF6C37;">Webhook Trigger</div>
+                    <div class="flow-node-title">Novo Cadastro (Facebook Ads)</div>
+                  </div>
+                </div>
+
+                <!-- n8n AI Agent -->
+                <div class="flow-node" id="node-ai">
+                  <div class="flow-node-icon flow-node-delay" style="background-color: rgba(139, 92, 246, 0.1); color: var(--color-accent-purple);">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 20px;">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 21l8.904-4.096L21 12l-8.904-4.096L9 3l.813 5.096L3 12l6.813 3.904z" />
+                    </svg>
+                  </div>
+                  <div class="flow-node-details">
+                    <div class="flow-node-type" style="color: var(--color-accent-purple);">AI Triador</div>
+                    <div class="flow-node-title">Identificar Intenção Clínic.</div>
+                  </div>
+                </div>
+
+                <!-- CRM Node -->
+                <div class="flow-node" id="node-crm">
+                  <div class="flow-node-icon flow-node-action" style="background-color: rgba(16, 185, 129, 0.1); color: var(--color-success);">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 20px;">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-9-4.5h10.5a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25H4.5A2.25 2.25 0 012.25 18V6a2.25 2.25 0 012.25-2.25z" />
+                  </svg>
+                  </div>
+                  <div class="flow-node-details">
+                    <div class="flow-node-type" style="color: var(--color-success);">CRM Integration</div>
+                    <div class="flow-node-title">Criar Ficha Paciente</div>
+                  </div>
+                </div>
+
+                <!-- WhatsApp API -->
+                <div class="flow-node" id="node-whatsapp">
+                  <div class="flow-node-icon flow-node-action" style="background-color: rgba(99, 102, 241, 0.1); color: var(--color-primary);">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 20px;">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                    </svg>
+                  </div>
+                  <div class="flow-node-details">
+                    <div class="flow-node-type" style="color: var(--color-primary);">Evolution API</div>
+                    <div class="flow-node-title">WhatsApp de Agendamento</div>
+                  </div>
+                </div>
+
+                <!-- Google Calendar -->
+                <div class="flow-node" id="node-calendar">
+                  <div class="flow-node-icon flow-node-delay" style="background-color: rgba(245, 158, 11, 0.1); color: var(--color-warning);">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 20px;">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25" />
+                    </svg>
+                  </div>
+                  <div class="flow-node-details">
+                    <div class="flow-node-type" style="color: var(--color-warning);">Google Calendar</div>
+                    <div class="flow-node-title">Reservar Horário Agenda</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Lado Direito: Consola de Execuções e Carga JSON (n8n logs) -->
+            <div style="display:flex; flex-direction:column; gap:20px; height:100%;">
+              <div class="right-section-title">Console de Execução n8n</div>
+              
+              <div class="card" style="flex-grow:1; display:flex; flex-direction:column; padding:16px; background-color:#0d0e15; font-family:'Courier New', Courier, monospace; overflow:hidden;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1a1c2a; padding-bottom:10px; margin-bottom:10px;">
+                  <span style="color:#00ff66; font-size:12px; font-weight:bold;">EXECUTION ID: #82194</span>
+                  <span class="badge badge-success" id="n8n-exec-status" style="font-size:10px; padding:2px 6px;">COMPLETO</span>
+                </div>
+                
+                <!-- Console Output -->
+                <div id="n8n-console-logs" style="flex-grow:1; overflow-y:auto; font-size:11px; color:#c5c8d4; line-height:1.5; white-space:pre-wrap;">
+  Clique em "Disparar Teste n8n" para iniciar a simulação e verificar a carga de dados transitando entre os nós da clínica...
+                </div>
+              </div>
+            </div>
+
+          </div>
+          
+          <!-- Segunda Linha: Automações do Funil Comercial (Estilo Bento Grid com os Gatilhos) -->
+          <div class="card" style="padding: 32px;">
+            <div style="margin-bottom: 24px;">
+              <h2 style="font-family: var(--font-heading); font-size: 20px; font-weight: 700; color:var(--text-white);">Automações que Vendem por Você</h2>
+              <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Configure ações automáticas no seu pipeline. O sistema dispara mensagens, notifica sua equipe e move negócios automaticamente.</p>
+            </div>
+            
+            <!-- Grid de Regras de Automação -->
+            <div class="automation-rules-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 24px;">
+              
+              <!-- Regra 1: Negócio avançou de etapa -->
+              <div class="card rule-setup-card" style="background-color: var(--bg-tertiary); padding: 20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                  <span class="badge badge-success" style="font-size:10px;">Gatilho Ativo</span>
+                  <label class="switch-toggle">
+                    <input type="checkbox" id="rule-toggle-stage" checked>
+                    <span class="slider-round"></span>
+                  </label>
+                </div>
+                <div style="font-weight: 600; font-size: 14px; color: var(--text-white); margin-bottom: 4px;">Negócio avançou de etapa</div>
+                <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 16px;">Quando um paciente é movido para uma nova coluna no Kanban.</p>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label style="font-size:11px;">Ação a Executar</label>
+                  <select class="form-control" id="rule-action-stage" style="padding:8px 12px; font-size:12px; background-color:var(--bg-primary);">
+                    <option value="none">Nenhuma Ação</option>
+                    <option value="whatsapp" selected>Enviar WhatsApp via n8n</option>
+                    <option value="email">Enviar E-mail Clínico</option>
+                    <option value="tag">Adicionar Tag 'Alta Prioridade'</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Regra 2: Lead parado há muitos dias -->
+              <div class="card rule-setup-card" style="background-color: var(--bg-tertiary); padding: 20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                  <span class="badge badge-success" style="font-size:10px;">Gatilho Ativo</span>
+                  <label class="switch-toggle">
+                    <input type="checkbox" id="rule-toggle-stale" checked>
+                    <span class="slider-round"></span>
+                  </label>
+                </div>
+                <div style="font-weight: 600; font-size: 14px; color: var(--text-white); margin-bottom: 4px;">Lead parado há muitos dias</div>
+                <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 16px;">Quando o paciente passa mais de 3 dias sem enviar mensagens.</p>
+                <div style="display:flex; gap:10px; align-items:flex-end;">
+                  <div class="form-group" style="margin-bottom:0; flex-grow:1;">
+                    <label style="font-size:11px;">Ação a Executar</label>
+                    <select class="form-control" id="rule-action-stale" style="padding:8px 12px; font-size:12px; background-color:var(--bg-primary);">
+                      <option value="none">Nenhuma Ação</option>
+                      <option value="whatsapp_reengage" selected>WhatsApp de Reengajamento</option>
+                      <option value="move_lost">Mover para Perdido</option>
+                    </select>
+                  </div>
+                  <button class="btn btn-secondary" id="btn-simulate-stale" style="padding:8px 12px; font-size:12px; height:34px;">Simular</button>
+                </div>
+              </div>
+
+              <!-- Regra 3: Novo negócio criado -->
+              <div class="card rule-setup-card" style="background-color: var(--bg-tertiary); padding: 20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                  <span class="badge badge-success" style="font-size:10px;">Gatilho Ativo</span>
+                  <label class="switch-toggle">
+                    <input type="checkbox" id="rule-toggle-created" checked>
+                    <span class="slider-round"></span>
+                  </label>
+                </div>
+                <div style="font-weight: 600; font-size: 14px; color: var(--text-white); margin-bottom: 4px;">Novo negócio criado</div>
+                <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 16px;">Quando um novo paciente é cadastrado no CRM ou captado.</p>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label style="font-size:11px;">Ação a Executar</label>
+                  <select class="form-control" id="rule-action-created" style="padding:8px 12px; font-size:12px; background-color:var(--bg-primary);">
+                    <option value="none">Nenhuma Ação</option>
+                    <option value="whatsapp_welcome" selected>Enviar Mensagem de Boas-vindas</option>
+                    <option value="notify">Notificar Equipe de Recepção</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Regra 4: Valor alterado -->
+              <div class="card rule-setup-card" style="background-color: var(--bg-tertiary); padding: 20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                  <span class="badge badge-success" style="font-size:10px;">Gatilho Ativo</span>
+                  <label class="switch-toggle">
+                    <input type="checkbox" id="rule-toggle-value" checked>
+                    <span class="slider-round"></span>
+                  </label>
+                </div>
+                <div style="font-weight: 600; font-size: 14px; color: var(--text-white); margin-bottom: 4px;">Valor alterado</div>
+                <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 16px;">Quando o valor estimado do plano de tratamento é atualizado.</p>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label style="font-size:11px;">Ação a Executar</label>
+                  <select class="form-control" id="rule-action-value" style="padding:8px 12px; font-size:12px; background-color:var(--bg-primary);">
+                    <option value="none">Nenhuma Ação</option>
+                    <option value="notify_director" selected>Alertar Diretor Clínico</option>
+                    <option value="n8n_log">Registrar no n8n Audit</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Regra 5: Tarefa concluída -->
+              <div class="card rule-setup-card" style="background-color: var(--bg-tertiary); padding: 20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                  <span class="badge badge-success" style="font-size:10px;">Gatilho Ativo</span>
+                  <label class="switch-toggle">
+                    <input type="checkbox" id="rule-toggle-task" checked>
+                    <span class="slider-round"></span>
+                  </label>
+                </div>
+                <div style="font-weight: 600; font-size: 14px; color: var(--text-white); margin-bottom: 4px;">Tarefa concluída</div>
+                <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 16px;">Quando uma consulta é concluída/salva na agenda da clínica.</p>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label style="font-size:11px;">Ação a Executar</label>
+                  <select class="form-control" id="rule-action-task" style="padding:8px 12px; font-size:12px; background-color:var(--bg-primary);">
+                    <option value="none">Nenhuma Ação</option>
+                    <option value="promote_lead" selected>Avançar Paciente no Funil</option>
+                    <option value="request_review">Enviar WhatsApp solicitando Review</option>
+                  </select>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Configurações Globais das APIs (n8n e Evolution) -->
+          <div class="card" style="padding: 32px; margin-top: 24px;">
+            <div style="margin-bottom: 24px;">
+              <h2 style="font-family: var(--font-heading); font-size: 20px; font-weight: 700; color:var(--text-white);">Configuração das Integrações</h2>
+              <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Preencha com a URL do seu servidor n8n e chaves da Evolution API para que as automações e mensagens rodem integradas online.</p>
+            </div>
+            
+            <form id="form-api-config" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+              <div class="form-group">
+                <label style="font-size:12px; color:var(--text-white);">URL de Webhook do n8n</label>
+                <input type="text" id="config-n8n-url" class="form-control" style="background-color:var(--bg-primary); padding: 8px 12px; font-size: 13px;" placeholder="Ex: https://n8n.seu-servidor.com/webhook">
+              </div>
+              <div class="form-group">
+                <label style="font-size:12px; color:var(--text-white);">URL da Evolution API</label>
+                <input type="text" id="config-evolution-url" class="form-control" style="background-color:var(--bg-primary); padding: 8px 12px; font-size: 13px;" placeholder="Ex: https://api.seu-servidor.com">
+              </div>
+              <div class="form-group">
+                <label style="font-size:12px; color:var(--text-white);">Nome da Instância Evolution</label>
+                <input type="text" id="config-evolution-instance" class="form-control" style="background-color:var(--bg-primary); padding: 8px 12px; font-size: 13px;" placeholder="Ex: apex-odonto">
+              </div>
+              <div class="form-group">
+                <label style="font-size:12px; color:var(--text-white);">API Key Global da Evolution</label>
+                <input type="password" id="config-evolution-key" class="form-control" style="background-color:var(--bg-primary); padding: 8px 12px; font-size: 13px;" placeholder="Digite a chave da API da Evolution">
+              </div>
+              <div style="grid-column: span 2; display: flex; justify-content: flex-end;">
+                <button type="submit" class="btn btn-primary" style="padding: 8px 20px; font-size: 13px;">Salvar Configurações</button>
+              </div>
+            </form>
+          </div>
+
+          
+        </div>
+      </section>
+
+      <!-- Painel 6: Calendário / Reuniões -->
+      <section class="content-panel" id="panel-calendar">
+        <div class="calendar-layout">
+          <!-- Esquerda: Calendário -->
+          <div class="calendar-grid-wrapper">
+            <div class="calendar-header">
+              <h3 id="calendar-month-year">Junho 2026</h3>
+              <div style="display:flex; gap: 8px;">
+                <button class="btn btn-secondary btn-sm" id="btn-calendar-prev">&lt;</button>
+                <button class="btn btn-secondary btn-sm" id="btn-calendar-next">&gt;</button>
+              </div>
+            </div>
+            
+            <div class="calendar-grid" id="calendar-days-container">
+              <!-- Preenchido dinamicamente via JS -->
+            </div>
+          </div>
+
+          <!-- Direita: Próximos Compromissos -->
+          <div>
+            <div class="right-section-title">Consultas do Dia</div>
+            <div class="agenda-list" id="agenda-list-container">
+              <!-- Inserido dinamicamente via JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Modal: Adicionar Paciente (Lead) -->
+    <div class="modal-overlay" id="modal-lead">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modal-lead-title">Novo Paciente</h2>
+          <span class="modal-close" id="modal-lead-close">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 20px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </span>
+        </div>
+        <form id="form-add-lead">
+          <input type="hidden" id="form-lead-id">
+          <div class="form-group">
+            <label for="lead-name">Nome do Paciente</label>
+            <input type="text" id="lead-name" class="form-control" required placeholder="Ex: Maria Oliveira">
+          </div>
+          <div class="form-group">
+            <label for="lead-email">E-mail</label>
+            <input type="email" id="lead-email" class="form-control" required placeholder="Ex: maria.oliveira@gmail.com">
+          </div>
+          <div class="form-group">
+            <label for="lead-phone">WhatsApp</label>
+            <input type="tel" id="lead-phone" class="form-control" required placeholder="Ex: (11) 99999-9999">
+          </div>
+          <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label for="lead-value">Valor do Tratamento (R$)</label>
+              <input type="number" id="lead-value" class="form-control" required placeholder="Ex: 8000">
+            </div>
+            <div class="form-group">
+              <label for="lead-stage">Etapa Clínica</label>
+              <select id="lead-stage" class="form-control">
+                <option value="lead">Pré-Avaliação</option>
+                <option value="contacted">Consulta Agendada</option>
+                <option value="proposal">Avaliação Realizada</option>
+                <option value="negotiating">Orçamento Enviado</option>
+                <option value="won">Tratamento Iniciado</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="lead-source">Tratamento de Interesse</label>
+            <select id="lead-source" class="form-control">
+              <option value="Implante Dentário">Implante Dentário</option>
+              <option value="Invisalign / Ortodontia">Invisalign / Ortodontia</option>
+              <option value="Clareamento Dental">Clareamento Dental</option>
+              <option value="Clínica Geral">Clínica Geral (Limpeza/Cárie)</option>
+              <option value="Canal / Odontopediatria">Tratamento de Canal</option>
+            </select>
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-lead">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-lead">Salvar Ficha</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: Agendar Consulta -->
+    <div class="modal-overlay" id="modal-meeting">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Agendar Consulta Clínica</h2>
+          <span class="modal-close" id="modal-meeting-close">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 20px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </span>
+        </div>
+        <form id="form-add-meeting">
+          <div class="form-group">
+            <label for="meeting-title">Motivo do Agendamento</label>
+            <input type="text" id="meeting-title" class="form-control" required placeholder="Ex: Consulta de Avaliação Inicial">
+          </div>
+          <div class="form-group">
+            <label for="meeting-lead">Paciente</label>
+            <select id="meeting-lead" class="form-control" required>
+              <!-- Preenchido via JS com leads cadastrados -->
+            </select>
+          </div>
+          <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label for="meeting-date">Data</label>
+              <input type="date" id="meeting-date" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="meeting-time">Horário</label>
+              <input type="time" id="meeting-time" class="form-control" required>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-meeting">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Confirmar Agendamento</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- IA Sales Assistant Widget -->
+    <div class="ai-widget">
+      <!-- Botão IA flutuante -->
+      <div class="ai-widget-trigger" id="ai-trigger">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 21l8.904-4.096L21 12l-8.904-4.096L9 3l.813 5.096L3 12l6.813 3.904z" />
+        </svg>
+      </div>
+      
+      <!-- Painel do Assistente IA -->
+      <div class="ai-panel" id="ai-panel">
+        <div class="ai-panel-header">
+          <div class="ai-panel-title">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 20px; color: var(--color-accent-purple);">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 21l8.904-4.096L21 12l-8.904-4.096L9 3l.813 5.096L3 12l6.813 3.904z" />
+            </svg>
+            <h4>Apex Odonto Copilot</h4>
+          </div>
+          <span class="modal-close" id="ai-panel-close">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 18px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </span>
+        </div>
+        
+        <div class="ai-panel-chat" id="ai-chat-messages">
+          <div class="ai-panel-bubble ai">
+            Olá Dr. Henrique! Sou o Apex Odonto Copilot. Estou aqui para otimizar a triagem e o agendamento de seus pacientes, além de analisar métricas da clínica.
+            <br><br>
+            Você pode me pedir:
+            <br>• <i>"Como melhorar a taxa de confirmação de consultas?"</i>
+            <br>• <i>"Escreva um script de confirmação de avaliação para Invisalign"</i>
+            <br>• <i>"Como o n8n agiliza as notificações do consultório?"</i>
+          </div>
+        </div>
+
+        <div class="ai-panel-input-area">
+          <input type="text" class="form-control ai-panel-input" id="ai-chat-input" placeholder="Fale com a IA da clínica...">
+          <button class="ai-panel-send" id="btn-send-ai-msg">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 16px; height: 16px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Container do Toast de Notificação -->
+    <div class="toast-container" id="toast-container"></div>
+
+  </div>
+
+  <script src="js/api-client.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

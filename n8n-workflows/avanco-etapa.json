@@ -1,0 +1,108 @@
+{
+  "name": "Apex Odonto - Avanço de Etapa",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "estagio-mudou",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-estagio",
+      "name": "Webhook Estágio Mudou",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.to_stage }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "verificar-estagio",
+      "name": "Estágio Válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.evolution.url }}/message/sendText/{{ $json.evolution.instance }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $json.evolution.key }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $json.patient.phone }}"
+            },
+            {
+              "name": "text",
+              "value": "Olá {{ $json.patient.name }}! 🦷\n\nTemos uma atualização sobre o seu tratamento!\n\n✅ Etapa atual: *{{ $json.to_stage }}*\n\nNossa equipe vai entrar em contato em breve para os próximos passos.\n\nEstamos aqui para qualquer dúvida! 😊💬"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "enviar-atualizacao",
+      "name": "Enviar Atualização WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [750, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Notificação de etapa enviada' }) }}"
+      },
+      "id": "responder-ok",
+      "name": "Responder OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1000, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, message: 'Estágio inválido' }) }}"
+      },
+      "id": "responder-skip",
+      "name": "Responder Skip",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [750, 450]
+    }
+  ],
+  "connections": {
+    "Webhook Estágio Mudou": {
+      "main": [[{ "node": "Estágio Válido?", "type": "main", "index": 0 }]]
+    },
+    "Estágio Válido?": {
+      "main": [
+        [{ "node": "Enviar Atualização WhatsApp", "type": "main", "index": 0 }],
+        [{ "node": "Responder Skip", "type": "main", "index": 0 }]
+      ]
+    },
+    "Enviar Atualização WhatsApp": {
+      "main": [[{ "node": "Responder OK", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "Apex Odonto CRM" }]
+}

@@ -1,0 +1,74 @@
+{
+  "name": "Apex Odonto - Reengajamento Lead Inativo",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-inativo",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-lead-inativo",
+      "name": "Webhook Lead Inativo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.evolution.url }}/message/sendText/{{ $json.evolution.instance }}",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $json.evolution.key }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $json.patient.phone }}"
+            },
+            {
+              "name": "text",
+              "value": "Olá {{ $json.patient.name }}! 😊\n\nFaz um tempinho que conversamos sobre {{ $json.patient.treatment_interest || 'seu tratamento' }}.\n\n🦷 Temos condições especiais neste mês e gostaríamos de te ajudar a cuidar do seu sorriso!\n\nPosso te ajudar a agendar uma avaliação? É rápido e sem compromisso! 💬"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "enviar-reengajamento",
+      "name": "Enviar Reengajamento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Reengajamento enviado' }) }}"
+      },
+      "id": "responder",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [750, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Lead Inativo": {
+      "main": [[{ "node": "Enviar Reengajamento", "type": "main", "index": 0 }]]
+    },
+    "Enviar Reengajamento": {
+      "main": [[{ "node": "Responder", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "Apex Odonto CRM" }]
+}

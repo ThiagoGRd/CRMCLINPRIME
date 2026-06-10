@@ -1,0 +1,98 @@
+{
+  "name": "Apex Odonto - Meta Conversions API (CAPI)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "meta-capi-conversions",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-crm-event",
+      "name": "Webhook CRM Event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.new_stage }}",
+              "operation": "in",
+              "value2": "Consulta Agendada,Tratamento Iniciado,Concluído"
+            }
+          ]
+        }
+      },
+      "id": "verificar-etapa-relevante",
+      "name": "Filtrar Etapas Relevantes",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [320, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\n// 1. Capturar os dados de entrada\nconst patient = item.json.patient || {};\nconst newStage = item.json.new_stage;\nconst treatmentValue = parseFloat(item.json.treatment_value) || 0;\n\n// 2. Normalizar e criptografar em SHA-256 (Exigência da Meta)\nfunction sha256(text) {\n  if (!text) return null;\n  const cleanText = text.trim().toLowerCase();\n  return crypto.createHash('sha256').update(cleanText).digest('hex');\n}\n\nfunction formatPhone(phone) {\n  if (!phone) return null;\n  // Remove tudo que não é número\n  let clean = phone.replace(/\\D/g, '');\n  // Garante o código do país (55 para Brasil) se não houver\n  if (clean.length === 11 && (clean.startsWith('1') || clean.startsWith('2') || clean.startsWith('3') || clean.startsWith('4') || clean.startsWith('5') || clean.startsWith('6') || clean.startsWith('7') || clean.startsWith('8') || clean.startsWith('9'))) {\n    clean = '55' + clean;\n  } else if (clean.length === 10) {\n    clean = '55' + clean;\n  }\n  return clean;\n}\n\nconst cleanPhone = formatPhone(patient.phone);\nconst hashedPhone = sha256(cleanPhone);\nconst hashedEmail = sha256(patient.email);\nconst hashedFirstName = sha256(patient.name ? patient.name.split(' ')[0] : null);\n\n// 3. Mapear o nome do evento para o padrão do Facebook Ads\nlet eventName = 'Lead';\nlet value = 0;\nif (newStage === 'Consulta Agendada') {\n  eventName = 'Schedule';\n} else if (newStage === 'Tratamento Iniciado' || newStage === 'Concluído') {\n  eventName = 'Purchase';\n  value = treatmentValue;\n}\n\n// 4. Montar o payload do evento\nitem.json.capi_payload = {\n  data: [\n    {\n      event_name: eventName,\n      event_time: Math.floor(Date.now() / 1000),\n      event_source: 'physical_store',\n      action_source: 'physical_store',\n      user_data: {\n        ph: hashedPhone ? [hashedPhone] : [],\n        em: hashedEmail ? [hashedEmail] : [],\n        fn: hashedFirstName ? [hashedFirstName] : []\n      },\n      custom_data: {\n        currency: 'BRL',\n        value: value\n      }\n    }\n  ]\n};\n\n// Passar chaves necessárias do Meta Ads\nitem.json.meta_pixel_id = item.json.meta_pixel_id || 'SEU_PIXEL_ID';\nitem.json.meta_access_token = item.json.meta_access_token || 'SEU_ACCESS_TOKEN';\n\nreturn item;"
+      },
+      "id": "criptografar-dados-sha256",
+      "name": "Normalizar & Hash SHA-256",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [540, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $json.meta_pixel_id }}/events?access_token={{ $json.meta_access_token }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.capi_payload) }}",
+        "options": {}
+      },
+      "id": "enviar-meta-capi",
+      "name": "Enviar Meta Conversions API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [760, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Evento CAPI processado' }) }}"
+      },
+      "id": "responder-webhook-sucesso",
+      "name": "Responder Sucesso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [980, 200]
+    }
+  ],
+  "connections": {
+    "Webhook CRM Event": {
+      "main": [
+        [{ "node": "Filtrar Etapas Relevantes", "type": "main", "index": 0 }]
+      ]
+    },
+    "Filtrar Etapas Relevantes": {
+      "main": [
+        [{ "node": "Normalizar & Hash SHA-256", "type": "main", "index": 0 }]
+      ]
+    },
+    "Normalizar & Hash SHA-256": {
+      "main": [
+        [{ "node": "Enviar Meta Conversions API", "type": "main", "index": 0 }]
+      ]
+    },
+    "Enviar Meta Conversions API": {
+      "main": [
+        [{ "node": "Responder Sucesso", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{ "name": "Apex Odonto CRM" }]
+}

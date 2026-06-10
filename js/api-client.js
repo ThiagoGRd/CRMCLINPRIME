@@ -1,0 +1,499 @@
+/* ==========================================================================
+   Apex Odonto CRM — Serverless API Client (Conexão Direta ao Supabase Online)
+   Comunica-se diretamente com o Supabase REST API e gerencia webhooks do n8n.
+   ========================================================================== */
+
+const SUPABASE_URL = 'https://ywepsusvdibltpmeyrwj.supabase.co/rest/v1';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl3ZXBzdXN2ZGlibHRwbWV5cndqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNTIyMTEsImV4cCI6MjA5NjYyODIxMX0.SMtcXpcDxHt2OE9syAzsX79F1G90LVc9JpODPYrblTI';
+
+// URL do n8n salva localmente no navegador (permite trocar na UI)
+let N8N_BASE_URL = localStorage.getItem('apex_n8n_url') || 'http://localhost:5678/webhook';
+
+/**
+ * Wrapper para chamadas diretas à API REST do Supabase
+ */
+async function supabaseFetch(path, options = {}) {
+  try {
+    const headers = {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      ...options.headers,
+    };
+
+    if (options.body && typeof options.body === 'object') {
+      options.body = JSON.stringify(options.body);
+    }
+
+    const res = await fetch(`${SUPABASE_URL}${path}`, {
+      ...options,
+      headers
+    });
+
+    if (res.status === 204) {
+      return { success: true, data: null };
+    }
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.error(`Supabase Error [${res.status}]:`, data);
+      throw new Error(data.message || `Erro ${res.status}`);
+    }
+
+    return { success: true, data };
+  } catch (err) {
+    console.error(`Supabase Request failed [${path}]:`, err.message);
+    throw err;
+  }
+}
+
+/**
+ * Disparador de Webhooks do n8n diretamente do Frontend
+ */
+async function triggerN8NWebhook(webhookPath, payload) {
+  try {
+    const url = `${N8N_BASE_URL}/${webhookPath}`;
+    const evolutionConfig = {
+      url: localStorage.getItem('apex_evolution_url') || 'http://localhost:8080',
+      key: localStorage.getItem('apex_evolution_key') || 'sua_api_key_global',
+      instance: localStorage.getItem('apex_evolution_instance') || 'apex-odonto'
+    };
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...payload,
+        evolution: evolutionConfig,
+        _source: 'apex-odonto-crm-frontend',
+        _timestamp: new Date().toISOString()
+      })
+    });
+
+    if (!res.ok) {
+      console.warn(`n8n webhook [${webhookPath}] retornou status ${res.status}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn(`Falha ao disparar n8n em ${N8N_BASE_URL}:`, err.message);
+    return false;
+  }
+}
+
+/* ==========================================================================
+   API de Pacientes
+   ========================================================================== */
+const PatientsAPI = {
+  async getAll(filters = {}) {
+    let queryPath = '/patients?select=*,deal:deals(id,stage_id,position,moved_at)&order=created_at.desc';
+    
+    if (filters.search) {
+      queryPath += `&or=(name.ilike.%${filters.search}%,phone.ilike.%${filters.search}%)`;
+    }
+    if (filters.source) {
+      queryPath += `&source=eq.${filters.source}`;
+    }
+    
+    return supabaseFetch(queryPath);
+  },
+
+  async getById(id) {
+    const res = await supabaseFetch(`/patients?select=*,deal:deals(id,stage_id,position,moved_at)&id=eq.${id}`);
+    if (res.success && res.data.length > 0) {
+      return { success: true, data: res.data[0] };
+    }
+    return { success: false, error: 'Paciente não encontrado' };
+  },
+
+  async create(patientData) {
+    // 1. Criar paciente no Supabase
+    const patientRes = await supabaseFetch('/patients', {
+      method: 'POST',
+      headers: { 'Prefer': 'return=representation' },
+      body: {
+        name: patientData.name,
+        phone: patientData.phone.replace(/\D/g, ''),
+        email: patientData.email || null,
+        treatment_interest: patientData.treatment_interest || null,
+        treatment_value: patientData.treatment_value || null,
+        source: patientData.source || 'manual'
+      }
+    });
+
+    if (!patientRes.success || !patientRes.data.length) return patientRes;
+    const newPatient = patientRes.data[0];
+
+    // 2. Vincular no primeiro estágio do funil
+    const stagesRes = await PipelineAPI.getStages();
+    if (stagesRes.success && stagesRes.data.length > 0) {
+      await supabaseFetch('/deals', {
+        method: 'POST',
+        body: {
+          patient_id: newPatient.id,
+          stage_id: stagesRes.data[0].id,
+          position: 0
+        }
+      });
+    }
+
+    // 3. Registrar log de atividade
+    await LogActivity(newPatient.id, 'patient_created', { source: newPatient.source });
+
+    // 4. Disparar automação de novo lead para o n8n
+    await triggerN8NWebhook('novo-lead', {
+      event: 'new_lead',
+      patient: newPatient
+    });
+
+    return { success: true, data: newPatient };
+  },
+
+  async update(id, updates) {
+    const patientRes = await supabaseFetch(`/patients?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { 'Prefer': 'return=representation' },
+      body: {
+        name: updates.name,
+        phone: updates.phone.replace(/\D/g, ''),
+        email: updates.email || null,
+        treatment_interest: updates.treatment_interest || null,
+        treatment_value: updates.treatment_value || null
+      }
+    });
+
+    if (patientRes.success && patientRes.data.length > 0) {
+      return { success: true, data: patientRes.data[0] };
+    }
+    return patientRes;
+  },
+
+  async remove(id) {
+    return supabaseFetch(`/patients?id=eq.${id}`, { method: 'DELETE' });
+  },
+};
+
+/* ==========================================================================
+   API do Pipeline (Funil Kanban)
+   ========================================================================== */
+const PipelineAPI = {
+  async getAll() {
+    // 1. Buscar estágios ordenados por posição
+    const stagesRes = await supabaseFetch('/pipeline_stages?order=position.asc');
+    if (!stagesRes.success) return stagesRes;
+
+    // 2. Buscar deals com dados de pacientes vinculados
+    const dealsRes = await supabaseFetch('/deals?select=*,patient:patients(*)&order=position.asc');
+    if (!dealsRes.success) return dealsRes;
+
+    // 3. Estruturar o retorno agrupado
+    const pipeline = stagesRes.data.map(stage => {
+      const stageDeals = dealsRes.data
+        .filter(d => d.stage_id === stage.id && d.patient !== null)
+        .map(d => ({
+          ...d,
+          patient: {
+            ...d.patient,
+            treatment_value: parseFloat(d.patient.treatment_value || 0)
+          }
+        }));
+
+      return {
+        ...stage,
+        deals: stageDeals,
+        total_value: stageDeals.reduce((sum, d) => sum + (d.patient?.treatment_value || 0), 0)
+      };
+    });
+
+    return { success: true, data: pipeline };
+  },
+
+  async getStages() {
+    return supabaseFetch('/pipeline_stages?order=position.asc');
+  },
+
+  async moveDeal(dealId, stageId, position = 0) {
+    // 1. Obter informações atuais do deal para auditoria
+    const currentDealRes = await supabaseFetch(`/deals?select=*,patient:patients(*),stage:pipeline_stages(name)&id=eq.${dealId}`);
+    if (!currentDealRes.success || currentDealRes.data.length === 0) {
+      return { success: false, error: 'Deal não encontrado' };
+    }
+    const deal = currentDealRes.data[0];
+
+    // 2. Atualizar estágio no banco
+    const updateRes = await supabaseFetch(`/deals?id=eq.${dealId}`, {
+      method: 'PATCH',
+      headers: { 'Prefer': 'return=representation' },
+      body: {
+        stage_id: stageId,
+        position,
+        moved_at: new Date().toISOString()
+      }
+    });
+
+    if (!updateRes.success) return updateRes;
+
+    // 3. Buscar nome do novo estágio para os logs e gatilhos
+    const newStageRes = await supabaseFetch(`/pipeline_stages?select=name&id=eq.${stageId}`);
+    const newStageName = newStageRes.success && newStageRes.data.length > 0 ? newStageRes.data[0].name : 'Novo Estágio';
+
+    // 4. Logar atividade
+    await LogActivity(deal.patient_id, 'stage_moved', {
+      from_stage: deal.stage?.name || 'Origem',
+      to_stage: newStageName
+    });
+
+    // 5. Disparar automação no n8n se o estágio mudou
+    if (deal.stage_id !== stageId) {
+      await triggerN8NWebhook('estagio-mudou', {
+        event: 'stage_change',
+        patient: deal.patient,
+        from_stage: deal.stage?.name,
+        to_stage: newStageName
+      });
+    }
+
+    return { success: true, data: updateRes.data[0] };
+  },
+
+  async createStage(name, color) {
+    const stagesRes = await this.getStages();
+    const nextPos = stagesRes.success ? stagesRes.data.length + 1 : 1;
+
+    return supabaseFetch('/pipeline_stages', {
+      method: 'POST',
+      body: { name, color, position: nextPos }
+    });
+  },
+};
+
+/* ==========================================================================
+   API de Mensagens (Chat WhatsApp)
+   ========================================================================== */
+const MessagesAPI = {
+  async getHistory(patientId) {
+    return supabaseFetch(`/messages?patient_id=eq.${patientId}&order=created_at.asc`);
+  },
+
+  async send(patientId, content, messageType = 'text') {
+    // 1. Buscar dados do paciente (precisamos do telefone)
+    const patientRes = await PatientsAPI.getById(patientId);
+    if (!patientRes.success) return { success: false, error: 'Paciente não encontrado' };
+    const patient = patientRes.data;
+
+    // 2. Criar mensagem no Supabase com status pendente
+    const msgRes = await supabaseFetch('/messages', {
+      method: 'POST',
+      headers: { 'Prefer': 'return=representation' },
+      body: {
+        patient_id: patientId,
+        direction: 'outbound',
+        content,
+        message_type: messageType,
+        status: 'sent'
+      }
+    });
+
+    if (!msgRes.success) return msgRes;
+
+    // 3. Disparar webhook no n8n para enviar a mensagem via WhatsApp real
+    triggerN8NWebhook('enviar-whatsapp', {
+      event: 'message_send',
+      phone: patient.phone,
+      content,
+      patient_id: patientId,
+      message_id: msgRes.data[0].id
+    });
+
+    // 4. Registrar logs
+    await LogActivity(patientId, 'message_sent', { content: content.substring(0, 80) });
+
+    return { success: true, data: msgRes.data[0] };
+  },
+
+  async getWhatsAppStatus() {
+    // Consulta simulada via n8n ou retorna online padrão no modo frontend direto
+    const localStatus = localStorage.getItem('apex_whatsapp_connected') === 'true';
+    return { success: true, data: { connected: localStatus, state: localStatus ? 'open' : 'closed' } };
+  },
+
+  async getQrCode() {
+    // O n8n é quem fará a ponte para expor o qrcode
+    return { success: true, data: { qrcode: 'Configurado via n8n/Evolution' } };
+  },
+};
+
+/* ==========================================================================
+   API de Agendamentos
+   ========================================================================== */
+const AppointmentsAPI = {
+  async getAll() {
+    return supabaseFetch('/appointments?order=scheduled_at.asc');
+  },
+
+  async create(appointmentData) {
+    const res = await supabaseFetch('/appointments', {
+      method: 'POST',
+      headers: { 'Prefer': 'return=representation' },
+      body: {
+        patient_id: appointmentData.patient_id,
+        title: appointmentData.title,
+        scheduled_at: appointmentData.scheduled_at,
+        duration_minutes: appointmentData.duration_minutes || 60,
+        status: 'scheduled'
+      }
+    });
+
+    if (!res.success || !res.data.length) return res;
+    const appt = res.data[0];
+
+    // Buscar dados do paciente para enviar ao n8n
+    const patientRes = await PatientsAPI.getById(appt.patient_id);
+    if (patientRes.success) {
+      // Disparar lembrete no n8n
+      await triggerN8NWebhook('confirmar-consulta', {
+        event: 'appointment_created',
+        appointment: appt,
+        patient: patientRes.data
+      });
+    }
+
+    return { success: true, data: appt };
+  },
+
+  async update(id, updates) {
+    return supabaseFetch(`/appointments?id=eq.${id}`, {
+      method: 'PATCH',
+      body: updates
+    });
+  },
+
+  async remove(id) {
+    return supabaseFetch(`/appointments?id=eq.${id}`, { method: 'DELETE' });
+  },
+};
+
+/* ==========================================================================
+   API de Automações e Atividades
+   ========================================================================== */
+const AutomationsAPI = {
+  async getRules() {
+    return supabaseFetch('/automation_rules?order=created_at.asc');
+  },
+
+  async updateRule(id, updates) {
+    return supabaseFetch(`/automation_rules?id=eq.${id}`, {
+      method: 'PATCH',
+      body: updates
+    });
+  },
+
+  async simulateStaleLeads(days = 7) {
+    // Realizar busca de leads inativos diretamente no Supabase REST
+    const limitDate = new Date();
+    limitDate.setDate(limitDate.getDate() - days);
+
+    // Buscar pacientes
+    const patientsRes = await supabaseFetch('/patients?select=id,name,phone,treatment_interest');
+    if (!patientsRes.success) return patientsRes;
+
+    let staleCount = 0;
+    for (const patient of patientsRes.data) {
+      // Buscar última mensagem
+      const msgsRes = await supabaseFetch(`/messages?patient_id=eq.${patient.id}&order=created_at.desc&limit=1`);
+      let isStale = false;
+      
+      if (msgsRes.success) {
+        if (msgsRes.data.length === 0) {
+          isStale = true; // sem mensagem nenhuma é inativo
+        } else {
+          const lastMsgDate = new Date(msgsRes.data[0].created_at);
+          isStale = lastMsgDate < limitDate;
+        }
+      }
+
+      if (isStale) {
+        staleCount++;
+        // Disparar evento de lead inativo no n8n
+        await triggerN8NWebhook('lead-inativo', {
+          event: 'lead_stale',
+          patient: patient,
+          days_since_last_contact: days
+        });
+      }
+    }
+
+    return { success: true, stale_count: staleCount };
+  },
+
+  async getActivityLog(limit = 50) {
+    return supabaseFetch(`/activity_logs?select=*,patient:patients(id,name)&order=created_at.desc&limit=${limit}`);
+  },
+};
+
+/**
+ * Utilitário interno para registrar log de atividades no Supabase
+ */
+async function LogActivity(patientId, action, details = {}) {
+  try {
+    await supabaseFetch('/activity_logs', {
+      method: 'POST',
+      body: {
+        patient_id: patientId,
+        action,
+        details
+      }
+    });
+  } catch (err) {
+    console.warn('Erro ao gravar log de atividade:', err.message);
+  }
+}
+
+// Polling local de mensagens em tempo real
+let pollingInterval = null;
+function startMessagePolling(patientId, callback, intervalMs = 4000) {
+  stopMessagePolling();
+  pollingInterval = setInterval(async () => {
+    try {
+      const result = await MessagesAPI.getHistory(patientId);
+      if (result.success && result.data) {
+        callback(result.data);
+      }
+    } catch (err) {
+      // Silently fail polling
+    }
+  }, intervalMs);
+}
+
+function stopMessagePolling() {
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+  }
+}
+
+/* ==========================================================================
+   Exportar APIs como globais para uso no app.js
+   ========================================================================== */
+window.ApexAPI = {
+  patients: PatientsAPI,
+  pipeline: PipelineAPI,
+  messages: MessagesAPI,
+  appointments: AppointmentsAPI,
+  automations: AutomationsAPI,
+  startMessagePolling,
+  stopMessagePolling,
+  // Helper para atualizar URLs de conexão na interface
+  updateConfig(n8nUrl, evolutionUrl, evolutionKey, evolutionInstance) {
+    if (n8nUrl) {
+      localStorage.setItem('apex_n8n_url', n8nUrl);
+      N8N_BASE_URL = n8nUrl;
+    }
+    if (evolutionUrl) localStorage.setItem('apex_evolution_url', evolutionUrl);
+    if (evolutionKey) localStorage.setItem('apex_evolution_key', evolutionKey);
+    if (evolutionInstance) localStorage.setItem('apex_evolution_instance', evolutionInstance);
+  }
+};
+
+console.log('🔌 Apex Odonto CRM — Serverless API Client conectado diretamente ao Supabase Online!');
