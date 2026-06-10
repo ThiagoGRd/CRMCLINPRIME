@@ -474,6 +474,94 @@ function stopMessagePolling() {
 }
 
 /* ==========================================================================
+   API de Controle de Atendimento (IA × Humano)
+   Controla o campo chats.ai_service que o WF01 (Sofia) respeita:
+     'pause'  → Sofia para de responder (humano assumiu)
+     'active' → Sofia volta a responder
+   A tabela chats usa phone com sufixo (ex: 558299800467@s.whatsapp.net),
+   então casamos via LIKE com o telefone normalizado do paciente.
+   ========================================================================== */
+const ChatControlAPI = {
+  async getAiStatus(phone) {
+    const clean = (phone || '').replace(/\D/g, '');
+    if (!clean) return { success: false, error: 'phone vazio' };
+    const res = await supabaseFetch(`/chats?phone=like.${clean}*&select=ai_service,phone&limit=1`);
+    if (res.success && res.data.length > 0) {
+      const aiService = res.data[0].ai_service;
+      // IA está ativa se ai_service NÃO começa com 'pause'
+      const iaActive = !(aiService && String(aiService).startsWith('pause'));
+      return { success: true, data: { ai_service: aiService, ia_active: iaActive } };
+    }
+    // Sem registro em chats ainda → considera IA ativa por padrão
+    return { success: true, data: { ai_service: null, ia_active: true } };
+  },
+
+  async _setAi(phone, value) {
+    const clean = (phone || '').replace(/\D/g, '');
+    if (!clean) return { success: false, error: 'phone vazio' };
+    return supabaseFetch(`/chats?phone=like.${clean}*`, {
+      method: 'PATCH',
+      headers: { 'Prefer': 'return=representation' },
+      body: { ai_service: value, updated_at: new Date().toISOString() }
+    });
+  },
+
+  // Humano assume → pausa a Sofia
+  async assumir(phone) {
+    return this._setAi(phone, 'pause');
+  },
+
+  // Devolve o atendimento para a Sofia
+  async devolver(phone) {
+    return this._setAi(phone, 'active');
+  }
+};
+
+/* ==========================================================================
+   Supabase Realtime — push de mensagens/contatos ao vivo (WebSocket)
+   ========================================================================== */
+const SUPABASE_ROOT = SUPABASE_URL.replace('/rest/v1', '');
+let _realtimeClient = null;
+
+function getRealtimeClient() {
+  if (_realtimeClient) return _realtimeClient;
+  if (!window.supabase || !window.supabase.createClient) {
+    console.warn('supabase-js não carregado — Realtime indisponível, usando polling.');
+    return null;
+  }
+  _realtimeClient = window.supabase.createClient(SUPABASE_ROOT, SUPABASE_KEY, {
+    realtime: { params: { eventsPerSecond: 10 } }
+  });
+  return _realtimeClient;
+}
+
+const RealtimeAPI = {
+  // Nova mensagem inserida (inbound da Sofia/paciente ou outbound)
+  onNewMessage(callback) {
+    const sb = getRealtimeClient();
+    if (!sb) return null;
+    return sb.channel('rt-crm-messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'crm_messages' },
+        payload => callback(payload.new))
+      .subscribe();
+  },
+
+  // Novo contato ou mudança de paciente (lead novo entrando)
+  onPatientChange(callback) {
+    const sb = getRealtimeClient();
+    if (!sb) return null;
+    return sb.channel('rt-crm-patients')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_patients' },
+        payload => callback(payload))
+      .subscribe();
+  },
+
+  unsubscribe(channel) {
+    if (channel && _realtimeClient) _realtimeClient.removeChannel(channel);
+  }
+};
+
+/* ==========================================================================
    Exportar APIs como globais para uso no app.js
    ========================================================================== */
 window.ApexAPI = {
@@ -482,6 +570,8 @@ window.ApexAPI = {
   messages: MessagesAPI,
   appointments: AppointmentsAPI,
   automations: AutomationsAPI,
+  chatControl: ChatControlAPI,
+  realtime: RealtimeAPI,
   startMessagePolling,
   stopMessagePolling,
   // Helper para atualizar URLs de conexão na interface

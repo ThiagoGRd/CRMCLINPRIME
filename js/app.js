@@ -80,6 +80,7 @@ async function refreshState() {
         name: p.name,
         email: p.email || '',
         phone: formatPhoneDisplay(p.phone),
+        phoneRaw: p.phone, // telefone cru (com código do país) para casar com a tabela chats
         value: parseFloat(p.treatment_value || 0),
         stage: STAGE_REV_MAP[p.deal?.[0]?.stage_id || p.deal?.stage_id] || 'lead',
         source: p.treatment_interest || p.source || 'Geral',
@@ -543,12 +544,19 @@ function initChat() {
   });
   
   btnSend.addEventListener("click", sendChatMessage);
-  btnSuggestAI.addEventListener("click", generateIAScript);
+  if (btnSuggestAI) btnSuggestAI.addEventListener("click", generateIAScript);
   btnChatSchedule.addEventListener("click", openScheduleModalFromChat);
-  
+
+  // Botão Assumir / Devolver atendimento (controla a Sofia)
+  const btnToggleAi = document.getElementById("btn-toggle-ai");
+  if (btnToggleAi) btnToggleAi.addEventListener("click", toggleAiAtendimento);
+
   renderChatList();
 
-  // Polling global inteligente de 5s para o chat (atualiza contatos e mensagens em tempo real se o painel do chat estiver ativo)
+  // ⚡ Supabase Realtime — push instantâneo de mensagens e novos contatos
+  initRealtime();
+
+  // Polling de 8s como FALLBACK (caso o WebSocket caia). Realtime é o canal principal.
   setInterval(async () => {
     const chatPanel = document.getElementById("panel-chat");
     if (chatPanel && chatPanel.classList.contains("active")) {
@@ -573,7 +581,124 @@ function initChat() {
         }
       }
     }
-  }, 5000);
+  }, 8000);
+}
+
+// ==========================================================================
+// Realtime — recebe mensagens e novos contatos ao vivo (WebSocket)
+// ==========================================================================
+function initRealtime() {
+  if (!window.ApexAPI.realtime) return;
+
+  // Nova mensagem chegou/saiu em qualquer conversa
+  window.ApexAPI.realtime.onNewMessage(async (msg) => {
+    const lead = state.leads.find(l => l.id === msg.patient_id);
+
+    if (lead) {
+      // Conversa já existe na memória: anexa a bolha
+      const bubble = {
+        sender: msg.direction === 'inbound' ? 'incoming' : 'outgoing',
+        text: msg.content,
+        time: new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      };
+      lead.messages = lead.messages || [];
+      // Evita duplicar (Realtime + feedback otimista do envio)
+      const dup = lead.messages.some(m => m.text === bubble.text && m.sender === bubble.sender);
+      if (!dup) lead.messages.push(bubble);
+
+      if (state.activeChatLeadId === lead.id) {
+        renderActiveChat();
+      } else if (msg.direction === 'inbound') {
+        lead.unread = (lead.unread || 0) + 1;
+        notifyNewMessage(lead.name, msg.content);
+      }
+      renderChatList();
+    } else {
+      // Paciente ainda não está na memória (lead novo): recarrega a base
+      await refreshState();
+      renderChatList();
+    }
+  });
+
+  // Novo contato entrando (lead novo via WhatsApp)
+  window.ApexAPI.realtime.onPatientChange(async (payload) => {
+    await refreshState();
+    renderChatList();
+    if (typeof updateDashboardKPIs === "function") updateDashboardKPIs();
+  });
+
+  console.log('⚡ Realtime conectado — mensagens ao vivo ativadas.');
+}
+
+function notifyNewMessage(name, text) {
+  showToast(`💬 ${name}: ${text.substring(0, 60)}`, "info");
+}
+
+// ==========================================================================
+// Controle de Atendimento: Assumir (pausa Sofia) / Devolver (reativa Sofia)
+// ==========================================================================
+async function toggleAiAtendimento() {
+  const lead = state.leads.find(l => l.id === state.activeChatLeadId);
+  if (!lead) return;
+
+  const btn = document.getElementById("btn-toggle-ai");
+  const currentlyActive = btn?.dataset.iaActive === "true";
+
+  btn.disabled = true;
+  try {
+    if (currentlyActive) {
+      // IA está ativa → humano assume (pausa Sofia)
+      const res = await window.ApexAPI.chatControl.assumir(lead.phoneRaw || lead.phone);
+      if (res.success) {
+        showToast(`👤 Você assumiu o atendimento de ${lead.name}. A Sofia foi pausada.`, "success");
+        updateAiControls(false);
+      } else {
+        showToast("Não foi possível pausar a Sofia (contato sem conversa ativa ainda).", "warning");
+      }
+    } else {
+      // Humano estava atendendo → devolve para a Sofia
+      const res = await window.ApexAPI.chatControl.devolver(lead.phoneRaw || lead.phone);
+      if (res.success) {
+        showToast(`🤖 Atendimento devolvido para a Sofia.`, "success");
+        updateAiControls(true);
+      }
+    }
+  } catch (err) {
+    showToast("Erro ao alternar atendimento: " + err.message, "danger");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function updateAiControls(iaActive) {
+  const badge = document.getElementById("chat-ai-badge");
+  const btn = document.getElementById("btn-toggle-ai");
+  if (!badge || !btn) return;
+
+  badge.style.display = "inline-flex";
+  btn.style.display = "inline-flex";
+  btn.dataset.iaActive = iaActive ? "true" : "false";
+
+  if (iaActive) {
+    badge.textContent = "🤖 Sofia atendendo";
+    badge.style.backgroundColor = "rgba(108, 92, 231, 0.18)";
+    badge.style.color = "#a29bfe";
+    btn.textContent = "Assumir atendimento";
+    btn.className = "btn btn-sm btn-primary";
+  } else {
+    badge.textContent = "👤 Você atendendo";
+    badge.style.backgroundColor = "rgba(16, 185, 129, 0.18)";
+    badge.style.color = "#10b981";
+    btn.textContent = "Devolver p/ Sofia";
+    btn.className = "btn btn-sm btn-secondary";
+  }
+}
+
+function hideAiControls() {
+  const badge = document.getElementById("chat-ai-badge");
+  const btn = document.getElementById("btn-toggle-ai");
+  if (badge) badge.style.display = "none";
+  if (btn) btn.style.display = "none";
 }
 
 function renderChatList() {
@@ -625,9 +750,9 @@ async function selectActiveChat(leadId) {
   state.activeChatLeadId = leadId;
   const lead = state.leads.find(l => l.id === leadId);
   if (lead) lead.unread = 0;
-  
+
   renderChatList();
-  
+
   // Buscar histórico de mensagens real no Supabase
   try {
     const res = await window.ApexAPI.messages.getHistory(leadId);
@@ -642,6 +767,20 @@ async function selectActiveChat(leadId) {
   } catch (err) {
     console.error(err);
     showToast("Erro ao carregar mensagens.", "danger");
+  }
+
+  // Carregar status do atendimento (IA ativa × humano) e atualizar controles
+  if (lead) {
+    try {
+      const statusRes = await window.ApexAPI.chatControl.getAiStatus(lead.phoneRaw || lead.phone);
+      if (statusRes.success) {
+        updateAiControls(statusRes.data.ia_active);
+      } else {
+        hideAiControls();
+      }
+    } catch (err) {
+      hideAiControls();
+    }
   }
 }
 

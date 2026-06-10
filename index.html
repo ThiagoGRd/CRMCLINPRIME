@@ -334,7 +334,9 @@
                   <div class="chat-user-status">Canais de Atendimento</div>
                 </div>
               </div>
-              <div>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <span id="chat-ai-badge" class="badge" style="display:none; font-size:11px; padding:5px 10px; border-radius:20px;"></span>
+                <button class="btn btn-sm" id="btn-toggle-ai" style="display:none;"></button>
                 <button class="btn btn-secondary btn-sm" id="btn-chat-schedule">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 14px; height: 14px;">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25" />
@@ -854,6 +856,7 @@
 
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/api-client.js"></script>
   <script src="js/app.js"></script>
 </body>
