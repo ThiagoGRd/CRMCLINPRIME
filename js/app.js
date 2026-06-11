@@ -56,6 +56,10 @@ async function bootApp() {
   try {
     const { data: { session } } = await window.sb.auth.getSession();
     state.myUserId = session?.user?.id || null;
+    // Autentica o WebSocket do Realtime ANTES de subscrever (RLS exige o JWT)
+    if (session?.access_token && window.sb.realtime) {
+      window.sb.realtime.setAuth(session.access_token);
+    }
   } catch (e) { state.myUserId = null; }
 
   // Membros da equipe (para o select de atribuição)
@@ -703,6 +707,11 @@ function initChat() {
 // ==========================================================================
 function initRealtime() {
   if (!window.ApexAPI.realtime) return;
+
+  // Reassina os canais se a conexão cair/reconectar (token expira, wifi etc.)
+  if (window.sb?.realtime) {
+    window.sb.realtime.onClose?.(() => console.warn("Realtime desconectado — reconectando..."));
+  }
 
   // Nova mensagem chegou/saiu em qualquer conversa
   window.ApexAPI.realtime.onNewMessage(async (msg) => {

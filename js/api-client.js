@@ -24,6 +24,10 @@ let CURRENT_ORG = null; // { id, name, role, contact_label }
 if (window.sb) {
   window.sb.auth.onAuthStateChange((_event, session) => {
     AUTH_TOKEN = session?.access_token || null;
+    // Propaga o JWT para o WebSocket do Realtime (necessário com RLS ativo)
+    if (AUTH_TOKEN && window.sb.realtime) {
+      try { window.sb.realtime.setAuth(AUTH_TOKEN); } catch (e) { /* noop */ }
+    }
   });
 }
 
