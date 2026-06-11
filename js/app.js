@@ -1803,7 +1803,8 @@ function initConnections() {
     try {
       const res = await window.ApexAPI.channels.createWhatsApp(name);
       if (!res.success) {
-        showToast("Erro ao criar instância: " + (res.error || ""), "danger");
+        const detail = res.detail ? ` — ${JSON.stringify(res.detail).substring(0, 120)}` : "";
+        showToast("Erro ao criar instância: " + (res.error || "") + detail, "danger");
         return;
       }
       waActiveChannelId = res.data.channel?.id;
