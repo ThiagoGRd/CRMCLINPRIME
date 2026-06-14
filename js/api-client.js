@@ -685,6 +685,26 @@ const TeamAPI = {
 };
 
 /* ==========================================================================
+   Copilot IA — fala com o agente Dify real via Edge Function
+   ========================================================================== */
+const CopilotAPI = {
+  async ask(query, conversationId) {
+    const res = await fetch(`${SUPABASE_ROOT_URL}/functions/v1/dify-proxy`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${AUTH_TOKEN || SUPABASE_KEY}`,
+      },
+      body: JSON.stringify({ query, conversation_id: conversationId || '' }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { success: false, error: data.error || `Erro ${res.status}` };
+    return { success: true, answer: data.answer, conversationId: data.conversation_id };
+  }
+};
+
+/* ==========================================================================
    Helpers de Inbox — tags e atribuição de atendente
    ========================================================================== */
 const InboxAPI = {
@@ -749,6 +769,7 @@ window.ApexAPI = {
   quickReplies: QuickRepliesAPI,
   team: TeamAPI,
   inbox: InboxAPI,
+  copilot: CopilotAPI,
   chatControl: ChatControlAPI,
   realtime: RealtimeAPI,
   startMessagePolling,

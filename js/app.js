@@ -182,6 +182,7 @@ async function refreshState() {
         assignedTo: p.assigned_to || null,
         channel: p.channel || 'whatsapp',
         createdAt: p.created_at,
+        lastMessageAt: p.last_message_at || p.created_at,
         value: parseFloat(p.treatment_value || 0),
         stage: STAGE_REV_MAP[p.deal?.[0]?.stage_id || p.deal?.stage_id] || 'lead',
         source: p.treatment_interest || p.source || 'Geral',
@@ -321,6 +322,22 @@ function updateDashboardKPIs() {
   set("kpi-ticket-trend", meetingsAhead ? `${meetingsAhead} consultas agendadas` : "agenda livre");
 }
 
+// Agrupa os leads em 6 semanas reais a partir dos dados carregados
+function computeWeeklySeries() {
+  const weeks = 6;
+  const now = new Date();
+  const labels = [], novos = [], fechados = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const end = new Date(now); end.setDate(now.getDate() - i * 7);
+    const start = new Date(end); start.setDate(end.getDate() - 7);
+    labels.push(i === 0 ? 'Esta semana' : `${weeks - i}ª sem`);
+    const inWeek = (d) => d && new Date(d) > start && new Date(d) <= end;
+    novos.push(state.leads.filter(l => inWeek(l.createdAt)).length);
+    fechados.push(state.leads.filter(l => l.stage === 'won' && inWeek(l.createdAt)).length);
+  }
+  return { labels, novos, fechados };
+}
+
 function initCharts() {
   const ctx = document.getElementById('salesChart');
   if (!ctx) return;
@@ -329,28 +346,27 @@ function initCharts() {
     salesChartInstance.destroy();
   }
   
-  const salesData = [18000, 24000, 19000, 32000, 28000, 42000];
-  const targetData = [20000, 20000, 25000, 25000, 30000, 30000];
-  
+  // Série REAL: contatos novos e fechamentos por semana (últimas 6 semanas)
+  const { labels, novos, fechados } = computeWeeklySeries();
+
   salesChartInstance = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4', 'Semana 5', 'Semana 6'],
+      labels,
       datasets: [
         {
-          label: 'Planos Contratados',
-          data: salesData,
-          borderColor: '#10b981',
-          backgroundColor: 'rgba(16, 185, 129, 0.05)',
+          label: 'Contatos novos',
+          data: novos,
+          borderColor: '#6366f1',
+          backgroundColor: 'rgba(99, 102, 241, 0.06)',
           borderWidth: 3,
           fill: true,
           tension: 0.4
         },
         {
-          label: 'Meta da Clínica',
-          data: targetData,
-          borderColor: '#6366f1',
-          borderDash: [5, 5],
+          label: 'Tratamentos fechados',
+          data: fechados,
+          borderColor: '#10b981',
           backgroundColor: 'transparent',
           borderWidth: 2,
           fill: false,
@@ -725,8 +741,11 @@ function initRealtime() {
       const dup = lead.messages.some(m => m.text === bubble.text && m.sender === bubble.sender);
       if (!dup) lead.messages.push(bubble);
 
+      // Bump: conversa sobe pro topo da lista
+      lead.lastMessageAt = msg.created_at || new Date().toISOString();
+
       if (state.activeChatLeadId === lead.id) {
-        renderActiveChat();
+        renderActiveChat(); // já faz autoscroll pro fim
       } else if (msg.direction === 'inbound') {
         lead.unread = (lead.unread || 0) + 1;
         notifyNewMessage(lead.name, msg.content);
@@ -833,6 +852,9 @@ function renderChatList() {
   if (search) list = list.filter(l => l.name.toLowerCase().includes(search) || (l.phoneRaw || '').includes(search.replace(/\D/g, '') || '___'));
   if (filter === 'mine') list = list.filter(l => l.assignedTo === state.myUserId);
   if (filter === 'unassigned') list = list.filter(l => !l.assignedTo);
+
+  // Conversa mais recente sempre no topo
+  list = [...list].sort((a, b) => new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0));
 
   if (list.length === 0) {
     container.innerHTML = `<div style="font-size: 13px; color: var(--text-muted); text-align: center; padding: 24px;">Nenhuma conversa encontrada.</div>`;
@@ -1405,31 +1427,39 @@ function initAIWidget() {
   });
 }
 
-function sendAIMessage() {
+let copilotConversationId = null;
+
+async function sendAIMessage() {
   const input = document.getElementById("ai-chat-input");
   const container = document.getElementById("ai-chat-messages");
-  
+
   if (!input || !input.value.trim()) return;
   const userText = input.value.trim();
-  
+
   container.innerHTML += `<div class="ai-panel-bubble user">${userText}</div>`;
   input.value = "";
   container.scrollTop = container.scrollHeight;
-  
-  setTimeout(() => {
-    let aiResponse = "Perfeito, Dr. Henrique. Posso auxiliar com scripts de Invisalign, implantes ou nos dashboards de agendamento do consultório. O que deseja?";
-    
-    if (userText.toLowerCase().includes("confirmação") || userText.toLowerCase().includes("melhorar")) {
-      aiResponse = "Para melhorar a taxa de comparecimento (evitando faltas), recomendo programar um fluxo no n8n:<br>1. Enviar mensagem automática 24 horas antes solicitando confirmação rápida (sim/não).<br>2. Se o paciente não responder até 4 horas antes, disparar um alerta na recepção para uma ligação rápida.";
-    } else if (userText.toLowerCase().includes("script") || userText.toLowerCase().includes("invisalign")) {
-      aiResponse = "Aqui está um script de agendamento de Invisalign de alta conversão:<br><br><i>'Olá [Nome]! Tudo bem? O Dr. Henrique finalizou a simulação 3D do seu sorriso com Invisalign. Ficou sensacional! Ele tem horário nesta quinta às 14h ou 16h para te mostrar como seus dentes vão se mover. Qual horário fica melhor?'</i>";
-    } else if (userText.toLowerCase().includes("n8n")) {
-      aiResponse = "O n8n nos ajuda a conectar o consultório com tudo:<br>1. Quando um lead vem do Facebook Ads, o n8n cria a ficha no CRM.<br>2. O n8n chama a IA para triagem automática.<br>3. Dispara a mensagem no WhatsApp.<br>4. Se confirmado, atualiza a agenda no Google Calendar e notifica o dentista responsável. Tudo sem intervenção manual!";
+
+  // Indicador de "digitando..."
+  const typingId = `typing-${Date.now()}`;
+  container.innerHTML += `<div class="ai-panel-bubble ai" id="${typingId}" style="opacity:.6;">Sofia está pensando…</div>`;
+  container.scrollTop = container.scrollHeight;
+
+  try {
+    const res = await window.ApexAPI.copilot.ask(userText, copilotConversationId);
+    document.getElementById(typingId)?.remove();
+    if (res.success) {
+      copilotConversationId = res.conversationId || copilotConversationId;
+      const html = (res.answer || "(sem resposta)").replace(/\n/g, "<br>");
+      container.innerHTML += `<div class="ai-panel-bubble ai">${html}</div>`;
+    } else {
+      container.innerHTML += `<div class="ai-panel-bubble ai" style="color:#ef4444;">Não consegui falar com a IA agora: ${res.error}</div>`;
     }
-    
-    container.innerHTML += `<div class="ai-panel-bubble ai">${aiResponse}</div>`;
-    container.scrollTop = container.scrollHeight;
-  }, 1000);
+  } catch (err) {
+    document.getElementById(typingId)?.remove();
+    container.innerHTML += `<div class="ai-panel-bubble ai" style="color:#ef4444;">Erro: ${err.message}</div>`;
+  }
+  container.scrollTop = container.scrollHeight;
 }
 
 // ==========================================================================
@@ -1444,8 +1474,6 @@ function initModals() {
   document.getElementById("modal-meeting-close").addEventListener("click", () => closeModal("modal-meeting"));
   document.getElementById("btn-cancel-meeting").addEventListener("click", () => closeModal("modal-meeting"));
   document.getElementById("form-add-meeting").addEventListener("submit", handleMeetingSubmit);
-  
-  document.getElementById("btn-quick-automation").addEventListener("click", triggerQuickAdSimulation);
 }
 
 function openModal(id) {
