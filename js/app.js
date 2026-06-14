@@ -88,6 +88,7 @@ async function bootApp() {
   initConnections();
   initInboxPro();
   initAutomationBuilder();
+  initMetas();
 }
 
 /* ==========================================================================
@@ -283,6 +284,8 @@ function initSidebar() {
         renderChannelsList();
       } else if (panelId === 'automation') {
         renderAutomationsList();
+      } else if (panelId === 'metas') {
+        renderMetas();
       }
     });
   });
@@ -1515,14 +1518,17 @@ async function handleLeadSubmit(e) {
   const email = document.getElementById("lead-email").value;
   const phone = document.getElementById("lead-phone").value;
   const value = parseFloat(document.getElementById("lead-value").value);
+  const entradaEl = document.getElementById("lead-entrada");
+  const entrada = entradaEl ? parseFloat(entradaEl.value) : NaN;
   const stage = document.getElementById("lead-stage").value;
   const source = document.getElementById("lead-source").value;
-  
+
   const patientData = {
     name,
     email: email || null,
     phone,
     treatment_value: value || null,
+    entrada: !isNaN(entrada) ? entrada : null,
     treatment_interest: source || null,
     source: 'manual'
   };
@@ -2187,4 +2193,165 @@ async function renderAutomationsList() {
     });
     container.appendChild(row);
   });
+}
+
+/* ==========================================================================
+   METAS & VENDAS — funil, meta×realizado, resumo anual (substitui a planilha)
+   ========================================================================== */
+const MES_NOMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+function initMetas() {
+  const mSel = document.getElementById('metas-month');
+  const ySel = document.getElementById('metas-year');
+  if (!mSel || !ySel) return;
+
+  const now = new Date();
+  mSel.innerHTML = MES_NOMES.map((n, i) => `<option value="${i + 1}" ${i === now.getMonth() ? 'selected' : ''}>${n}</option>`).join('');
+  const anoAtual = now.getFullYear();
+  ySel.innerHTML = [anoAtual - 1, anoAtual, anoAtual + 1].map(y => `<option value="${y}" ${y === anoAtual ? 'selected' : ''}>${y}</option>`).join('');
+
+  mSel.addEventListener('change', renderMetas);
+  ySel.addEventListener('change', renderMetas);
+
+  // Modal de metas
+  document.getElementById('btn-edit-goals').addEventListener('click', openGoalsModal);
+  document.getElementById('modal-goals-close').addEventListener('click', () => closeModal('modal-goals'));
+  document.getElementById('btn-cancel-goals').addEventListener('click', () => closeModal('modal-goals'));
+  document.getElementById('form-goals').addEventListener('submit', handleGoalsSubmit);
+}
+
+function metasPeriodo() {
+  return {
+    year: parseInt(document.getElementById('metas-year').value),
+    month: parseInt(document.getElementById('metas-month').value)
+  };
+}
+
+async function renderMetas() {
+  const { year, month } = metasPeriodo();
+  const [mRes, gRes] = await Promise.all([
+    window.ApexAPI.metas.monthMetrics(year, month),
+    window.ApexAPI.metas.getGoal(year, month)
+  ]);
+  const m = mRes.success ? mRes.data : {};
+  const g = gRes.success ? (gRes.data || {}) : {};
+
+  renderFunnel(m);
+  renderGoalsCards(m, g);
+  renderYearTable(year);
+}
+
+function renderFunnel(m) {
+  const cont = document.getElementById('metas-funnel');
+  if (!cont) return;
+  const pct = (v) => `${Math.round((v || 0) * 100)}%`;
+  const etapas = [
+    { label: 'Leads', val: m.leads || 0, cor: '#6366f1', taxa: null },
+    { label: 'Agendamentos', val: m.agendamentos || 0, cor: '#a29bfe', taxa: `${pct(m.taxa_lead_agend)} dos leads` },
+    { label: 'Comparecimentos', val: m.comparecimentos || 0, cor: '#74b9ff', taxa: `${pct(m.taxa_agend_comp)} dos agend.` },
+    { label: 'Vendas', val: m.vendas || 0, cor: '#10b981', taxa: `${pct(m.taxa_comp_venda)} dos compar.` },
+  ];
+  cont.innerHTML = etapas.map(e => `
+    <div class="card" style="padding:18px; border-top:3px solid ${e.cor};">
+      <div style="font-size:12px; color:var(--text-muted);">${e.label}</div>
+      <div style="font-size:30px; font-weight:800; color:var(--text-white); margin:4px 0;">${e.val}</div>
+      <div style="font-size:11px; color:var(--text-muted);">${e.taxa || '&nbsp;'}</div>
+    </div>
+  `).join('');
+}
+
+function renderGoalsCards(m, g) {
+  const cont = document.getElementById('metas-goals');
+  if (!cont) return;
+  const card = (titulo, real, meta, fmt) => {
+    const metaNum = parseFloat(meta || 0);
+    const realNum = parseFloat(real || 0);
+    const pct = metaNum > 0 ? Math.min(100, Math.round((realNum / metaNum) * 100)) : 0;
+    const cor = pct >= 100 ? '#10b981' : (pct >= 60 ? '#f59e0b' : '#6366f1');
+    return `
+      <div class="card" style="padding:18px;">
+        <div style="font-size:13px; color:var(--text-muted); margin-bottom:6px;">${titulo}</div>
+        <div style="display:flex; justify-content:space-between; align-items:baseline;">
+          <span style="font-size:22px; font-weight:800; color:var(--text-white);">${fmt(realNum)}</span>
+          <span style="font-size:12px; color:var(--text-muted);">meta ${metaNum > 0 ? fmt(metaNum) : '—'}</span>
+        </div>
+        <div style="height:7px; background:var(--bg-tertiary); border-radius:6px; margin-top:10px; overflow:hidden;">
+          <div style="height:100%; width:${pct}%; background:${cor};"></div>
+        </div>
+        <div style="font-size:11px; color:${cor}; margin-top:5px;">${metaNum > 0 ? pct + '% da meta' : 'defina a meta'}</div>
+      </div>`;
+  };
+  const money = (v) => formatCurrency(v);
+  const num = (v) => Math.round(v).toString();
+  cont.innerHTML =
+    card('Faturamento', m.faturamento, g.meta_faturamento, money) +
+    card('Vendas', m.vendas, g.meta_vendas, num) +
+    card('Leads', m.leads, g.meta_leads, num) +
+    card('Agendamentos', m.agendamentos, g.meta_agendamentos, num) +
+    card('Comparecimentos', m.comparecimentos, g.meta_comparecimentos, num) +
+    card('Ticket médio', m.ticket_medio, g.meta_ticket_medio, money);
+}
+
+async function renderYearTable(year) {
+  const table = document.getElementById('metas-year-table');
+  if (!table) return;
+  const res = await window.ApexAPI.metas.yearSummary(year);
+  const meses = res.success ? res.data : [];
+  const money = (v) => formatCurrency(v || 0);
+  let head = `<thead><tr style="text-align:left; color:var(--text-muted); border-bottom:1px solid var(--bg-tertiary);">
+    <th style="padding:8px;">Mês</th><th>Leads</th><th>Agend.</th><th>Compar.</th><th>Vendas</th><th>Faturamento</th><th>Entrada</th></tr></thead>`;
+  let tot = { leads: 0, agendamentos: 0, comparecimentos: 0, vendas: 0, faturamento: 0, entrada: 0 };
+  let rows = (meses || []).map((m, i) => {
+    ['leads','agendamentos','comparecimentos','vendas','faturamento','entrada'].forEach(k => tot[k] += (m[k] || 0));
+    const vazio = !(m.leads || m.agendamentos || m.vendas || m.faturamento);
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,.04); ${vazio ? 'opacity:.4;' : ''}">
+      <td style="padding:8px; color:var(--text-white);">${MES_NOMES[i]}</td>
+      <td>${m.leads || 0}</td><td>${m.agendamentos || 0}</td><td>${m.comparecimentos || 0}</td>
+      <td>${m.vendas || 0}</td><td>${money(m.faturamento)}</td><td>${money(m.entrada)}</td></tr>`;
+  }).join('');
+  let footer = `<tr style="border-top:2px solid var(--bg-tertiary); font-weight:700; color:var(--text-white);">
+    <td style="padding:8px;">Total</td><td>${tot.leads}</td><td>${tot.agendamentos}</td><td>${tot.comparecimentos}</td>
+    <td>${tot.vendas}</td><td>${money(tot.faturamento)}</td><td>${money(tot.entrada)}</td></tr>`;
+  table.innerHTML = head + '<tbody>' + rows + footer + '</tbody>';
+}
+
+async function openGoalsModal() {
+  const { year, month } = metasPeriodo();
+  document.getElementById('modal-goals-title').textContent = `Metas — ${MES_NOMES[month - 1]}/${year}`;
+  const res = await window.ApexAPI.metas.getGoal(year, month);
+  const g = res.success && res.data ? res.data : {};
+  document.getElementById('goal-faturamento').value = g.meta_faturamento || '';
+  document.getElementById('goal-vendas').value = g.meta_vendas || '';
+  document.getElementById('goal-leads').value = g.meta_leads || '';
+  document.getElementById('goal-agendamentos').value = g.meta_agendamentos || '';
+  document.getElementById('goal-comparecimentos').value = g.meta_comparecimentos || '';
+  document.getElementById('goal-ticket').value = g.meta_ticket_medio || '';
+  document.getElementById('goal-dias').value = g.dias_trabalhados || '';
+  document.getElementById('goal-marketing').value = g.investimento_marketing || '';
+  openModal('modal-goals');
+}
+
+async function handleGoalsSubmit(e) {
+  e.preventDefault();
+  const { year, month } = metasPeriodo();
+  const num = (id) => parseFloat(document.getElementById(id).value) || 0;
+  const goal = {
+    year, month,
+    meta_faturamento: num('goal-faturamento'),
+    meta_vendas: num('goal-vendas'),
+    meta_leads: num('goal-leads'),
+    meta_agendamentos: num('goal-agendamentos'),
+    meta_comparecimentos: num('goal-comparecimentos'),
+    meta_ticket_medio: num('goal-ticket'),
+    dias_trabalhados: num('goal-dias') || 22,
+    investimento_marketing: num('goal-marketing'),
+  };
+  const res = await window.ApexAPI.metas.saveGoal(goal);
+  if (res.success) {
+    showToast('Metas salvas! 🎯', 'success');
+    closeModal('modal-goals');
+    renderMetas();
+  } else {
+    showToast('Erro ao salvar metas: ' + (res.error || ''), 'danger');
+  }
 }

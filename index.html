@@ -97,6 +97,12 @@
             </svg>
             Agenda Clínica
           </div>
+          <div class="nav-item" data-panel="metas">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+            </svg>
+            Metas &amp; Vendas
+          </div>
           <div class="nav-divider"></div>
           <div class="nav-item" data-panel="connections">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -782,6 +788,35 @@
         </div>
       </section>
 
+      <!-- Painel: Metas & Vendas -->
+      <section class="content-panel" id="panel-metas">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+          <div>
+            <h2 style="font-family: var(--font-heading); font-size: 20px; font-weight: 700; color:var(--text-white);">Metas &amp; Vendas</h2>
+            <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Funil, metas e faturamento — calculado automático dos seus dados.</p>
+          </div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <select id="metas-month" class="form-control" style="width:auto;"></select>
+            <select id="metas-year" class="form-control" style="width:auto;"></select>
+            <button class="btn btn-secondary btn-sm" id="btn-edit-goals">🎯 Definir metas</button>
+          </div>
+        </div>
+
+        <!-- Funil do mês -->
+        <div class="right-section-title" style="margin-bottom:12px;">Funil do mês</div>
+        <div id="metas-funnel" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:14px; margin-bottom:28px;"></div>
+
+        <!-- Meta × Realizado -->
+        <div class="right-section-title" style="margin-bottom:12px;">Meta × Realizado</div>
+        <div id="metas-goals" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; margin-bottom:28px;"></div>
+
+        <!-- Resumo anual -->
+        <div class="right-section-title" style="margin-bottom:12px;">Resumo do ano</div>
+        <div class="card" style="padding:20px; overflow-x:auto;">
+          <table id="metas-year-table" style="width:100%; border-collapse:collapse; font-size:13px;"></table>
+        </div>
+      </section>
+
       <!-- Painel: Conexões (WhatsApp / Instagram por organização) -->
       <section class="content-panel" id="panel-connections">
         <div style="max-width: 920px;">
@@ -821,6 +856,58 @@
       </section>
 
     </main>
+
+    <!-- Modal: Definir Metas do mês -->
+    <div class="modal-overlay" id="modal-goals">
+      <div class="modal-content" style="max-width:460px;">
+        <div class="modal-header">
+          <h2 id="modal-goals-title">Metas do mês</h2>
+          <span class="modal-close" id="modal-goals-close">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 20px;"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </span>
+        </div>
+        <form id="form-goals">
+          <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+            <div class="form-group">
+              <label for="goal-faturamento">Meta de faturamento (R$)</label>
+              <input type="number" id="goal-faturamento" class="form-control" placeholder="80000">
+            </div>
+            <div class="form-group">
+              <label for="goal-vendas">Meta de vendas</label>
+              <input type="number" id="goal-vendas" class="form-control" placeholder="8">
+            </div>
+            <div class="form-group">
+              <label for="goal-leads">Meta de leads</label>
+              <input type="number" id="goal-leads" class="form-control" placeholder="160">
+            </div>
+            <div class="form-group">
+              <label for="goal-agendamentos">Meta de agendamentos</label>
+              <input type="number" id="goal-agendamentos" class="form-control" placeholder="40">
+            </div>
+            <div class="form-group">
+              <label for="goal-comparecimentos">Meta de comparecimentos</label>
+              <input type="number" id="goal-comparecimentos" class="form-control" placeholder="20">
+            </div>
+            <div class="form-group">
+              <label for="goal-ticket">Ticket médio (R$)</label>
+              <input type="number" id="goal-ticket" class="form-control" placeholder="10000">
+            </div>
+            <div class="form-group">
+              <label for="goal-dias">Dias trabalhados</label>
+              <input type="number" id="goal-dias" class="form-control" placeholder="22">
+            </div>
+            <div class="form-group">
+              <label for="goal-marketing">Investimento marketing (R$)</label>
+              <input type="number" id="goal-marketing" class="form-control" placeholder="4800">
+            </div>
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px;">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-goals">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar metas</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <!-- Modal: Conectar WhatsApp (QR Code) -->
     <div class="modal-overlay" id="modal-whatsapp">
@@ -928,6 +1015,10 @@
             <div class="form-group">
               <label for="lead-value">Valor do Tratamento (R$)</label>
               <input type="number" id="lead-value" class="form-control" required placeholder="Ex: 8000">
+            </div>
+            <div class="form-group">
+              <label for="lead-entrada">Entrada / Sinal (R$)</label>
+              <input type="number" id="lead-entrada" class="form-control" placeholder="Ex: 2000">
             </div>
             <div class="form-group">
               <label for="lead-stage">Etapa Clínica</label>

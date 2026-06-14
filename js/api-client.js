@@ -197,6 +197,7 @@ const PatientsAPI = {
         email: patientData.email || null,
         treatment_interest: patientData.treatment_interest || null,
         treatment_value: patientData.treatment_value || null,
+        entrada: patientData.entrada ?? null,
         source: patientData.source || 'manual',
         org_id: CURRENT_ORG?.id
       }
@@ -240,7 +241,8 @@ const PatientsAPI = {
         phone: updates.phone.replace(/\D/g, ''),
         email: updates.email || null,
         treatment_interest: updates.treatment_interest || null,
-        treatment_value: updates.treatment_value || null
+        treatment_value: updates.treatment_value || null,
+        entrada: updates.entrada ?? null
       }
     });
 
@@ -685,6 +687,36 @@ const TeamAPI = {
 };
 
 /* ==========================================================================
+   Metas & Vendas — métricas reais (RPC) + metas mensais
+   ========================================================================== */
+const MetasAPI = {
+  async monthMetrics(year, month) {
+    const r = await supabaseFetch('/rpc/get_month_metrics', {
+      method: 'POST', body: { p_org: CURRENT_ORG?.id, p_year: year, p_month: month }
+    });
+    return r.success ? { success: true, data: r.data } : r;
+  },
+  async yearSummary(year) {
+    const r = await supabaseFetch('/rpc/get_year_summary', {
+      method: 'POST', body: { p_org: CURRENT_ORG?.id, p_year: year }
+    });
+    return r.success ? { success: true, data: r.data } : r;
+  },
+  async getGoal(year, month) {
+    const r = await supabaseFetch(`/crm_goals?org_id=eq.${CURRENT_ORG?.id}&year=eq.${year}&month=eq.${month}&limit=1`);
+    return r.success ? { success: true, data: r.data[0] || null } : r;
+  },
+  async saveGoal(goal) {
+    // upsert por (org_id, year, month)
+    return supabaseFetch('/crm_goals', {
+      method: 'POST',
+      headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
+      body: { ...goal, org_id: CURRENT_ORG?.id }
+    });
+  }
+};
+
+/* ==========================================================================
    Copilot IA — fala com o agente Dify real via Edge Function
    ========================================================================== */
 const CopilotAPI = {
@@ -770,6 +802,7 @@ window.ApexAPI = {
   team: TeamAPI,
   inbox: InboxAPI,
   copilot: CopilotAPI,
+  metas: MetasAPI,
   chatControl: ChatControlAPI,
   realtime: RealtimeAPI,
   startMessagePolling,
