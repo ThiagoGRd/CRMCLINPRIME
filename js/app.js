@@ -173,23 +173,28 @@ async function refreshState() {
     // 1. Carregar Pacientes
     const patientsRes = await window.ApexAPI.patients.getAll();
     if (patientsRes.success) {
-      state.leads = patientsRes.data.map(p => ({
-        id: p.id,
-        name: p.name,
-        email: p.email || '',
-        phone: formatPhoneDisplay(p.phone),
-        phoneRaw: p.phone, // telefone cru (com código do país) para casar com a tabela chats
-        tags: p.tags || [],
-        assignedTo: p.assigned_to || null,
-        channel: p.channel || 'whatsapp',
-        createdAt: p.created_at,
-        lastMessageAt: p.last_message_at || p.created_at,
-        value: parseFloat(p.treatment_value || 0),
-        stage: STAGE_REV_MAP[p.deal?.[0]?.stage_id || p.deal?.stage_id] || 'lead',
-        source: p.treatment_interest || p.source || 'Geral',
-        unread: 0,
-        messages: [] // mensagens são carregadas sob demanda para economizar tráfego
-      }));
+      state.leads = patientsRes.data.map(p => {
+        // Preserva o histórico de mensagens e mensagens não-lidas já em memória para evitar que sumam no refresh/realtime
+        const existingLead = state.leads ? state.leads.find(l => l.id === p.id) : null;
+        
+        return {
+          id: p.id,
+          name: p.name,
+          email: p.email || '',
+          phone: formatPhoneDisplay(p.phone),
+          phoneRaw: p.phone, // telefone cru (com código do país) para casar com a tabela chats
+          tags: p.tags || [],
+          assignedTo: p.assigned_to || null,
+          channel: p.channel || 'whatsapp',
+          createdAt: p.created_at,
+          lastMessageAt: p.last_message_at || p.created_at,
+          value: parseFloat(p.treatment_value || 0),
+          stage: STAGE_REV_MAP[p.deal?.[0]?.stage_id || p.deal?.stage_id] || 'lead',
+          source: p.treatment_interest || p.source || 'Geral',
+          unread: existingLead ? existingLead.unread : 0,
+          messages: existingLead ? existingLead.messages : [] // Preserva as mensagens carregadas sob demanda
+        };
+      });
     }
 
     // 2. Carregar Consultas
@@ -705,11 +710,7 @@ function initChat() {
           if (res.success) {
             const lead = state.leads.find(l => l.id === state.activeChatLeadId);
             if (lead) {
-              lead.messages = res.data.map(m => ({
-                sender: m.direction === 'inbound' ? 'incoming' : 'outgoing',
-                text: m.content,
-                time: new Date(m.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-              }));
+              lead.messages = res.data.map(mapDbMessage);
               renderActiveChat();
             }
           }
@@ -761,10 +762,13 @@ function initRealtime() {
     }
   });
 
-  // Novo contato entrando (lead novo via WhatsApp)
+  // Novo contato entrando ou atualização de contato (lead novo via WhatsApp / status de RLS / trigger de bot)
   window.ApexAPI.realtime.onPatientChange(async (payload) => {
     await refreshState();
     renderChatList();
+    if (state.activeChatLeadId) {
+      renderActiveChat();
+    }
     if (typeof updateDashboardKPIs === "function") updateDashboardKPIs();
   });
 
