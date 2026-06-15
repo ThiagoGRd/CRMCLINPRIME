@@ -735,7 +735,9 @@ const AgendaAPI = {
     return { success: true, data };
   },
   async clinicorp(from, to) { return this._call({ from, to }); },
-  async markAttendance(attendanceId, status) { return this._call({ action: 'mark', attendance_id: attendanceId, status }); }
+  async markAttendance(attendanceId, status) { return this._call({ action: 'mark', attendance_id: attendanceId, status }); },
+  async createAppointment(p) { return this._call({ action: 'create', ...p }); },
+  async cancelAppointment(clinicorpId) { return this._call({ action: 'cancel', appointment_id: clinicorpId }); }
 };
 
 /* ==========================================================================

@@ -1446,13 +1446,31 @@ function renderDayAgenda() {
       <div class="agenda-title">${a.patient}</div>
       <div class="agenda-contact">${a.category || 'Consulta'}${a.phone ? ' · ' + a.phone : ''}</div>
       ${a.notes ? `<div style="font-size:11px; color:var(--text-muted); margin-top:4px;">${a.notes}</div>` : ''}
-      ${a.attendance_id ? `
-      <div style="display:flex; gap:6px; margin-top:8px;">
+      <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+        ${a.attendance_id ? `
         <button class="btn btn-sm" data-mark="compareceu" data-id="${a.attendance_id}" style="font-size:11px; padding:3px 10px; background:${a.status==='compareceu'?'#10b981':'var(--bg-secondary)'}; color:${a.status==='compareceu'?'#fff':'var(--text-muted)'}; border:1px solid var(--bg-tertiary);">✓ Compareceu</button>
-        <button class="btn btn-sm" data-mark="faltou" data-id="${a.attendance_id}" style="font-size:11px; padding:3px 10px; background:${a.status==='faltou'?'#ef4444':'var(--bg-secondary)'}; color:${a.status==='faltou'?'#fff':'var(--text-muted)'}; border:1px solid var(--bg-tertiary);">✕ Faltou</button>
-      </div>` : ''}
+        <button class="btn btn-sm" data-mark="faltou" data-id="${a.attendance_id}" style="font-size:11px; padding:3px 10px; background:${a.status==='faltou'?'#ef4444':'var(--bg-secondary)'}; color:${a.status==='faltou'?'#fff':'var(--text-muted)'}; border:1px solid var(--bg-tertiary);">✕ Faltou</button>` : ''}
+        ${a.clinicorp_id ? `<button class="btn btn-sm" data-cancel="${a.clinicorp_id}" data-nome="${a.patient}" style="font-size:11px; padding:3px 10px; background:var(--bg-secondary); color:var(--text-muted); border:1px solid var(--bg-tertiary); margin-left:auto;">🗑 Cancelar</button>` : ''}
+      </div>
     </div>
   `).join('');
+
+  // Botão cancelar consulta (Clinicorp)
+  container.querySelectorAll('button[data-cancel]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const cid = btn.dataset.cancel;
+      if (!confirm(`Cancelar a consulta de ${btn.dataset.nome}? Isso remove do Clinicorp.`)) return;
+      btn.disabled = true; btn.textContent = 'Cancelando...';
+      const res = await window.ApexAPI.agenda.cancelAppointment(cid);
+      if (res.success) {
+        showToast('Consulta cancelada no Clinicorp', 'success');
+        loadClinicorpAgenda();
+      } else {
+        showToast('Erro ao cancelar: ' + (res.error || ''), 'danger');
+        btn.disabled = false; btn.textContent = '🗑 Cancelar';
+      }
+    });
+  });
 
   // Liga os botões de comparecimento
   container.querySelectorAll('button[data-mark]').forEach(btn => {
@@ -1681,20 +1699,27 @@ async function handleMeetingSubmit(e) {
   
   // Criar data local formatada ISO
   const scheduled_at = new Date(`${date}T${time}:00`).toISOString();
+  const lead = state.leads.find(l => l.id === leadId);
 
   try {
-    const res = await window.ApexAPI.appointments.create({
-      patient_id: leadId,
-      title,
-      scheduled_at,
-      duration_minutes: 60
+    // 1. Cria de verdade no Clinicorp (agenda real do Dr. Thiago)
+    const clini = await window.ApexAPI.agenda.createAppointment({
+      name: lead ? lead.name : title,
+      phone: lead ? (lead.phoneRaw || lead.phone) : '',
+      date, time, duration: 30
     });
-    
-    if (res.success) {
-      showToast(`Agendamento de consulta salvo!`, 'success');
-      await refreshState();
-      closeModal("modal-meeting");
-      initCalendar();
+    if (!clini.success) {
+      showToast('Não foi possível criar no Clinicorp: ' + (clini.error || ''), 'danger');
+      return;
+    }
+
+    // 2. Registra também no CRM (histórico/dashboard)
+    await window.ApexAPI.appointments.create({ patient_id: leadId, title, scheduled_at, duration_minutes: 30 });
+
+    showToast('Consulta criada no Clinicorp e no CRM! 📅', 'success');
+    closeModal("modal-meeting");
+    if (document.getElementById('panel-calendar')?.classList.contains('active')) {
+      loadClinicorpAgenda();
     }
   } catch (err) {
     showToast("Erro ao agendar consulta: " + err.message, "danger");
