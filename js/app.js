@@ -1514,6 +1514,13 @@ function initModals() {
   document.getElementById("modal-meeting-close").addEventListener("click", () => closeModal("modal-meeting"));
   document.getElementById("btn-cancel-meeting").addEventListener("click", () => closeModal("modal-meeting"));
   document.getElementById("form-add-meeting").addEventListener("submit", handleMeetingSubmit);
+  
+  const meetingDateInput = document.getElementById("meeting-date");
+  if (meetingDateInput) {
+    meetingDateInput.addEventListener("change", (e) => {
+      loadAvailableTimes(e.target.value);
+    });
+  }
 }
 
 function openModal(id) {
@@ -1677,6 +1684,107 @@ function openScheduleModalFromChat() {
   document.getElementById("meeting-date").value = today;
   
   openModal("modal-meeting");
+  
+  // Carrega os horários livres da data inicial
+  loadAvailableTimes(today);
+}
+
+async function loadAvailableTimes(dateStr) {
+  const timeSelect = document.getElementById("meeting-time");
+  const confirmBtn = document.getElementById("btn-confirm-meeting");
+  
+  if (!timeSelect) return;
+  
+  // Desativa os campos e exibe indicador de carregamento
+  timeSelect.disabled = true;
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    confirmBtn.dataset.originalText = confirmBtn.textContent;
+    confirmBtn.textContent = "Buscando horários...";
+  }
+  timeSelect.innerHTML = `<option value="">Carregando horários...</option>`;
+  
+  try {
+    const res = await window.ApexAPI.agenda.clinicorp(dateStr, dateStr);
+    const appointments = res.success ? (res.data.appointments || []) : [];
+    if (!res.success) {
+      console.warn("Falha ao buscar agenda do Clinicorp, exibindo horários livres padrão:", res.error);
+      showToast("Não foi possível sincronizar com o Clinicorp. Exibindo horários padrão.", "warning");
+    }
+    
+    // Slots padrão (das 08:00 às 18:00 com 30min de intervalo, sem 12:00-13:00)
+    const defaultSlots = [
+      "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+      "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30"
+    ];
+    
+    const normalizeTime = (t) => (t || '').slice(0, 5);
+    const toMins = (t) => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+    
+    const availableSlots = defaultSlots.filter(slotStart => {
+      // Cada consulta tem duração estimada de 60 minutos
+      const slotEnd = (() => {
+        const [h, m] = slotStart.split(':').map(Number);
+        const total = h * 60 + m + 60;
+        const fh = String(Math.floor(total / 60)).padStart(2, '0');
+        const fm = String(total % 60).padStart(2, '0');
+        return `${fh}:${fm}`;
+      })();
+      
+      const slotStartMins = toMins(slotStart);
+      const slotEndMins = toMins(slotEnd);
+      
+      // Verifica conflito de horário com agendamentos existentes
+      const hasConflict = appointments.some(appt => {
+        const apptStart = normalizeTime(appt.from);
+        const apptEnd = normalizeTime(appt.to);
+        const apptStartMins = toMins(apptStart);
+        const apptEndMins = toMins(apptEnd);
+        
+        return slotStartMins < apptEndMins && slotEndMins > apptStartMins;
+      });
+      
+      if (hasConflict) return false;
+      
+      // Remove horários que já passaram se for hoje
+      const todayStr = new Date().toLocaleDateString('en-CA');
+      if (dateStr === todayStr) {
+        const now = new Date();
+        const nowMins = now.getHours() * 60 + now.getMinutes();
+        if (slotStartMins <= nowMins) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+    
+    timeSelect.innerHTML = "";
+    if (availableSlots.length === 0) {
+      timeSelect.innerHTML = `<option value="">Nenhum horário disponível</option>`;
+      timeSelect.disabled = true;
+      if (confirmBtn) confirmBtn.disabled = true;
+    } else {
+      availableSlots.forEach(slot => {
+        timeSelect.innerHTML += `<option value="${slot}">${slot}</option>`;
+      });
+      timeSelect.disabled = false;
+      if (confirmBtn) confirmBtn.disabled = false;
+    }
+  } catch (err) {
+    console.error("Erro ao carregar horários disponíveis:", err);
+    showToast("Erro ao carregar horários disponíveis: " + err.message, "danger");
+    timeSelect.innerHTML = `<option value="">Erro ao carregar horários</option>`;
+    timeSelect.disabled = true;
+    if (confirmBtn) confirmBtn.disabled = true;
+  } finally {
+    if (confirmBtn) {
+      confirmBtn.textContent = confirmBtn.dataset.originalText || "Confirmar Agendamento";
+    }
+  }
 }
 
 // Simulação de Webhook Ads real
