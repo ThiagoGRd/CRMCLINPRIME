@@ -1431,14 +1431,47 @@ function renderDayAgenda() {
     return;
   }
 
-  container.innerHTML = doDia.map(a => `
-    <div class="card agenda-item" style="background-color: var(--bg-tertiary); padding: 12px 16px; border-left: 3px solid ${a.color || '#6366f1'}; margin-bottom: 8px;">
-      <span class="agenda-time">${a.from} - ${a.to} ${a.confirmed ? '✅' : ''}</span>
+  const statusBadge = (s) => {
+    if (s === 'compareceu') return '<span style="font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(16,185,129,.2); color:#10b981;">✓ Compareceu</span>';
+    if (s === 'faltou') return '<span style="font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(239,68,68,.2); color:#ef4444;">✕ Faltou</span>';
+    return '';
+  };
+
+  container.innerHTML = doDia.map((a, i) => `
+    <div class="card agenda-item" data-att="${a.attendance_id || ''}" style="background-color: var(--bg-tertiary); padding: 12px 16px; border-left: 3px solid ${a.color || '#6366f1'}; margin-bottom: 8px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span class="agenda-time">${a.from} - ${a.to} ${a.confirmed ? '✅' : ''}</span>
+        ${statusBadge(a.status)}
+      </div>
       <div class="agenda-title">${a.patient}</div>
       <div class="agenda-contact">${a.category || 'Consulta'}${a.phone ? ' · ' + a.phone : ''}</div>
       ${a.notes ? `<div style="font-size:11px; color:var(--text-muted); margin-top:4px;">${a.notes}</div>` : ''}
+      ${a.attendance_id ? `
+      <div style="display:flex; gap:6px; margin-top:8px;">
+        <button class="btn btn-sm" data-mark="compareceu" data-id="${a.attendance_id}" style="font-size:11px; padding:3px 10px; background:${a.status==='compareceu'?'#10b981':'var(--bg-secondary)'}; color:${a.status==='compareceu'?'#fff':'var(--text-muted)'}; border:1px solid var(--bg-tertiary);">✓ Compareceu</button>
+        <button class="btn btn-sm" data-mark="faltou" data-id="${a.attendance_id}" style="font-size:11px; padding:3px 10px; background:${a.status==='faltou'?'#ef4444':'var(--bg-secondary)'}; color:${a.status==='faltou'?'#fff':'var(--text-muted)'}; border:1px solid var(--bg-tertiary);">✕ Faltou</button>
+      </div>` : ''}
     </div>
   `).join('');
+
+  // Liga os botões de comparecimento
+  container.querySelectorAll('button[data-mark]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      const novoStatus = btn.dataset.mark;
+      btn.disabled = true;
+      const res = await window.ApexAPI.agenda.markAttendance(id, novoStatus);
+      if (res.success) {
+        const appt = (state.clinicorpAgenda || []).find(x => x.attendance_id === id);
+        if (appt) appt.status = novoStatus;
+        showToast(novoStatus === 'compareceu' ? '✓ Comparecimento registrado' : '✕ Falta registrada', 'success');
+        renderDayAgenda();
+      } else {
+        showToast('Erro ao marcar: ' + (res.error || ''), 'danger');
+        btn.disabled = false;
+      }
+    });
+  });
 }
 
 // ==========================================================================

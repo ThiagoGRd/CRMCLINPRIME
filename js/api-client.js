@@ -720,7 +720,7 @@ const MetasAPI = {
    Agenda — lê a agenda real do Clinicorp via Edge Function
    ========================================================================== */
 const AgendaAPI = {
-  async clinicorp(from, to) {
+  async _call(payload) {
     const res = await fetch(`${SUPABASE_ROOT_URL}/functions/v1/clinicorp-agenda`, {
       method: 'POST',
       headers: {
@@ -728,12 +728,14 @@ const AgendaAPI = {
         'apikey': SUPABASE_KEY,
         'Authorization': `Bearer ${AUTH_TOKEN || SUPABASE_KEY}`,
       },
-      body: JSON.stringify({ from, to, org_id: CURRENT_ORG?.id }),
+      body: JSON.stringify({ ...payload, org_id: CURRENT_ORG?.id }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return { success: false, error: data.error || `Erro ${res.status}` };
     return { success: true, data };
-  }
+  },
+  async clinicorp(from, to) { return this._call({ from, to }); },
+  async markAttendance(attendanceId, status) { return this._call({ action: 'mark', attendance_id: attendanceId, status }); }
 };
 
 /* ==========================================================================
