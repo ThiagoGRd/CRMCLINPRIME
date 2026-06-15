@@ -276,7 +276,7 @@ function initSidebar() {
       } else if (panelId === 'contacts') {
         initLeadsTable();
       } else if (panelId === 'calendar') {
-        initCalendar();
+        loadClinicorpAgenda();
       } else if (panelId === 'chat') {
         renderChatList();
         renderActiveChat();
@@ -1340,22 +1340,27 @@ function initCalendar() {
     const isToday = now.getDate() === d && now.getMonth() === month && now.getFullYear() === year;
     if (isToday) dayEl.classList.add("today");
     
-    const dayMeetings = state.meetings.filter(m => m.date === fullDateStr);
+    const dayAppts = (state.clinicorpAgenda || []).filter(a => a.date === fullDateStr);
     let dotsHtml = "";
-    dayMeetings.forEach(m => {
-      dotsHtml += `<div class="calendar-event-dot" style="background-color: #10b981;" title="${m.title}"></div>`;
+    dayAppts.slice(0, 4).forEach(a => {
+      dotsHtml += `<div class="calendar-event-dot" style="background-color: ${a.color || '#6366f1'};" title="${a.from} ${a.patient}"></div>`;
     });
-    
+    if (dayAppts.length > 4) dotsHtml += `<span style="font-size:9px; color:var(--text-muted);">+${dayAppts.length - 4}</span>`;
+
+    if (state.selectedDay === fullDateStr) {
+      dayEl.classList.add("selected");
+      dayEl.style.outline = "2px solid var(--color-primary)";
+      dayEl.style.outlineOffset = "-2px";
+    }
+
     dayEl.innerHTML = `
       <span class="calendar-day-num">${d}</span>
-      <div class="calendar-day-events">
-        ${dotsHtml}
-      </div>
+      <div class="calendar-day-events">${dotsHtml}</div>
     `;
-    
+
     dayEl.addEventListener("click", () => {
-      document.getElementById("meeting-date").value = fullDateStr;
-      openModal("modal-meeting");
+      state.selectedDay = fullDateStr;
+      initCalendar();
     });
     container.appendChild(dayEl);
   }
@@ -1365,43 +1370,71 @@ function initCalendar() {
   
   document.getElementById("btn-calendar-prev").addEventListener("click", () => {
     state.calendarDate.setMonth(state.calendarDate.getMonth() - 1);
-    initCalendar();
+    loadClinicorpAgenda();
   });
-  
+
   document.getElementById("btn-calendar-next").addEventListener("click", () => {
     state.calendarDate.setMonth(state.calendarDate.getMonth() + 1);
-    initCalendar();
+    loadClinicorpAgenda();
   });
-  
-  renderUpcomingAgenda();
+
+  renderDayAgenda();
 }
 
-function renderUpcomingAgenda() {
+// Busca a agenda do mês visível no Clinicorp e redesenha
+async function loadClinicorpAgenda() {
+  const year = state.calendarDate.getFullYear();
+  const month = state.calendarDate.getMonth();
+  const pad = (n) => String(n).padStart(2, '0');
+  const from = `${year}-${pad(month + 1)}-01`;
+  const to = `${year}-${pad(month + 1)}-${new Date(year, month + 1, 0).getDate()}`;
+
+  const titleEl = document.getElementById("calendar-month-year");
+  if (titleEl) titleEl.dataset.loading = "1";
+  try {
+    const res = await window.ApexAPI.agenda.clinicorp(from, to);
+    state.clinicorpAgenda = res.success ? (res.data.appointments || []) : [];
+    state.agendaProfessional = res.success ? res.data.professional : '';
+    if (!res.success) showToast("Não consegui carregar a agenda do Clinicorp: " + (res.error || ""), "warning");
+  } catch (e) {
+    state.clinicorpAgenda = [];
+    showToast("Erro ao buscar agenda: " + e.message, "danger");
+  }
+  // Default: dia selecionado = hoje (se no mês visível) senão dia 1
+  const now = new Date();
+  if (!state.selectedDay || !state.selectedDay.startsWith(`${year}-${pad(month + 1)}`)) {
+    state.selectedDay = (now.getFullYear() === year && now.getMonth() === month)
+      ? `${year}-${pad(month + 1)}-${pad(now.getDate())}`
+      : from;
+  }
+  initCalendar();
+}
+
+function renderDayAgenda() {
   const container = document.getElementById("agenda-list-container");
+  const titleEl = document.querySelector('#panel-calendar .right-section-title');
   if (!container) return;
-  
-  container.innerHTML = "";
-  
-  if (state.meetings.length === 0) {
-    container.innerHTML = `<div style="font-size: 13px; color: var(--text-muted);">Nenhum agendamento para hoje.</div>`;
+
+  const dia = state.selectedDay;
+  const diaFmt = dia ? dia.split('-').reverse().join('/') : '';
+  if (titleEl) titleEl.textContent = `Agenda ${state.agendaProfessional || ''} — ${diaFmt}`;
+
+  const doDia = (state.clinicorpAgenda || []).filter(a => a.date === dia)
+    .sort((a, b) => (a.from || '').localeCompare(b.from || ''));
+
+  if (doDia.length === 0) {
+    container.innerHTML = `<div style="font-size: 13px; color: var(--text-muted);">Nenhuma consulta nesse dia.</div>`;
     return;
   }
-  
-  const sorted = [...state.meetings].sort((a, b) => new Date(a.date) - new Date(b.date));
-  
-  sorted.forEach(m => {
-    const lead = state.leads.find(l => l.id === m.leadId);
-    const leadName = lead ? lead.name : "Paciente não associado";
-    const dateFormatted = m.date.split('-').reverse().join('/');
-    
-    container.innerHTML += `
-      <div class="card agenda-item" style="background-color: var(--bg-tertiary); padding: 12px 16px; border-left-color:#10b981; margin-bottom: 8px;">
-        <span class="agenda-time">${dateFormatted} às ${m.time}</span>
-        <div class="agenda-title">${m.title}</div>
-        <div class="agenda-contact">Paciente: ${leadName}</div>
-      </div>
-    `;
-  });
+
+  container.innerHTML = doDia.map(a => `
+    <div class="card agenda-item" style="background-color: var(--bg-tertiary); padding: 12px 16px; border-left: 3px solid ${a.color || '#6366f1'}; margin-bottom: 8px;">
+      <span class="agenda-time">${a.from} - ${a.to} ${a.confirmed ? '✅' : ''}</span>
+      <div class="agenda-title">${a.patient}</div>
+      <div class="agenda-contact">${a.category || 'Consulta'}${a.phone ? ' · ' + a.phone : ''}</div>
+      ${a.notes ? `<div style="font-size:11px; color:var(--text-muted); margin-top:4px;">${a.notes}</div>` : ''}
+    </div>
+  `).join('');
 }
 
 // ==========================================================================

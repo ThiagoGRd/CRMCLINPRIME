@@ -717,6 +717,26 @@ const MetasAPI = {
 };
 
 /* ==========================================================================
+   Agenda — lê a agenda real do Clinicorp via Edge Function
+   ========================================================================== */
+const AgendaAPI = {
+  async clinicorp(from, to) {
+    const res = await fetch(`${SUPABASE_ROOT_URL}/functions/v1/clinicorp-agenda`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${AUTH_TOKEN || SUPABASE_KEY}`,
+      },
+      body: JSON.stringify({ from, to, org_id: CURRENT_ORG?.id }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { success: false, error: data.error || `Erro ${res.status}` };
+    return { success: true, data };
+  }
+};
+
+/* ==========================================================================
    Copilot IA — fala com o agente Dify real via Edge Function
    ========================================================================== */
 const CopilotAPI = {
@@ -803,6 +823,7 @@ window.ApexAPI = {
   inbox: InboxAPI,
   copilot: CopilotAPI,
   metas: MetasAPI,
+  agenda: AgendaAPI,
   chatControl: ChatControlAPI,
   realtime: RealtimeAPI,
   startMessagePolling,
