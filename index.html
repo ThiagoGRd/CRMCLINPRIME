@@ -857,6 +857,19 @@
 
     </main>
 
+    <!-- Modal: Detalhamento de métrica (leads/agendamentos/comparecimentos) -->
+    <div class="modal-overlay" id="modal-metas-detail">
+      <div class="modal-content" style="max-width:760px; max-height:80vh; display:flex; flex-direction:column;">
+        <div class="modal-header">
+          <h2 id="metas-detail-title">Detalhes</h2>
+          <span class="modal-close" id="modal-metas-detail-close">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 20px;"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </span>
+        </div>
+        <div id="metas-detail-body" style="overflow-y:auto; flex:1;"></div>
+      </div>
+    </div>
+
     <!-- Modal: Definir Metas do mês -->
     <div class="modal-overlay" id="modal-goals">
       <div class="modal-content" style="max-width:460px;">

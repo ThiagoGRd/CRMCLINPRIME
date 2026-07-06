@@ -2421,6 +2421,10 @@ function initMetas() {
   document.getElementById('modal-goals-close').addEventListener('click', () => closeModal('modal-goals'));
   document.getElementById('btn-cancel-goals').addEventListener('click', () => closeModal('modal-goals'));
   document.getElementById('form-goals').addEventListener('submit', handleGoalsSubmit);
+
+  // Modal de detalhamento
+  const dc = document.getElementById('modal-metas-detail-close');
+  if (dc) dc.addEventListener('click', () => closeModal('modal-metas-detail'));
 }
 
 function metasPeriodo() {
@@ -2449,18 +2453,57 @@ function renderFunnel(m) {
   if (!cont) return;
   const pct = (v) => `${Math.round((v || 0) * 100)}%`;
   const etapas = [
-    { label: 'Leads', val: m.leads || 0, cor: '#6366f1', taxa: null },
-    { label: 'Agendamentos', val: m.agendamentos || 0, cor: '#a29bfe', taxa: `${pct(m.taxa_lead_agend)} dos leads` },
-    { label: 'Comparecimentos', val: m.comparecimentos || 0, cor: '#74b9ff', taxa: `${pct(m.taxa_agend_comp)} dos agend.` },
-    { label: 'Vendas', val: m.vendas || 0, cor: '#10b981', taxa: `${pct(m.taxa_comp_venda)} dos compar.` },
+    { label: 'Leads', metric: 'leads', val: m.leads || 0, cor: '#6366f1', taxa: null },
+    { label: 'Agendamentos', metric: 'agendamentos', val: m.agendamentos || 0, cor: '#a29bfe', taxa: `${pct(m.taxa_lead_agend)} dos leads` },
+    { label: 'Comparecimentos', metric: 'comparecimentos', val: m.comparecimentos || 0, cor: '#74b9ff', taxa: `${pct(m.taxa_agend_comp)} dos agend.` },
+    { label: 'Vendas', metric: 'vendas', val: m.vendas || 0, cor: '#10b981', taxa: `${pct(m.taxa_comp_venda)} dos compar.` },
   ];
   cont.innerHTML = etapas.map(e => `
-    <div class="card" style="padding:18px; border-top:3px solid ${e.cor};">
-      <div style="font-size:12px; color:var(--text-muted);">${e.label}</div>
+    <div class="card metric-drill" data-metric="${e.metric}" style="padding:18px; border-top:3px solid ${e.cor}; cursor:pointer; transition:transform .1s;" title="Clique para ver a lista">
+      <div style="font-size:12px; color:var(--text-muted);">${e.label} <span style="opacity:.5;">↗</span></div>
       <div style="font-size:30px; font-weight:800; color:var(--text-white); margin:4px 0;">${e.val}</div>
       <div style="font-size:11px; color:var(--text-muted);">${e.taxa || '&nbsp;'}</div>
     </div>
   `).join('');
+  cont.querySelectorAll('.metric-drill').forEach(el => {
+    el.addEventListener('click', () => openMetasDetail(el.dataset.metric));
+    el.addEventListener('mouseenter', () => el.style.transform = 'translateY(-2px)');
+    el.addEventListener('mouseleave', () => el.style.transform = 'none');
+  });
+}
+
+// ==========================================================================
+// Detalhamento dos leads / agendamentos / comparecimentos (modal)
+// ==========================================================================
+async function openMetasDetail(metric) {
+  const { year, month } = metasPeriodo();
+  const titulo = { leads:'Leads', agendamentos:'Agendamentos', comparecimentos:'Comparecimentos', vendas:'Vendas' }[metric] || metric;
+  document.getElementById('metas-detail-title').textContent = `${titulo} — ${MES_NOMES[month-1]}/${year}`;
+  const body = document.getElementById('metas-detail-body');
+  body.innerHTML = '<div style="padding:20px; color:var(--text-muted);">Carregando...</div>';
+  openModal('modal-metas-detail');
+
+  const res = await window.ApexAPI.metas.detail(metric, year, month);
+  if (!res.success) { body.innerHTML = `<div style="padding:20px; color:#ef4444;">Erro: ${res.error||''}</div>`; return; }
+  const rows = res.data || [];
+  if (!rows.length) { body.innerHTML = `<div style="padding:20px; color:var(--text-muted);">Nenhum registro nesse mês.</div>`; return; }
+
+  const esc = (s) => (s==null?'':String(s)).replace(/</g,'&lt;');
+  const fmtDate = (d) => d ? String(d).split('T')[0].split('-').reverse().join('/') : '';
+  let head, makeRow;
+  if (metric === 'leads' || metric === 'vendas') {
+    head = '<th>Nome</th><th>Telefone</th><th>Origem</th><th>Status/Tags</th><th>Cadastro</th>';
+    makeRow = r => `<td>${esc(r.name)}</td><td>${esc(r.phone)}</td><td>${esc(r.source||'')}</td><td>${esc((r.tags||[]).join(', '))}</td><td>${fmtDate(r.created_at)}</td>`;
+  } else {
+    head = '<th>Paciente</th><th>Telefone</th><th>Data</th><th>Hora</th><th>Procedimento</th><th>Status</th>';
+    makeRow = r => `<td>${esc(r.patient_name)}</td><td>${esc(r.phone||'')}</td><td>${fmtDate(r.appt_date)}</td><td>${esc(r.from_time||'')}</td><td>${esc(r.category||'')}</td><td>${esc(r.status||'')}</td>`;
+  }
+  body.innerHTML = `
+    <div style="font-size:13px; color:var(--text-muted); margin-bottom:10px;">${rows.length} registro(s)</div>
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <thead><tr style="text-align:left; color:var(--text-muted); border-bottom:1px solid var(--bg-tertiary);">${head}</tr></thead>
+      <tbody>${rows.map(r=>`<tr style="border-bottom:1px solid rgba(255,255,255,.04);">${makeRow(r)}</tr>`).join('')}</tbody>
+    </table>`;
 }
 
 function renderGoalsCards(m, g) {

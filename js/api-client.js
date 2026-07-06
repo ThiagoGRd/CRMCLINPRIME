@@ -713,6 +713,27 @@ const MetasAPI = {
       headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
       body: { ...goal, org_id: CURRENT_ORG?.id }
     });
+  },
+
+  // Lista detalhada por métrica do mês (leads / agendamentos / comparecimentos / vendas)
+  async detail(metric, year, month) {
+    const pad = (n) => String(n).padStart(2, '0');
+    const start = `${year}-${pad(month)}-01`;
+    const end = month === 12 ? `${year + 1}-01-01` : `${year}-${pad(month + 1)}-01`;
+    const org = CURRENT_ORG?.id;
+    if (metric === 'leads') {
+      return supabaseFetch(`/patients?org_id=eq.${org}&created_at=gte.${start}&created_at=lt.${end}&select=name,phone,source,tags,created_at&order=created_at.desc&limit=2000`);
+    }
+    if (metric === 'vendas') {
+      return supabaseFetch(`/patients?org_id=eq.${org}&closed_at=gte.${start}&closed_at=lt.${end}&select=name,phone,source,tags,created_at,treatment_value,entrada&order=closed_at.desc&limit=2000`);
+    }
+    if (metric === 'agendamentos') {
+      return supabaseFetch(`/crm_attendances?org_id=eq.${org}&appt_date=gte.${start}&appt_date=lt.${end}&select=patient_name,phone,appt_date,from_time,category,status&order=appt_date.asc&limit=2000`);
+    }
+    if (metric === 'comparecimentos') {
+      return supabaseFetch(`/crm_attendances?org_id=eq.${org}&status=eq.compareceu&appt_date=gte.${start}&appt_date=lt.${end}&select=patient_name,phone,appt_date,from_time,category,status&order=appt_date.asc&limit=2000`);
+    }
+    return { success: true, data: [] };
   }
 };
 
