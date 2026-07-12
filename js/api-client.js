@@ -65,10 +65,10 @@ const AuthAPI = {
 
   async loadMyOrg() {
     // Garante org mesmo para quem logou sem ter (cria/reivindica)
-    let res = await supabaseFetch('/org_members?select=role,display_name,org_id,organizations(id,name,contact_label,logo_url)&limit=1');
+    let res = await supabaseFetch('/org_members?select=role,display_name,org_id,organizations(id,name,contact_label,logo_url,settings)&limit=1');
     if (res.success && res.data.length === 0) {
       await this.createOrganization('Minha Empresa');
-      res = await supabaseFetch('/org_members?select=role,display_name,org_id,organizations(id,name,contact_label,logo_url)&limit=1');
+      res = await supabaseFetch('/org_members?select=role,display_name,org_id,organizations(id,name,contact_label,logo_url,settings)&limit=1');
     }
     if (res.success && res.data.length > 0) {
       const m = res.data[0];
@@ -732,7 +732,10 @@ const MetasAPI = {
       return supabaseFetch(`/patients?org_id=eq.${org}&created_at=gte.${start}&created_at=lt.${end}&select=name,phone,source,tags,created_at&order=created_at.desc&limit=2000`);
     }
     if (metric === 'vendas') {
-      return supabaseFetch(`/crm_sales?org_id=eq.${org}&sale_date=gte.${start}&sale_date=lt.${end}&select=patient_name,amount,sale_date,status&order=sale_date.desc&limit=2000`);
+      // Vendas (contagem) = só Dr. Thiago, coerente com o card e o ticket médio
+      const prof = CURRENT_ORG?.settings?.clinicorp_professional_id;
+      const profFilter = prof ? `&professional_id=eq.${prof}` : '';
+      return supabaseFetch(`/crm_sales?org_id=eq.${org}${profFilter}&sale_date=gte.${start}&sale_date=lt.${end}&select=patient_name,amount,sale_date,status&order=sale_date.desc&limit=2000`);
     }
     if (metric === 'agendamentos') {
       return supabaseFetch(`/crm_attendances?org_id=eq.${org}&in_funnel=eq.true&appt_date=gte.${start}&appt_date=lt.${end}&select=patient_name,phone,appt_date,from_time,category,status&order=appt_date.asc&limit=2000`);
