@@ -195,6 +195,7 @@ async function refreshState() {
           value: parseFloat(p.treatment_value || 0),
           stage: STAGE_REV_MAP[p.deal?.[0]?.stage_id || p.deal?.stage_id] || 'lead',
           stageId: p.deal?.[0]?.stage_id || p.deal?.stage_id || null, // etapa real (id) no funil
+          notes: p.notes || '',
           source: p.treatment_interest || p.source || 'Geral',
           ccStatus: p.clinicorp_status || null,       // status real no Clinicorp (APPROVED/OPEN/FOLLOWUP/REJECTED)
           ccAmount: parseFloat(p.clinicorp_amount || 0),
@@ -496,17 +497,77 @@ function clinicorpBadge(lead) {
 
 // Kanban DINÂMICO: uma coluna por etapa real do funil (crm_pipeline_stages).
 // Evita o desalinhamento entre etapas do banco (7) e colunas fixas (5).
-const STAGE_DOTS = ['badge-primary', 'badge-warning', 'badge-primary', 'badge-warning', 'badge-primary', 'badge-success', 'badge-success'];
+const STAGE_DOTS = ['badge-primary', 'badge-warning', 'badge-primary', 'badge-warning', 'badge-warning', 'badge-success', 'badge-success'];
+let funnelMonth = 'all'; // filtro mensal do funil (por created_at do lead)
+
+function populateFunnelMonths() {
+  const sel = document.getElementById('funnel-month');
+  if (!sel) return;
+  const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const months = [...new Set(state.leads.map(l => (l.createdAt || '').slice(0, 7)).filter(Boolean))].sort().reverse();
+  const cur = sel.value || 'all';
+  sel.innerHTML = '<option value="all">Todos os meses</option>' + months.map(m => {
+    const [y, mm] = m.split('-');
+    return `<option value="${m}">${MES[parseInt(mm, 10) - 1]}/${y}</option>`;
+  }).join('');
+  sel.value = cur;
+  if (!sel.dataset.bound) {
+    sel.dataset.bound = '1';
+    sel.addEventListener('change', () => { funnelMonth = sel.value; initKanban(); });
+  }
+}
+
+// Ficha do paciente (modal de leitura + botão WhatsApp), aberta ao clicar no nome
+window.openPatientFicha = function(id) {
+  const lead = state.leads.find(l => l.id === id);
+  if (!lead) return;
+  const esc = (s) => (s == null ? '' : String(s)).replace(/</g, '&lt;');
+  document.getElementById('ficha-title').textContent = lead.name || 'Ficha do Paciente';
+
+  // botão WhatsApp (wa.me com DDI 55)
+  const digits = (lead.phoneRaw || '').replace(/\D/g, '');
+  const wa = digits ? (digits.startsWith('55') ? digits : '55' + digits) : '';
+  const waBtn = document.getElementById('ficha-wa-btn');
+  if (wa) { waBtn.href = `https://wa.me/${wa}`; waBtn.style.display = ''; }
+  else { waBtn.style.display = 'none'; }
+
+  const cc = lead.ccStatus && CC_BADGE[lead.ccStatus];
+  const ccLine = cc
+    ? `<span style="color:${cc.fg};font-weight:600;">${cc.label}${lead.ccAmount ? ' · ' + formatCurrency(lead.ccAmount) : ''}</span>`
+    : '<span style="color:var(--text-muted);">Sem orçamento no Clinicorp</span>';
+  const stageName = (ORG_STAGES.find(s => s.id === lead.stageId) || {}).name || (ORG_STAGES[0] && ORG_STAGES[0].name) || '—';
+  const row = (label, val) => val ? `<div style="display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05);"><span style="color:var(--text-muted);font-size:13px;">${label}</span><span style="font-size:13px;text-align:right;">${val}</span></div>` : '';
+
+  document.getElementById('ficha-body').innerHTML =
+    row('Telefone', esc(lead.phone)) +
+    row('Etapa no funil', esc(stageName)) +
+    row('Status Clinicorp', ccLine) +
+    row('Interesse / Tratamento', esc(lead.source)) +
+    row('Origem', esc(lead.channel)) +
+    row('Etiquetas', (lead.tags || []).map(esc).join(', ')) +
+    row('Entrou em', lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('pt-BR') : '') +
+    (lead.notes ? `<div style="margin-top:14px;"><div style="color:var(--text-muted);font-size:13px;margin-bottom:6px;">Anotações</div><div style="font-size:13px;line-height:1.5;background:var(--bg-tertiary);padding:12px;border-radius:8px;">${esc(lead.notes)}</div></div>` : '');
+
+  document.getElementById('ficha-edit-btn').onclick = () => { closeModal('modal-patient-ficha'); openEditLeadModal(id); };
+  openModal('modal-patient-ficha');
+};
+
 function initKanban() {
   const board = document.getElementById('kanban-board');
   if (!board) return;
   if (!ORG_STAGES.length) return; // etapas ainda não carregadas
+  populateFunnelMonths();
   const firstId = ORG_STAGES[0].id;
   board.innerHTML = '';
 
+  // aplica o filtro mensal (por mês de entrada do lead)
+  const src = funnelMonth === 'all'
+    ? state.leads
+    : state.leads.filter(l => (l.createdAt || '').slice(0, 7) === funnelMonth);
+
   ORG_STAGES.forEach((s, idx) => {
     // lead sem deal cai na primeira etapa; senão, na etapa real do seu deal
-    const stageLeads = state.leads.filter(l => (l.stageId || firstId) === s.id);
+    const stageLeads = src.filter(l => (l.stageId || firstId) === s.id);
     const totalVal = stageLeads.reduce((acc, l) => acc + (parseFloat(l.value || 0) || parseFloat(l.ccAmount || 0) || 0), 0);
 
     const col = document.createElement('div');
@@ -541,6 +602,11 @@ function initKanban() {
           <span class="kanban-card-value">${formatCurrency(val)}</span>
           <span>${lead.phone}</span>
         </div>`;
+      const titleEl = card.querySelector('.kanban-card-title');
+      if (titleEl) {
+        titleEl.style.cursor = 'pointer';
+        titleEl.addEventListener('click', (e) => { e.stopPropagation(); openPatientFicha(lead.id); });
+      }
       card.addEventListener('dblclick', () => openEditLeadModal(lead.id));
       wrapper.appendChild(card);
     });

@@ -246,7 +246,20 @@
 
       <!-- Painel 2: Funil de Tratamentos -->
       <section class="content-panel" id="panel-pipeline">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+          <span style="font-size:13px; color:var(--text-muted);">Filtrar por mês de entrada:</span>
+          <select id="funnel-month" style="padding:8px 12px; border-radius:8px; background:var(--bg-tertiary); color:var(--text-white); border:1px solid var(--border-muted); font-size:13px;">
+            <option value="all">Todos os meses</option>
+          </select>
+        </div>
         <div class="kanban-board" id="kanban-board">
+          <!-- Colunas geradas dinamicamente por initKanban a partir das etapas da organização -->
+        </div>
+      </section>
+
+      <!-- (colunas estáticas antigas removidas — funil agora é dinâmico) -->
+      <section style="display:none">
+        <div>
           <!-- Coluna 1: Novo Lead -->
           <div class="kanban-column" data-stage="lead">
             <div class="column-header">
@@ -1066,6 +1079,27 @@
       </div>
     </div>
 
+    <!-- Modal: Ficha do Paciente (leitura + ação) -->
+    <div class="modal-overlay" id="modal-patient-ficha">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="ficha-title">Ficha do Paciente</h2>
+          <span class="modal-close" onclick="closeModal('modal-patient-ficha')">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width: 20px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </span>
+        </div>
+        <div id="ficha-body"><!-- preenchido via JS --></div>
+        <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:24px;">
+          <button type="button" class="btn btn-secondary" id="ficha-edit-btn">Editar</button>
+          <a id="ficha-wa-btn" class="btn btn-primary" target="_blank" rel="noopener" style="text-decoration:none;">
+            💬 Chamar no WhatsApp
+          </a>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal: Agendar Consulta -->
     <div class="modal-overlay" id="modal-meeting">
       <div class="modal-content">
@@ -1159,7 +1193,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/api-client.js?v=20260712d"></script>
-  <script src="js/app.js?v=20260712d"></script>
+  <script src="js/api-client.js?v=20260712e"></script>
+  <script src="js/app.js?v=20260712e"></script>
 </body>
 </html>
