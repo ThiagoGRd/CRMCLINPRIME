@@ -191,6 +191,9 @@ async function refreshState() {
           value: parseFloat(p.treatment_value || 0),
           stage: STAGE_REV_MAP[p.deal?.[0]?.stage_id || p.deal?.stage_id] || 'lead',
           source: p.treatment_interest || p.source || 'Geral',
+          ccStatus: p.clinicorp_status || null,       // status real no Clinicorp (APPROVED/OPEN/FOLLOWUP/REJECTED)
+          ccAmount: parseFloat(p.clinicorp_amount || 0),
+          ccCount: p.clinicorp_est_count || 0,
           unread: existingLead ? existingLead.unread : 0,
           messages: existingLead ? existingLead.messages : [] // Preserva as mensagens carregadas sob demanda
         };
@@ -470,6 +473,22 @@ async function renderRecentActivity() {
 // ==========================================================================
 // Funil de Tratamentos (Kanban Board)
 // ==========================================================================
+
+// Badge do status REAL no Clinicorp — avisa quando o lead já tem orçamento feito/aprovado
+const CC_BADGE = {
+  APPROVED: { label: '✓ Orçamento aprovado', bg: 'rgba(16,185,129,.15)', fg: '#10b981' },
+  FOLLOWUP: { label: '↻ Orçamento em follow-up', bg: 'rgba(245,158,11,.15)', fg: '#f59e0b' },
+  OPEN:     { label: '• Orçamento em aberto', bg: 'rgba(59,130,246,.15)', fg: '#3b82f6' },
+  REJECTED: { label: '✕ Orçamento reprovado', bg: 'rgba(148,163,184,.15)', fg: '#94a3b8' },
+};
+function clinicorpBadge(lead) {
+  const info = lead.ccStatus && CC_BADGE[lead.ccStatus];
+  if (!info) return '';
+  const val = lead.ccAmount ? ' · ' + formatCurrency(lead.ccAmount) : '';
+  const extra = lead.ccCount > 1 ? ` (${lead.ccCount})` : '';
+  return `<div class="cc-badge" title="Status real no Clinicorp" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;background:${info.bg};color:${info.fg};">${info.label}${val}${extra}</div>`;
+}
+
 function initKanban() {
   const stages = ['lead', 'contacted', 'proposal', 'negotiating', 'won'];
   
@@ -491,7 +510,7 @@ function initKanban() {
     
     stageLeads.forEach(lead => {
       const card = document.createElement("div");
-      card.className = "kanban-card";
+      card.className = "kanban-card" + (lead.ccStatus === 'APPROVED' ? ' kanban-card-cc-alert' : '');
       card.draggable = true;
       card.id = lead.id;
       card.addEventListener("dragstart", dragStart);
@@ -500,6 +519,7 @@ function initKanban() {
       card.innerHTML = `
         <div class="kanban-card-title">${lead.name}</div>
         <span class="kanban-card-tag">${lead.source}</span>
+        ${clinicorpBadge(lead)}
         <div class="kanban-card-meta">
           <span class="kanban-card-value">${formatCurrency(lead.value)}</span>
           <span>${lead.phone}</span>
