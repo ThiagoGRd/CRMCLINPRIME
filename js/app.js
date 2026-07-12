@@ -2436,13 +2436,29 @@ function metasPeriodo() {
 
 async function renderMetas() {
   const { year, month } = metasPeriodo();
+  await loadMetasData(year, month);
+
+  // Sincroniza agenda+vendas do Clinicorp em background e recarrega quando terminar
+  const pad = (n) => String(n).padStart(2, '0');
+  const from = `${year}-${pad(month)}-01`;
+  const to = `${year}-${pad(month)}-${new Date(year, month, 0).getDate()}`;
+  const badge = document.getElementById('metas-sync-badge');
+  if (badge) badge.textContent = '⟳ sincronizando Clinicorp...';
+  window.ApexAPI.agenda.syncMonth(from, to).then(res => {
+    if (badge) badge.textContent = res.success ? '✓ sincronizado com Clinicorp' : '';
+    // recarrega só se ainda estiver no mesmo mês
+    const p = metasPeriodo();
+    if (p.year === year && p.month === month) loadMetasData(year, month);
+  });
+}
+
+async function loadMetasData(year, month) {
   const [mRes, gRes] = await Promise.all([
     window.ApexAPI.metas.monthMetrics(year, month),
     window.ApexAPI.metas.getGoal(year, month)
   ]);
   const m = mRes.success ? mRes.data : {};
   const g = gRes.success ? (gRes.data || {}) : {};
-
   renderFunnel(m);
   renderGoalsCards(m, g);
   renderYearTable(year);
@@ -2491,7 +2507,10 @@ async function openMetasDetail(metric) {
   const esc = (s) => (s==null?'':String(s)).replace(/</g,'&lt;');
   const fmtDate = (d) => d ? String(d).split('T')[0].split('-').reverse().join('/') : '';
   let head, makeRow;
-  if (metric === 'leads' || metric === 'vendas') {
+  if (metric === 'vendas') {
+    head = '<th>Paciente</th><th>Valor</th><th>Data</th><th>Status</th>';
+    makeRow = r => `<td>${esc(r.patient_name||'—')}</td><td>${formatCurrency(r.amount||0)}</td><td>${fmtDate(r.sale_date)}</td><td>${esc(r.status||'')}</td>`;
+  } else if (metric === 'leads') {
     head = '<th>Nome</th><th>Telefone</th><th>Origem</th><th>Status/Tags</th><th>Cadastro</th>';
     makeRow = r => `<td>${esc(r.name)}</td><td>${esc(r.phone)}</td><td>${esc(r.source||'')}</td><td>${esc((r.tags||[]).join(', '))}</td><td>${fmtDate(r.created_at)}</td>`;
   } else {

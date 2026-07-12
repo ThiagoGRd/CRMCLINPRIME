@@ -725,7 +725,7 @@ const MetasAPI = {
       return supabaseFetch(`/patients?org_id=eq.${org}&created_at=gte.${start}&created_at=lt.${end}&select=name,phone,source,tags,created_at&order=created_at.desc&limit=2000`);
     }
     if (metric === 'vendas') {
-      return supabaseFetch(`/patients?org_id=eq.${org}&closed_at=gte.${start}&closed_at=lt.${end}&select=name,phone,source,tags,created_at,treatment_value,entrada&order=closed_at.desc&limit=2000`);
+      return supabaseFetch(`/crm_sales?org_id=eq.${org}&sale_date=gte.${start}&sale_date=lt.${end}&select=patient_name,amount,sale_date,status&order=sale_date.desc&limit=2000`);
     }
     if (metric === 'agendamentos') {
       return supabaseFetch(`/crm_attendances?org_id=eq.${org}&appt_date=gte.${start}&appt_date=lt.${end}&select=patient_name,phone,appt_date,from_time,category,status&order=appt_date.asc&limit=2000`);
@@ -758,7 +758,8 @@ const AgendaAPI = {
   async clinicorp(from, to) { return this._call({ from, to }); },
   async markAttendance(attendanceId, status) { return this._call({ action: 'mark', attendance_id: attendanceId, status }); },
   async createAppointment(p) { return this._call({ action: 'create', ...p }); },
-  async cancelAppointment(clinicorpId) { return this._call({ action: 'cancel', appointment_id: clinicorpId }); }
+  async cancelAppointment(clinicorpId) { return this._call({ action: 'cancel', appointment_id: clinicorpId }); },
+  async syncMonth(from, to) { return this._call({ action: 'sync_month', from, to }); }
 };
 
 /* ==========================================================================
