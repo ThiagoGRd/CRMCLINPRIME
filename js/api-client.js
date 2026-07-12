@@ -166,16 +166,24 @@ async function triggerN8NWebhook(webhookPath, payload) {
    ========================================================================== */
 const PatientsAPI = {
   async getAll(filters = {}) {
-    let queryPath = '/patients?select=*,deal:deals(id,stage_id,position,moved_at)&order=created_at.desc';
-    
+    let base = '/patients?select=*,deal:deals(id,stage_id,position,moved_at)&order=created_at.desc';
     if (filters.search) {
-      queryPath += `&or=(name.ilike.%${filters.search}%,phone.ilike.%${filters.search}%)`;
+      base += `&or=(name.ilike.%${filters.search}%,phone.ilike.%${filters.search}%)`;
     }
     if (filters.source) {
-      queryPath += `&source=eq.${filters.source}`;
+      base += `&source=eq.${filters.source}`;
     }
-    
-    return supabaseFetch(queryPath);
+    // PostgREST limita 1000 linhas por requisição; pagina até trazer todos os pacientes
+    const pageSize = 1000;
+    let offset = 0, all = [];
+    while (true) {
+      const res = await supabaseFetch(`${base}&limit=${pageSize}&offset=${offset}`);
+      if (!res.success) return offset === 0 ? res : { success: true, data: all };
+      all = all.concat(res.data);
+      if (res.data.length < pageSize || offset >= 20000) break;
+      offset += pageSize;
+    }
+    return { success: true, data: all };
   },
 
   async getById(id) {

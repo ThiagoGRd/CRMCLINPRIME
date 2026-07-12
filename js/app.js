@@ -522,7 +522,10 @@ function initKanban() {
       <div class="column-cards-wrapper" ondragover="allowDrop(event)" ondrop="drop(event, '${s.id}')"></div>`;
     const wrapper = col.querySelector('.column-cards-wrapper');
 
-    stageLeads.forEach(lead => {
+    // Renderiza no máximo RENDER_CAP cards por coluna (a contagem no header é a real)
+    const RENDER_CAP = 250;
+    const toRender = stageLeads.slice(0, RENDER_CAP);
+    toRender.forEach(lead => {
       const card = document.createElement('div');
       card.className = 'kanban-card' + (lead.ccStatus === 'APPROVED' ? ' kanban-card-cc-alert' : '');
       card.draggable = true;
@@ -541,6 +544,12 @@ function initKanban() {
       card.addEventListener('dblclick', () => openEditLeadModal(lead.id));
       wrapper.appendChild(card);
     });
+    if (stageLeads.length > RENDER_CAP) {
+      const more = document.createElement('div');
+      more.style.cssText = 'padding:10px; text-align:center; color:var(--text-muted); font-size:12px;';
+      more.textContent = `+${stageLeads.length - RENDER_CAP} lead(s) — use a busca em Pacientes`;
+      wrapper.appendChild(more);
+    }
     board.appendChild(col);
   });
 }
