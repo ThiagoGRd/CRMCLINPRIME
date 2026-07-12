@@ -735,10 +735,10 @@ const MetasAPI = {
       return supabaseFetch(`/crm_sales?org_id=eq.${org}&sale_date=gte.${start}&sale_date=lt.${end}&select=patient_name,amount,sale_date,status&order=sale_date.desc&limit=2000`);
     }
     if (metric === 'agendamentos') {
-      return supabaseFetch(`/crm_attendances?org_id=eq.${org}&appt_date=gte.${start}&appt_date=lt.${end}&select=patient_name,phone,appt_date,from_time,category,status&order=appt_date.asc&limit=2000`);
+      return supabaseFetch(`/crm_attendances?org_id=eq.${org}&in_funnel=eq.true&appt_date=gte.${start}&appt_date=lt.${end}&select=patient_name,phone,appt_date,from_time,category,status&order=appt_date.asc&limit=2000`);
     }
     if (metric === 'comparecimentos') {
-      return supabaseFetch(`/crm_attendances?org_id=eq.${org}&status=eq.compareceu&appt_date=gte.${start}&appt_date=lt.${end}&select=patient_name,phone,appt_date,from_time,category,status&order=appt_date.asc&limit=2000`);
+      return supabaseFetch(`/crm_attendances?org_id=eq.${org}&in_funnel=eq.true&status=eq.compareceu&appt_date=gte.${start}&appt_date=lt.${end}&select=patient_name,phone,appt_date,from_time,category,status&order=appt_date.asc&limit=2000`);
     }
     return { success: true, data: [] };
   }
