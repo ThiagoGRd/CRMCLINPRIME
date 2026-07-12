@@ -23,6 +23,7 @@ let state = {
 // (cada cliente tem suas próprias etapas no crm_pipeline_stages)
 let STAGE_MAP = {};
 let STAGE_REV_MAP = {};
+let ORG_STAGES = []; // etapas reais do funil (crm_pipeline_stages), ordenadas por position
 
 function buildStageMaps(stages) {
   const buckets = ['lead', 'contacted', 'proposal', 'negotiating', 'won', 'concluded'];
@@ -167,7 +168,10 @@ async function refreshState() {
     // 0. Carregar etapas da organização e montar o mapa dinâmico do kanban
     try {
       const stagesRes = await window.ApexAPI.pipeline.getStages();
-      if (stagesRes.success && stagesRes.data.length) buildStageMaps(stagesRes.data);
+      if (stagesRes.success && stagesRes.data.length) {
+        ORG_STAGES = [...stagesRes.data].sort((a, b) => a.position - b.position);
+        buildStageMaps(stagesRes.data);
+      }
     } catch (e) { console.warn('Falha ao carregar etapas:', e.message); }
 
     // 1. Carregar Pacientes
@@ -190,6 +194,7 @@ async function refreshState() {
           lastMessageAt: p.last_message_at || p.created_at,
           value: parseFloat(p.treatment_value || 0),
           stage: STAGE_REV_MAP[p.deal?.[0]?.stage_id || p.deal?.stage_id] || 'lead',
+          stageId: p.deal?.[0]?.stage_id || p.deal?.stage_id || null, // etapa real (id) no funil
           source: p.treatment_interest || p.source || 'Geral',
           ccStatus: p.clinicorp_status || null,       // status real no Clinicorp (APPROVED/OPEN/FOLLOWUP/REJECTED)
           ccAmount: parseFloat(p.clinicorp_amount || 0),
@@ -489,46 +494,54 @@ function clinicorpBadge(lead) {
   return `<div class="cc-badge" title="Status real no Clinicorp" style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;background:${info.bg};color:${info.fg};">${info.label}${val}${extra}</div>`;
 }
 
+// Kanban DINÂMICO: uma coluna por etapa real do funil (crm_pipeline_stages).
+// Evita o desalinhamento entre etapas do banco (7) e colunas fixas (5).
+const STAGE_DOTS = ['badge-primary', 'badge-warning', 'badge-primary', 'badge-warning', 'badge-primary', 'badge-success', 'badge-success'];
 function initKanban() {
-  const stages = ['lead', 'contacted', 'proposal', 'negotiating', 'won'];
-  
-  stages.forEach(stage => {
-    const wrapper = document.getElementById(`cards-${stage}`);
-    if (!wrapper) return;
-    
-    wrapper.innerHTML = "";
-    
-    const stageLeads = state.leads.filter(l => l.stage === stage);
-    
-    const countEl = document.getElementById(`count-${stage}`);
-    const valueEl = document.getElementById(`value-${stage}`);
-    
-    if (countEl) countEl.textContent = stageLeads.length;
-    
-    const totalVal = stageLeads.reduce((acc, l) => acc + parseFloat(l.value || 0), 0);
-    if (valueEl) valueEl.textContent = formatCurrency(totalVal);
-    
+  const board = document.getElementById('kanban-board');
+  if (!board) return;
+  if (!ORG_STAGES.length) return; // etapas ainda não carregadas
+  const firstId = ORG_STAGES[0].id;
+  board.innerHTML = '';
+
+  ORG_STAGES.forEach((s, idx) => {
+    // lead sem deal cai na primeira etapa; senão, na etapa real do seu deal
+    const stageLeads = state.leads.filter(l => (l.stageId || firstId) === s.id);
+    const totalVal = stageLeads.reduce((acc, l) => acc + (parseFloat(l.value || 0) || parseFloat(l.ccAmount || 0) || 0), 0);
+
+    const col = document.createElement('div');
+    col.className = 'kanban-column';
+    col.dataset.stage = s.id;
+    col.innerHTML = `
+      <div class="column-header">
+        <span class="column-title"><span class="badge ${STAGE_DOTS[Math.min(idx, STAGE_DOTS.length - 1)]}">●</span> ${s.name}</span>
+        <span class="column-count">${stageLeads.length}</span>
+      </div>
+      <span class="column-value">${formatCurrency(totalVal)}</span>
+      <div class="nav-divider" style="margin: 8px 0;"></div>
+      <div class="column-cards-wrapper" ondragover="allowDrop(event)" ondrop="drop(event, '${s.id}')"></div>`;
+    const wrapper = col.querySelector('.column-cards-wrapper');
+
     stageLeads.forEach(lead => {
-      const card = document.createElement("div");
-      card.className = "kanban-card" + (lead.ccStatus === 'APPROVED' ? ' kanban-card-cc-alert' : '');
+      const card = document.createElement('div');
+      card.className = 'kanban-card' + (lead.ccStatus === 'APPROVED' ? ' kanban-card-cc-alert' : '');
       card.draggable = true;
       card.id = lead.id;
-      card.addEventListener("dragstart", dragStart);
-      card.addEventListener("dragend", dragEnd);
-      
+      card.addEventListener('dragstart', dragStart);
+      card.addEventListener('dragend', dragEnd);
+      const val = parseFloat(lead.value || 0) || parseFloat(lead.ccAmount || 0) || 0;
       card.innerHTML = `
         <div class="kanban-card-title">${lead.name}</div>
         <span class="kanban-card-tag">${lead.source}</span>
         ${clinicorpBadge(lead)}
         <div class="kanban-card-meta">
-          <span class="kanban-card-value">${formatCurrency(lead.value)}</span>
+          <span class="kanban-card-value">${formatCurrency(val)}</span>
           <span>${lead.phone}</span>
-        </div>
-      `;
-      
-      card.addEventListener("dblclick", () => openEditLeadModal(lead.id));
+        </div>`;
+      card.addEventListener('dblclick', () => openEditLeadModal(lead.id));
       wrapper.appendChild(card);
     });
+    board.appendChild(col);
   });
 }
 
@@ -547,35 +560,36 @@ window.allowDrop = function(e) {
   e.preventDefault();
 }
 
-window.drop = async function(e, targetStage) {
+window.drop = async function(e, targetStageId) {
   e.preventDefault();
   if (!draggedCardId) return;
-  
+
   const lead = state.leads.find(l => l.id === draggedCardId);
-  if (lead && lead.stage !== targetStage) {
+  const stageName = (ORG_STAGES.find(s => s.id === targetStageId) || {}).name || '';
+  if (lead && lead.stageId !== targetStageId) {
     try {
-      // Buscar o deal real no pipeline do backend
       const pipelineRes = await window.ApexAPI.pipeline.getAll();
       if (pipelineRes.success) {
         let dealId = null;
-        pipelineRes.data.forEach(st => {
-          st.deals.forEach(d => {
-            if (d.patient_id === draggedCardId) {
-              dealId = d.id;
-            }
-          });
-        });
-        
+        pipelineRes.data.forEach(st => st.deals.forEach(d => { if (d.patient_id === draggedCardId) dealId = d.id; }));
+
         if (dealId) {
-          const targetStageId = STAGE_MAP[targetStage];
           const moveRes = await window.ApexAPI.pipeline.moveDeal(dealId, targetStageId);
           if (moveRes.success) {
-            showToast(`Paciente "${lead.name}" movido para: ${getStageName(targetStage)}!`, 'success');
+            showToast(`Paciente "${lead.name}" movido para: ${stageName}!`, 'success');
             await refreshState();
             initKanban();
           }
         } else {
-          showToast("Deal correspondente não encontrado no banco.", "warning");
+          // Lead ainda sem deal (ex.: importado): cria o deal já na etapa de destino
+          const created = await window.ApexAPI.pipeline.createDeal(draggedCardId, targetStageId);
+          if (created && created.success) {
+            showToast(`Paciente "${lead.name}" movido para: ${stageName}!`, 'success');
+            await refreshState();
+            initKanban();
+          } else {
+            showToast("Não foi possível mover: deal não encontrado.", "warning");
+          }
         }
       }
     } catch (err) {

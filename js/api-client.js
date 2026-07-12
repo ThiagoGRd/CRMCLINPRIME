@@ -296,6 +296,14 @@ const PipelineAPI = {
     return supabaseFetch('/pipeline_stages?order=position.asc');
   },
 
+  async createDeal(patientId, stageId, position = 0) {
+    return supabaseFetch('/deals', {
+      method: 'POST',
+      headers: { 'Prefer': 'return=representation' },
+      body: { patient_id: patientId, stage_id: stageId, position, org_id: CURRENT_ORG?.id, moved_at: new Date().toISOString() }
+    });
+  },
+
   async moveDeal(dealId, stageId, position = 0) {
     // 1. Obter informações atuais do deal para auditoria
     const currentDealRes = await supabaseFetch(`/deals?select=*,patient:patients(*),stage:pipeline_stages(name)&id=eq.${dealId}`);
