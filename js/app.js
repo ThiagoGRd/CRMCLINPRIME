@@ -300,6 +300,8 @@ function initSidebar() {
         renderAutomationsList();
       } else if (panelId === 'metas') {
         renderMetas();
+      } else if (panelId === 'followup') {
+        renderFollowup();
       }
     });
   });
@@ -2752,5 +2754,157 @@ async function handleGoalsSubmit(e) {
     renderMetas();
   } else {
     showToast('Erro ao salvar metas: ' + (res.error || ''), 'danger');
+  }
+}
+
+/* ==========================================================================
+   Follow-up: orçamentos em aberto + cadência de resgate de faltas
+   ========================================================================== */
+const CC_LABEL = {
+  OPEN: { txt: 'Em aberto', color: '#3b82f6' },
+  FOLLOWUP: { txt: 'Follow-up', color: '#f59e0b' },
+};
+const CAD_SIT = {
+  active: { txt: 'Na cadência', color: '#3b82f6' },
+  responded: { txt: 'Respondeu', color: '#10b981' },
+  rescheduled: { txt: 'Reagendou', color: '#10b981' },
+  completed: { txt: 'Concluída', color: '#94a3b8' },
+  paused_human: { txt: 'Humano assumiu', color: '#94a3b8' },
+  stopped: { txt: 'Parada', color: '#94a3b8' },
+};
+
+function waLink(phoneRaw) {
+  const d = String(phoneRaw || '').replace(/\D/g, '');
+  if (!d) return null;
+  return `https://wa.me/${d.startsWith('55') ? d : '55' + d}`;
+}
+
+async function renderFollowup() {
+  // troca de sub-abas
+  document.querySelectorAll('.followup-tab').forEach(btn => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.followup-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.futab;
+      document.getElementById('futab-orcamentos').style.display = tab === 'orcamentos' ? '' : 'none';
+      document.getElementById('futab-faltas').style.display = tab === 'faltas' ? '' : 'none';
+    });
+  });
+  await renderOpenBudgets();
+  await renderCadencePanel();
+}
+
+async function renderOpenBudgets() {
+  const body = document.getElementById('followup-body');
+  const summary = document.getElementById('followup-summary');
+  if (!body) return;
+  body.innerHTML = '<tr><td style="padding:14px; color:var(--text-muted);" colspan="5">Carregando...</td></tr>';
+  const res = await window.ApexAPI.followup.openBudgets();
+  const rows = (res.success ? res.data : []) || [];
+  const total = rows.reduce((a, r) => a + parseFloat(r.clinicorp_amount || 0), 0);
+  const nFup = rows.filter(r => r.clinicorp_status === 'FOLLOWUP').length;
+  const card = (label, val, cor) => `<div class="card" style="padding:16px; min-width:170px;"><div style="font-size:12px; color:var(--text-muted);">${label}</div><div style="font-size:22px; font-weight:800; color:${cor || 'var(--text-white)'}; margin-top:4px;">${val}</div></div>`;
+  summary.innerHTML =
+    card('Pacientes com orçamento aberto', rows.length) +
+    card('Valor total em jogo', formatCurrency(total), '#10b981') +
+    card('Em follow-up', nFup, '#f59e0b');
+
+  if (!rows.length) { body.innerHTML = '<tr><td style="padding:14px; color:var(--text-muted);" colspan="5">Nenhum orçamento em aberto 🎉</td></tr>'; return; }
+  const esc = (s) => (s == null ? '' : String(s)).replace(/</g, '&lt;');
+  const fmtDate = (d) => d ? String(d).split('T')[0].split('-').reverse().join('/') : '';
+  body.innerHTML = rows.map(r => {
+    const st = CC_LABEL[r.clinicorp_status] || { txt: r.clinicorp_status, color: '#94a3b8' };
+    const wa = waLink(r.phone);
+    const btn = wa
+      ? `<a href="${wa}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:6px 12px; font-size:12px; text-decoration:none;">💬 WhatsApp</a>`
+      : '<span style="color:var(--text-muted); font-size:12px;">sem telefone</span>';
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);">
+      <td style="padding:12px; cursor:pointer;" onclick="openPatientFicha('${r.id}')"><span style="font-weight:600;">${esc(r.name)}</span></td>
+      <td style="padding:12px;"><span style="color:${st.color}; font-weight:600;">${st.txt}</span></td>
+      <td style="padding:12px; font-weight:700;">${formatCurrency(r.clinicorp_amount || 0)}</td>
+      <td style="padding:12px; color:var(--text-muted);">${fmtDate(r.clinicorp_date)}</td>
+      <td style="padding:12px;">${btn}</td>
+    </tr>`;
+  }).join('');
+}
+
+let CADENCE_CACHE = null;
+async function renderCadencePanel() {
+  const res = await window.ApexAPI.followup.getCadence();
+  if (!res.success) return;
+  const cad = res.data; CADENCE_CACHE = cad;
+  const steps = [...(cad.steps || [])].sort((a, b) => a.step - b.step);
+
+  // toggle liga/desliga
+  const toggle = document.getElementById('cadence-toggle');
+  const label = document.getElementById('cadence-status-label');
+  toggle.checked = !!cad.active;
+  label.textContent = cad.active ? 'Ligada' : 'Desligada';
+  label.style.color = cad.active ? '#10b981' : 'var(--text-muted)';
+  if (!toggle.dataset.bound) {
+    toggle.dataset.bound = '1';
+    toggle.addEventListener('change', async () => {
+      const on = toggle.checked;
+      if (on && !confirm('Ligar a cadência? A Layla passará a enviar mensagens automáticas (WhatsApp real) para quem faltou, de hora em hora, das 9h às 18h.')) {
+        toggle.checked = false; return;
+      }
+      const upd = await window.ApexAPI.followup.saveCadence(cad.id, { active: on });
+      if (upd.success) { showToast(on ? 'Cadência ligada ✅' : 'Cadência desligada', on ? 'success' : 'info'); renderCadencePanel(); }
+      else { showToast('Erro ao alterar: ' + (upd.error || ''), 'danger'); toggle.checked = !on; }
+    });
+  }
+
+  // mensagens editáveis
+  const box = document.getElementById('cadence-messages');
+  const rotulo = ['1º toque (mesmo dia)', '2º toque (+2 dias)', '3º toque (+5 dias)', '4º toque (+10 dias)'];
+  box.innerHTML = steps.map((s, i) => `
+    <div class="card" style="padding:14px; margin-bottom:10px;">
+      <div style="font-size:12px; color:var(--text-muted); margin-bottom:6px;">${rotulo[i] || ('Toque ' + s.step)}</div>
+      <textarea data-step="${s.step}" class="form-control cadence-msg" rows="3" style="width:100%; resize:vertical;">${(s.message || '').replace(/</g, '&lt;')}</textarea>
+    </div>`).join('');
+
+  const saveBtn = document.getElementById('cadence-save-msgs');
+  if (!saveBtn.dataset.bound) {
+    saveBtn.dataset.bound = '1';
+    saveBtn.addEventListener('click', async () => {
+      const base = [...(CADENCE_CACHE.steps || [])].sort((a, b) => a.step - b.step);
+      const newSteps = base.map(s => {
+        const ta = document.querySelector(`.cadence-msg[data-step="${s.step}"]`);
+        return { ...s, message: ta ? ta.value : s.message };
+      });
+      const upd = await window.ApexAPI.followup.saveCadence(CADENCE_CACHE.id, { steps: newSteps });
+      if (upd.success) { showToast('Mensagens salvas ✅', 'success'); renderCadencePanel(); }
+      else showToast('Erro ao salvar: ' + (upd.error || ''), 'danger');
+    });
+  }
+
+  // estatísticas + inscrições
+  const enr = await window.ApexAPI.followup.enrollments();
+  const list = (enr.success ? enr.data : []) || [];
+  const byStatus = list.reduce((m, e) => { m[e.status] = (m[e.status] || 0) + 1; return m; }, {});
+  const stat = (label, val, cor) => `<div class="card" style="padding:14px; min-width:130px;"><div style="font-size:12px; color:var(--text-muted);">${label}</div><div style="font-size:20px; font-weight:800; color:${cor || 'var(--text-white)'}; margin-top:4px;">${val}</div></div>`;
+  document.getElementById('cadence-stats').innerHTML =
+    stat('Na cadência', byStatus.active || 0, '#3b82f6') +
+    stat('Responderam', byStatus.responded || 0, '#10b981') +
+    stat('Reagendaram', byStatus.rescheduled || 0, '#10b981') +
+    stat('Concluídas', byStatus.completed || 0);
+
+  const tbody = document.getElementById('cadence-enrollments');
+  const esc = (s) => (s == null ? '' : String(s)).replace(/</g, '&lt;');
+  const fmtDT = (d) => d ? new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td style="padding:14px; color:var(--text-muted);" colspan="4">Ninguém na cadência ainda. Quando alguém do funil faltar, entra aqui automaticamente (com a cadência ligada).</td></tr>';
+  } else {
+    tbody.innerHTML = list.map(e => {
+      const sit = CAD_SIT[e.status] || { txt: e.status, color: '#94a3b8' };
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);">
+        <td style="padding:12px; font-weight:600;">${esc(e.patient_name || e.phone)}</td>
+        <td style="padding:12px;">${e.current_step}/4</td>
+        <td style="padding:12px; color:var(--text-muted);">${e.status === 'active' ? fmtDT(e.next_send_at) : '—'}</td>
+        <td style="padding:12px;"><span style="color:${sit.color}; font-weight:600;">${sit.txt}</span></td>
+      </tr>`;
+    }).join('');
   }
 }

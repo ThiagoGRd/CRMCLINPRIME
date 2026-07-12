@@ -103,6 +103,12 @@
             </svg>
             Metas &amp; Vendas
           </div>
+          <div class="nav-item" data-panel="followup">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+            </svg>
+            Follow-up
+          </div>
           <div class="nav-divider"></div>
           <div class="nav-item" data-panel="connections">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -834,6 +840,62 @@
         </div>
       </section>
 
+      <!-- Painel: Follow-up (orçamentos em aberto + cadência de resgate) -->
+      <section class="content-panel" id="panel-followup">
+        <div style="display:flex; gap:8px; margin-bottom:20px;">
+          <button class="btn btn-secondary followup-tab active" data-futab="orcamentos" style="font-size:13px;">Orçamentos em aberto</button>
+          <button class="btn btn-secondary followup-tab" data-futab="faltas" style="font-size:13px;">Cadência de faltas</button>
+        </div>
+
+        <!-- Sub-aba: Orçamentos em aberto -->
+        <div id="futab-orcamentos">
+          <div id="followup-summary" style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:16px;"></div>
+          <div class="card" style="padding:0; overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+              <thead><tr id="followup-head" style="text-align:left; color:var(--text-muted); border-bottom:1px solid var(--bg-tertiary);">
+                <th style="padding:12px;">Paciente</th><th style="padding:12px;">Status</th>
+                <th style="padding:12px;">Valor</th><th style="padding:12px;">Data</th><th style="padding:12px;">Ação</th>
+              </tr></thead>
+              <tbody id="followup-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Sub-aba: Cadência de faltas -->
+        <div id="futab-faltas" style="display:none;">
+          <div class="card" style="padding:20px; margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+              <div>
+                <div style="font-size:16px; font-weight:700;">Resgate de Falta (Layla)</div>
+                <div style="font-size:13px; color:var(--text-muted); margin-top:4px;">Envia automaticamente uma sequência de mensagens pra quem faltou (funil), das 9h às 18h, seg–sáb. Para sozinha se o paciente responde ou reagenda.</div>
+              </div>
+              <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <span id="cadence-status-label" style="font-size:13px; font-weight:600;">Desligada</span>
+                <input type="checkbox" id="cadence-toggle" style="width:44px; height:24px; cursor:pointer;">
+              </label>
+            </div>
+            <div id="cadence-stats" style="display:flex; gap:16px; flex-wrap:wrap; margin-top:16px;"></div>
+          </div>
+
+          <div class="right-section-title" style="margin-bottom:12px;">Mensagens dos 4 toques</div>
+          <div id="cadence-messages"></div>
+          <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+            <button class="btn btn-primary" id="cadence-save-msgs" style="font-size:13px;">Salvar mensagens</button>
+          </div>
+
+          <div class="right-section-title" style="margin:24px 0 12px;">Pacientes na cadência</div>
+          <div class="card" style="padding:0; overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+              <thead><tr style="text-align:left; color:var(--text-muted); border-bottom:1px solid var(--bg-tertiary);">
+                <th style="padding:12px;">Paciente</th><th style="padding:12px;">Toque</th>
+                <th style="padding:12px;">Próximo envio</th><th style="padding:12px;">Situação</th>
+              </tr></thead>
+              <tbody id="cadence-enrollments"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- Painel: Conexões (WhatsApp / Instagram por organização) -->
       <section class="content-panel" id="panel-connections">
         <div style="max-width: 920px;">
@@ -1193,7 +1255,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/api-client.js?v=20260712e"></script>
-  <script src="js/app.js?v=20260712e"></script>
+  <script src="js/api-client.js?v=20260712f"></script>
+  <script src="js/app.js?v=20260712f"></script>
 </body>
 </html>

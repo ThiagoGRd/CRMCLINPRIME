@@ -863,9 +863,33 @@ const RealtimeAPI = {
 /* ==========================================================================
    Exportar APIs como globais para uso no app.js
    ========================================================================== */
+const FollowupAPI = {
+  // Pacientes com orçamento em aberto ou em follow-up no Clinicorp (prioridade: maior valor)
+  async openBudgets() {
+    const org = CURRENT_ORG?.id;
+    return supabaseFetch(`/patients?org_id=eq.${org}&clinicorp_status=in.(OPEN,FOLLOWUP)&select=id,name,phone,clinicorp_status,clinicorp_amount,clinicorp_date&order=clinicorp_amount.desc.nullslast&limit=1000`);
+  },
+  async getCadence() {
+    const org = CURRENT_ORG?.id;
+    const res = await supabaseFetch(`/crm_cadences?org_id=eq.${org}&key=eq.resgate_falta&select=*&limit=1`);
+    if (res.success && res.data.length) return { success: true, data: res.data[0] };
+    return { success: false, error: 'cadência não encontrada' };
+  },
+  async saveCadence(id, patch) {
+    return supabaseFetch(`/crm_cadences?id=eq.${id}`, {
+      method: 'PATCH', headers: { 'Prefer': 'return=representation' }, body: patch
+    });
+  },
+  async enrollments() {
+    const org = CURRENT_ORG?.id;
+    return supabaseFetch(`/crm_cadence_enrollments?org_id=eq.${org}&select=*&order=created_at.desc&limit=500`);
+  }
+};
+
 window.ApexAPI = {
   auth: AuthAPI,
   patients: PatientsAPI,
+  followup: FollowupAPI,
   pipeline: PipelineAPI,
   messages: MessagesAPI,
   appointments: AppointmentsAPI,
