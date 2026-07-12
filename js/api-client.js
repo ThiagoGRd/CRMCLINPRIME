@@ -715,6 +715,13 @@ const MetasAPI = {
     });
   },
 
+  // Financeiro do mês (fluxo de caixa do Clinicorp)
+  async finance(year, month) {
+    const pad = (n) => String(n).padStart(2, '0');
+    const start = `${year}-${pad(month)}-01`;
+    return supabaseFetch(`/crm_finance?org_id=eq.${CURRENT_ORG?.id}&month_start=eq.${start}&limit=1`);
+  },
+
   // Lista detalhada por métrica do mês (leads / agendamentos / comparecimentos / vendas)
   async detail(metric, year, month) {
     const pad = (n) => String(n).padStart(2, '0');
@@ -759,7 +766,9 @@ const AgendaAPI = {
   async markAttendance(attendanceId, status) { return this._call({ action: 'mark', attendance_id: attendanceId, status }); },
   async createAppointment(p) { return this._call({ action: 'create', ...p }); },
   async cancelAppointment(clinicorpId) { return this._call({ action: 'cancel', appointment_id: clinicorpId }); },
-  async syncMonth(from, to) { return this._call({ action: 'sync_month', from, to }); }
+  async syncMonth(from, to) { return this._call({ action: 'sync_month', from, to }); },
+  async availableTimes(date) { return this._call({ action: 'available_times', date }); },
+  async pushLead(lead) { return this._call({ action: 'push_lead', ...lead }); }
 };
 
 /* ==========================================================================

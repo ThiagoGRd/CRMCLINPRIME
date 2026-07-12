@@ -1676,9 +1676,15 @@ async function handleLeadSubmit(e) {
           }
         }
         showToast(`Paciente "${name}" cadastrado!`, 'success');
+        // Envia o lead novo para o CRM do Clinicorp (fire-and-forget)
+        window.ApexAPI.agenda.pushLead({
+          name, phone, email: email || undefined,
+          notes: `Lead do CRM ClinPrime — interesse: ${source || 'geral'}`,
+          board: 'Leads CRM'
+        }).then(r => { if (r.success) showToast('Lead também enviado ao Clinicorp 📋', 'info'); });
       }
     }
-    
+
     closeModal("modal-lead");
     await refreshState();
     initKanban();
@@ -2462,6 +2468,25 @@ async function loadMetasData(year, month) {
   renderFunnel(m);
   renderGoalsCards(m, g);
   renderYearTable(year);
+  renderFinance(year, month);
+}
+
+async function renderFinance(year, month) {
+  const cont = document.getElementById('metas-finance');
+  if (!cont) return;
+  const res = await window.ApexAPI.metas.finance(year, month);
+  const f = (res.success && res.data && res.data[0]) ? res.data[0] : null;
+  if (!f) { cont.innerHTML = `<div style="grid-column:1/-1; font-size:13px; color:var(--text-muted);">Sincronizando financeiro do Clinicorp...</div>`; return; }
+  const card = (label, val, cor) => `
+    <div class="card" style="padding:18px;">
+      <div style="font-size:12px; color:var(--text-muted);">${label}</div>
+      <div style="font-size:24px; font-weight:800; color:${cor}; margin-top:4px;">${formatCurrency(val || 0)}</div>
+    </div>`;
+  const net = f.net || 0;
+  cont.innerHTML =
+    card('Entradas', f.credit, '#10b981') +
+    card('Saídas', f.debit, '#ef4444') +
+    card('Saldo', net, net >= 0 ? '#10b981' : '#ef4444');
 }
 
 function renderFunnel(m) {
