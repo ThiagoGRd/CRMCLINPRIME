@@ -587,12 +587,13 @@ function initKanban() {
     const col = document.createElement('div');
     col.className = 'kanban-column';
     col.dataset.stage = s.id;
+    const dotColor = s.color || '#6366f1';
     col.innerHTML = `
       <div class="column-header">
-        <span class="column-title"><span class="badge ${STAGE_DOTS[Math.min(idx, STAGE_DOTS.length - 1)]}">●</span> ${s.name}</span>
+        <span class="column-title"><span style="color:${dotColor}; font-size:10px;">●</span> ${s.name}</span>
         <span class="column-count">${stageLeads.length}</span>
       </div>
-      <span class="column-value">${formatCurrency(totalVal)}</span>
+      <span class="column-value">${totalVal > 0 ? formatCurrency(totalVal) : '—'}</span>
       <div class="nav-divider" style="margin: 8px 0;"></div>
       <div class="column-cards-wrapper" ondragover="allowDrop(event)" ondrop="drop(event, '${s.id}')"></div>`;
     const wrapper = col.querySelector('.column-cards-wrapper');
@@ -613,7 +614,7 @@ function initKanban() {
         <span class="kanban-card-tag">${lead.source}</span>
         ${clinicorpBadge(lead)}
         <div class="kanban-card-meta">
-          <span class="kanban-card-value">${formatCurrency(val)}</span>
+          <span class="kanban-card-value">${val > 0 ? formatCurrency(val) : ''}</span>
           <span>${lead.phone}</span>
         </div>`;
       const titleEl = card.querySelector('.kanban-card-title');
@@ -632,6 +633,13 @@ function initKanban() {
     }
     board.appendChild(col);
   });
+
+  // resumo do funil (respeita o filtro mensal)
+  const sumEl = document.getElementById('funnel-summary');
+  if (sumEl) {
+    const totalOrc = src.reduce((a, l) => a + (parseFloat(l.ccAmount || 0) || 0), 0);
+    sumEl.innerHTML = `<strong style="color:var(--text-white);">${src.length}</strong> leads · <strong style="color:var(--color-success);">${formatCurrency(totalOrc)}</strong> em orçamentos`;
+  }
 }
 
 let draggedCardId = null;

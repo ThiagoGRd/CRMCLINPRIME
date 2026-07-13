@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ClinPrime CRM | CRM Inteligente para Clínicas Odontológicas</title>
-  <link rel="stylesheet" href="css/style.css?v=20260712j">
+  <link rel="stylesheet" href="css/style.css?v=20260712k">
   <!-- Chart.js para os gráficos do Dashboard -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -253,11 +253,14 @@
 
       <!-- Painel 2: Funil de Tratamentos -->
       <section class="content-panel" id="panel-pipeline">
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
-          <span style="font-size:13px; color:var(--text-muted);">Filtrar por mês de entrada:</span>
-          <select id="funnel-month" style="padding:8px 12px; border-radius:8px; background:var(--bg-tertiary); color:var(--text-white); border:1px solid var(--border-muted); font-size:13px;">
-            <option value="all">Todos os meses</option>
-          </select>
+        <div class="page-toolbar" style="justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:13px; color:var(--text-muted);">Mês de entrada</span>
+            <select id="funnel-month" style="padding:8px 12px; border-radius:8px; background:var(--bg-tertiary); color:var(--text-white); border:1px solid var(--border-muted); font-size:13px;">
+              <option value="all">Todos os meses</option>
+            </select>
+          </div>
+          <div id="funnel-summary" style="font-size:13px; color:var(--text-muted);"></div>
         </div>
         <div class="kanban-board" id="kanban-board">
           <!-- Colunas geradas dinamicamente por initKanban a partir das etapas da organização -->
@@ -1267,7 +1270,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/api-client.js?v=20260712j"></script>
-  <script src="js/app.js?v=20260712j"></script>
+  <script src="js/api-client.js?v=20260712k"></script>
+  <script src="js/app.js?v=20260712k"></script>
 </body>
 </html>
