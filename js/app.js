@@ -526,12 +526,12 @@ window.openPatientFicha = function(id) {
   const esc = (s) => (s == null ? '' : String(s)).replace(/</g, '&lt;');
   document.getElementById('ficha-title').textContent = lead.name || 'Ficha do Paciente';
 
-  // botão WhatsApp (wa.me com DDI 55)
-  const digits = (lead.phoneRaw || '').replace(/\D/g, '');
-  const wa = digits ? (digits.startsWith('55') ? digits : '55' + digits) : '';
+  // botão Atender — abre a conversa no Multiatendimento
   const waBtn = document.getElementById('ficha-wa-btn');
-  if (wa) { waBtn.href = `https://wa.me/${wa}`; waBtn.style.display = ''; }
-  else { waBtn.style.display = 'none'; }
+  waBtn.style.display = '';
+  waBtn.removeAttribute('href');
+  waBtn.style.cursor = 'pointer';
+  waBtn.onclick = (e) => { e.preventDefault(); openInboxForLead(id); };
 
   const cc = lead.ccStatus && CC_BADGE[lead.ccStatus];
   const ccLine = cc
@@ -2816,10 +2816,7 @@ async function renderOpenBudgets() {
   const fmtDate = (d) => d ? String(d).split('T')[0].split('-').reverse().join('/') : '';
   body.innerHTML = rows.map(r => {
     const st = CC_LABEL[r.clinicorp_status] || { txt: r.clinicorp_status, color: '#94a3b8' };
-    const wa = waLink(r.phone);
-    const btn = wa
-      ? `<a href="${wa}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:6px 12px; font-size:12px; text-decoration:none;">💬 WhatsApp</a>`
-      : '<span style="color:var(--text-muted); font-size:12px;">sem telefone</span>';
+    const btn = `<button class="btn btn-primary" style="padding:6px 12px; font-size:12px;" onclick="openInboxForLead('${r.id}')">💬 Atender</button>`;
     return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);">
       <td style="padding:12px; cursor:pointer;" onclick="openPatientFicha('${r.id}')"><span style="font-weight:600;">${esc(r.name)}</span></td>
       <td style="padding:12px;"><span style="color:${st.color}; font-weight:600;">${st.txt}</span></td>
@@ -2920,6 +2917,31 @@ function openFichaByPhone(phone) {
   if (lead) openPatientFicha(lead.id);
 }
 
+// Abre a conversa do paciente DENTRO do Multiatendimento (painel de chat)
+window.openInboxForLead = function(leadId) {
+  const lead = state.leads.find(l => l.id === leadId);
+  if (!lead) { showToast('Paciente não encontrado no CRM.', 'warning'); return; }
+  // troca para o painel de chat
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.content-panel').forEach(p => p.classList.remove('active'));
+  const nav = [...document.querySelectorAll('.nav-item')].find(n => n.getAttribute('data-panel') === 'chat');
+  if (nav) nav.classList.add('active');
+  const panel = document.getElementById('panel-chat');
+  if (panel) panel.classList.add('active');
+  const title = document.getElementById('header-active-title');
+  if (title && nav) title.textContent = nav.textContent.trim();
+  const modal = document.getElementById('modal-patient-ficha');
+  if (modal) modal.classList.remove('active');
+  renderChatList();
+  selectActiveChat(leadId);
+};
+window.openInboxByPhone = function(phone) {
+  const k = String(phone || '').replace(/\D/g, '').slice(-8);
+  const lead = state.leads.find(l => String(l.phoneRaw || '').replace(/\D/g, '').slice(-8) === k);
+  if (!lead) { showToast('Paciente ainda não está no Multiatendimento.', 'warning'); return; }
+  openInboxForLead(lead.id);
+};
+
 async function renderNoShows(enrByPhone) {
   const body = document.getElementById('noshow-body');
   const countEl = document.getElementById('noshow-count');
@@ -2939,12 +2961,12 @@ async function renderNoShows(enrByPhone) {
     const k = String(r.phone || '').replace(/\D/g, '').slice(-8);
     const st = enrByPhone[k];
     const sit = st ? (CAD_SIT[st] || { txt: st, color: '#94a3b8' }) : { txt: 'Não contatado', color: '#94a3b8' };
-    const wa = waLink(r.phone);
-    const btn = wa
-      ? `<a href="${wa}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:6px 12px; font-size:12px; text-decoration:none;">💬 WhatsApp</a>`
+    const phoneDigits = String(r.phone || '').replace(/\D/g, '');
+    const btn = phoneDigits
+      ? `<button class="btn btn-primary" style="padding:6px 12px; font-size:12px;" onclick="openInboxByPhone('${phoneDigits}')">💬 Atender</button>`
       : '<span style="color:var(--text-muted); font-size:12px;">sem telefone</span>';
     return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);">
-      <td style="padding:12px; cursor:pointer;" onclick="openFichaByPhone('${esc(r.phone)}')"><span style="font-weight:600;">${esc(r.patient_name || 'Sem nome')}</span></td>
+      <td style="padding:12px; cursor:pointer;" onclick="openFichaByPhone('${phoneDigits}')"><span style="font-weight:600;">${esc(r.patient_name || 'Sem nome')}</span></td>
       <td style="padding:12px; color:var(--text-muted);">${fmtDate(r.appt_date)}</td>
       <td style="padding:12px; color:var(--text-muted);">${esc(r.category || '—')}</td>
       <td style="padding:12px;"><span style="color:${sit.color}; font-weight:600;">${sit.txt}</span></td>
