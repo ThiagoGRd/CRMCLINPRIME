@@ -19,6 +19,28 @@ let state = {
   }
 };
 
+// Metadados de cada página (título, subtítulo e se mostra o botão "Cadastrar Paciente")
+const PAGE_META = {
+  dashboard:   { title: 'Dashboard Clínico',     subtitle: 'Visão geral da operação e do comercial',            addLead: false },
+  pipeline:    { title: 'Funil de Tratamentos',  subtitle: 'Do lead ao fechamento do orçamento, etapa por etapa', addLead: true },
+  contacts:    { title: 'Pacientes',             subtitle: 'Base de leads e pacientes da clínica',               addLead: true },
+  chat:        { title: 'Multiatendimento',      subtitle: 'Central de conversas de WhatsApp e Instagram',        addLead: false },
+  automation:  { title: 'Automações',            subtitle: 'Fluxos e gatilhos automáticos',                      addLead: false },
+  calendar:    { title: 'Agenda Clínica',        subtitle: 'Consultas sincronizadas com o Clinicorp',            addLead: false },
+  metas:       { title: 'Metas & Vendas',        subtitle: 'Resultados do funil e financeiro por período',       addLead: false },
+  followup:    { title: 'Follow-up',             subtitle: 'Resgate de orçamentos em aberto e faltas',           addLead: false },
+  connections: { title: 'Conexões',              subtitle: 'Canais de WhatsApp e Instagram conectados',          addLead: false },
+};
+function setPageHeader(panelId) {
+  const meta = PAGE_META[panelId] || { title: '', subtitle: '', addLead: false };
+  const t = document.getElementById('header-active-title');
+  const s = document.getElementById('header-active-subtitle');
+  const addBtn = document.getElementById('btn-add-lead-header');
+  if (t) t.textContent = meta.title;
+  if (s) s.textContent = meta.subtitle || '';
+  if (addBtn) addBtn.style.display = meta.addLead ? '' : 'none';
+}
+
 // Mapeamentos de Estágios: construídos DINAMICAMENTE a partir das etapas da organização
 // (cada cliente tem suas próprias etapas no crm_pipeline_stages)
 let STAGE_MAP = {};
@@ -76,6 +98,7 @@ async function bootApp() {
   await refreshState();
 
   initSidebar();
+  setPageHeader('dashboard');
   initLeadsTable();
   initKanban();
   initCharts();
@@ -278,8 +301,8 @@ function initSidebar() {
         targetPanel.classList.add("active");
       }
       
-      headerTitle.textContent = item.textContent.trim();
-      
+      setPageHeader(panelId);
+
       // Sempre atualizar o estado ao navegar para manter os dados atualizados
       await refreshState();
       
