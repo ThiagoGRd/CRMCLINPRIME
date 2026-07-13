@@ -335,33 +335,29 @@ function initSidebar() {
 // ==========================================================================
 let salesChartInstance = null;
 
-function updateDashboardKPIs() {
-  const wonLeads = state.leads.filter(l => l.stage === 'won');
-  const activeLeads = state.leads.filter(l => l.stage !== 'won');
-  
-  const totalRevenue = wonLeads.reduce((acc, l) => acc + parseFloat(l.value || 0), 0);
-  document.getElementById("kpi-revenue").textContent = formatCurrency(totalRevenue);
-  
-  document.getElementById("kpi-leads").textContent = activeLeads.length;
-  
-  const totalLeads = state.leads.length;
-  const conversionRate = totalLeads > 0 ? (wonLeads.length / totalLeads) * 100 : 0;
-  document.getElementById("kpi-conversion").textContent = `${conversionRate.toFixed(1)}%`;
-  
-  const averageTicket = wonLeads.length > 0 ? totalRevenue / wonLeads.length : 0;
-  document.getElementById("kpi-ticket").textContent = formatCurrency(averageTicket);
-
-  // Tendências REAIS calculadas dos dados (substitui textos decorativos)
-  const now = Date.now();
-  const weekMs = 7 * 24 * 60 * 60 * 1000;
-  const newThisWeek = state.leads.filter(l => l.createdAt && (now - new Date(l.createdAt).getTime()) < weekMs).length;
-  const meetingsAhead = state.meetings.filter(m => m.dateObj && new Date(m.dateObj).getTime() > now).length;
-
+const MES_NOMES_FULL = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+async function updateDashboardKPIs() {
   const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
-  set("kpi-revenue-trend", wonLeads.length ? `${wonLeads.length} tratamentos fechados` : "nenhum fechamento ainda");
-  set("kpi-leads-trend", `+${newThisWeek} novos esta semana`);
-  set("kpi-conversion-trend", `${wonLeads.length} de ${totalLeads || 0} contatos`);
-  set("kpi-ticket-trend", meetingsAhead ? `${meetingsAhead} consultas agendadas` : "agenda livre");
+  const now = new Date();
+  const year = now.getFullYear(), month = now.getMonth() + 1;
+
+  // KPIs reais do mês (Clinicorp/funil) via RPC
+  let m = null;
+  try { const res = await window.ApexAPI.metas.monthMetrics(year, month); if (res.success) m = res.data; } catch (e) { /* fallback abaixo */ }
+
+  if (m) {
+    set('kpi-revenue', formatCurrency(m.faturamento || 0));
+    set('kpi-leads', String(m.vendas || 0));
+    set('kpi-conversion', String(m.comparecimentos || 0));
+    set('kpi-ticket', formatCurrency(m.ticket_medio || 0));
+    set('kpi-revenue-trend', `em ${MES_NOMES_FULL[month - 1]}`);
+    set('kpi-leads-trend', 'orçamentos aprovados');
+    set('kpi-conversion-trend', `${m.agendamentos || 0} agendados no mês`);
+    set('kpi-ticket-trend', 'por venda (Dr. Thiago)');
+  } else {
+    // fallback simples se a RPC falhar
+    set('kpi-revenue', 'R$ 0,00'); set('kpi-leads', '0'); set('kpi-conversion', '0'); set('kpi-ticket', 'R$ 0,00');
+  }
 }
 
 // Agrupa os leads em 6 semanas reais a partir dos dados carregados
@@ -397,22 +393,14 @@ function initCharts() {
       labels,
       datasets: [
         {
-          label: 'Contatos novos',
+          label: 'Novos leads',
           data: novos,
           borderColor: '#6366f1',
-          backgroundColor: 'rgba(99, 102, 241, 0.06)',
+          backgroundColor: 'rgba(99, 102, 241, 0.08)',
           borderWidth: 3,
           fill: true,
-          tension: 0.4
-        },
-        {
-          label: 'Tratamentos fechados',
-          data: fechados,
-          borderColor: '#10b981',
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          fill: false,
-          tension: 0.4
+          tension: 0.4,
+          pointBackgroundColor: '#6366f1'
         }
       ]
     },
@@ -434,10 +422,11 @@ function initCharts() {
         },
         y: {
           grid: { color: 'rgba(255, 255, 255, 0.05)' },
-          ticks: { 
-            color: '#9ca3af', 
+          beginAtZero: true,
+          ticks: {
+            color: '#9ca3af',
             font: { family: 'Inter' },
-            callback: value => 'R$ ' + value / 1000 + 'k'
+            precision: 0
           }
         }
       }
