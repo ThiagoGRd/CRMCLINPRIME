@@ -2907,4 +2907,48 @@ async function renderCadencePanel() {
       </tr>`;
     }).join('');
   }
+
+  // faltantes do funil (no-shows) com a situação por telefone
+  const enrByPhone = {};
+  list.forEach(e => { const k = String(e.phone || '').replace(/\D/g, '').slice(-8); if (k) enrByPhone[k] = e.status; });
+  await renderNoShows(enrByPhone);
+}
+
+function openFichaByPhone(phone) {
+  const k = String(phone || '').replace(/\D/g, '').slice(-8);
+  const lead = state.leads.find(l => String(l.phoneRaw || '').replace(/\D/g, '').slice(-8) === k);
+  if (lead) openPatientFicha(lead.id);
+}
+
+async function renderNoShows(enrByPhone) {
+  const body = document.getElementById('noshow-body');
+  const countEl = document.getElementById('noshow-count');
+  if (!body) return;
+  body.innerHTML = '<tr><td style="padding:14px; color:var(--text-muted);" colspan="5">Carregando...</td></tr>';
+  const res = await window.ApexAPI.followup.noShows();
+  const rows = (res.success ? res.data : []) || [];
+  // dedup por telefone, mantém a falta mais recente (já vem ordenado desc)
+  const seen = new Set(); const uniq = [];
+  for (const r of rows) { const k = String(r.phone || '').replace(/\D/g, '').slice(-8); if (!k || seen.has(k)) continue; seen.add(k); uniq.push(r); }
+  if (countEl) countEl.textContent = `(${uniq.length} pacientes)`;
+  if (!uniq.length) { body.innerHTML = '<tr><td style="padding:14px; color:var(--text-muted);" colspan="5">Nenhum faltante do funil 🎉</td></tr>'; return; }
+
+  const esc = (s) => (s == null ? '' : String(s)).replace(/</g, '&lt;');
+  const fmtDate = (d) => d ? String(d).split('T')[0].split('-').reverse().join('/') : '';
+  body.innerHTML = uniq.map(r => {
+    const k = String(r.phone || '').replace(/\D/g, '').slice(-8);
+    const st = enrByPhone[k];
+    const sit = st ? (CAD_SIT[st] || { txt: st, color: '#94a3b8' }) : { txt: 'Não contatado', color: '#94a3b8' };
+    const wa = waLink(r.phone);
+    const btn = wa
+      ? `<a href="${wa}" target="_blank" rel="noopener" class="btn btn-primary" style="padding:6px 12px; font-size:12px; text-decoration:none;">💬 WhatsApp</a>`
+      : '<span style="color:var(--text-muted); font-size:12px;">sem telefone</span>';
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);">
+      <td style="padding:12px; cursor:pointer;" onclick="openFichaByPhone('${esc(r.phone)}')"><span style="font-weight:600;">${esc(r.patient_name || 'Sem nome')}</span></td>
+      <td style="padding:12px; color:var(--text-muted);">${fmtDate(r.appt_date)}</td>
+      <td style="padding:12px; color:var(--text-muted);">${esc(r.category || '—')}</td>
+      <td style="padding:12px;"><span style="color:${sit.color}; font-weight:600;">${sit.txt}</span></td>
+      <td style="padding:12px;">${btn}</td>
+    </tr>`;
+  }).join('');
 }

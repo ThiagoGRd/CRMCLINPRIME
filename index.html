@@ -877,6 +877,17 @@
             <div id="cadence-stats" style="display:flex; gap:16px; flex-wrap:wrap; margin-top:16px;"></div>
           </div>
 
+          <div class="right-section-title" style="margin-bottom:12px;">Faltantes do funil (Layla) — para resgatar <span id="noshow-count" style="color:var(--text-muted); font-weight:400; font-size:13px;"></span></div>
+          <div class="card" style="padding:0; overflow-x:auto; margin-bottom:24px;">
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+              <thead><tr style="text-align:left; color:var(--text-muted); border-bottom:1px solid var(--bg-tertiary);">
+                <th style="padding:12px;">Paciente</th><th style="padding:12px;">Faltou em</th>
+                <th style="padding:12px;">Procedimento</th><th style="padding:12px;">Situação</th><th style="padding:12px;">Ação</th>
+              </tr></thead>
+              <tbody id="noshow-body"></tbody>
+            </table>
+          </div>
+
           <div class="right-section-title" style="margin-bottom:12px;">Mensagens dos 4 toques</div>
           <div id="cadence-messages"></div>
           <div style="display:flex; justify-content:flex-end; margin-top:12px;">
@@ -1255,7 +1266,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/api-client.js?v=20260712f"></script>
-  <script src="js/app.js?v=20260712f"></script>
+  <script src="js/api-client.js?v=20260712g"></script>
+  <script src="js/app.js?v=20260712g"></script>
 </body>
 </html>

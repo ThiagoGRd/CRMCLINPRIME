@@ -883,6 +883,11 @@ const FollowupAPI = {
   async enrollments() {
     const org = CURRENT_ORG?.id;
     return supabaseFetch(`/crm_cadence_enrollments?org_id=eq.${org}&select=*&order=created_at.desc&limit=500`);
+  },
+  // Faltantes do funil da Layla (no-shows in_funnel) — pra resgatar
+  async noShows() {
+    const org = CURRENT_ORG?.id;
+    return supabaseFetch(`/crm_attendances?org_id=eq.${org}&status=eq.faltou&in_funnel=eq.true&select=patient_name,phone,appt_date,category&order=appt_date.desc&limit=1000`);
   }
 };
 
