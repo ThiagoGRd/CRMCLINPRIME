@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# backups locais (não versionar — contêm exports de workflow com chaves)
+backups/
+legacy/backups/
