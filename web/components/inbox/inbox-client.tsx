@@ -74,9 +74,10 @@ export function InboxClient() {
       const conv = convs.find((c) => c.id === activeId);
       const phone = (conv?.phone ?? "").replace(/\D/g, "");
       if (phone) {
+        // chats.phone tem sufixo (ex.: 5582...@s.whatsapp.net) — casar por prefixo
         const { data: chat } = await supabase
-          .from("chats").select("ai_service").eq("phone", phone).maybeSingle();
-        if (!cancelled) setAiPaused(chat?.ai_service === "pause");
+          .from("chats").select("ai_service").ilike("phone", `${phone}%`).limit(1).maybeSingle();
+        if (!cancelled) setAiPaused(String(chat?.ai_service ?? "").startsWith("pause"));
       }
     })();
     return () => { cancelled = true; };
@@ -146,7 +147,7 @@ export function InboxClient() {
     if (!phone) return;
     const next = aiPaused ? "ativo" : "pause";
     setAiPaused(!aiPaused);
-    const { error } = await supabase.from("chats").update({ ai_service: next }).eq("phone", phone);
+    const { error } = await supabase.from("chats").update({ ai_service: next }).ilike("phone", `${phone}%`);
     if (error) { setAiPaused(aiPaused); toast.error("Erro ao alterar IA"); }
     else toast.success(next === "pause" ? "Você assumiu o atendimento" : "IA reativada");
   }

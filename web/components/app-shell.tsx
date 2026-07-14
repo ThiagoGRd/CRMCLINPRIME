@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ShieldCheck, LogOut, Plus } from "lucide-react";
+import { Copilot } from "@/components/copilot/copilot";
 
 export function AppShell({
   userEmail,
@@ -108,6 +109,7 @@ export function AppShell({
         </header>
         <main className="flex-1 overflow-y-auto p-8">{children}</main>
       </div>
+      <Copilot />
     </div>
   );
 }
