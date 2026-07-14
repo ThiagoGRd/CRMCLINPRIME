@@ -13,7 +13,10 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { MessageSquare, Pencil, Plus, Search } from "lucide-react";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { MessageSquare, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 const PAGE_SIZE = 40;
@@ -50,6 +53,7 @@ export function PacientesTable() {
   const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
+  const [origem, setOrigem] = useState("all");
   const [page, setPage] = useState(0);
   const [form, setForm] = useState<FormState | null>(null);
 
@@ -60,9 +64,35 @@ export function PacientesTable() {
 
   useEffect(() => {
     if (searchParams.get("novo") === "1") setForm({ ...EMPTY });
+    const editar = searchParams.get("editar");
+    if (editar) {
+      (async () => {
+        const { data } = await createClient()
+          .from("patients")
+          .select("id,name,phone,email,treatment_interest,treatment_value")
+          .eq("id", editar)
+          .maybeSingle();
+        if (data) {
+          setForm({
+            id: data.id, name: data.name ?? "", phone: data.phone ?? "", email: data.email ?? "",
+            treatment_interest: data.treatment_interest ?? "",
+            treatment_value: data.treatment_value ? String(data.treatment_value) : "",
+          });
+        }
+      })();
+    }
   }, [searchParams]);
 
-  const queryKey = useMemo(() => ["patients", debounced, page], [debounced, page]);
+  // origens distintas pro filtro
+  const { data: origens } = useQuery({
+    queryKey: ["patient-sources"],
+    queryFn: async () => {
+      const { data } = await createClient().from("patients").select("source").not("source", "is", null).limit(1000);
+      return Array.from(new Set((data ?? []).map((r) => r.source as string))).sort();
+    },
+  });
+
+  const queryKey = useMemo(() => ["patients", debounced, origem, page], [debounced, origem, page]);
   const { data, isLoading } = useQuery({
     queryKey,
     queryFn: async () => {
@@ -80,6 +110,7 @@ export function PacientesTable() {
         const s = debounced.replace(/[*(),]/g, "").trim();
         q = q.or(`name.ilike.*${s}*,phone.ilike.*${s}*`);
       }
+      if (origem !== "all") q = q.eq("source", origem);
       const { data, count, error } = await q;
       if (error) throw error;
       return { rows: (data ?? []) as Row[], count: count ?? 0 };
@@ -89,6 +120,14 @@ export function PacientesTable() {
   const rows = data?.rows ?? [];
   const total = data?.count ?? 0;
   const maxPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
+
+  async function removePatient(r: Row) {
+    if (!confirm(`Excluir o paciente "${r.name}"? Isso remove o cadastro e o card do funil.`)) return;
+    const { error } = await createClient().from("patients").delete().eq("id", r.id);
+    if (error) { toast.error("Erro ao excluir", { description: error.message }); return; }
+    toast.success("Paciente excluído");
+    qc.invalidateQueries({ queryKey: ["patients"] });
+  }
 
   async function save() {
     if (!form) return;
@@ -133,6 +172,15 @@ export function PacientesTable() {
           />
         </div>
         <div className="flex items-center gap-3">
+          <Select value={origem} onValueChange={(v) => { setOrigem(v ?? "all"); setPage(0); }}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue>{origem === "all" ? "Todas as origens" : origem}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as origens</SelectItem>
+              {(origens ?? []).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <span className="text-sm text-muted-foreground">{total} pacientes</span>
           <Button onClick={() => setForm({ ...EMPTY })}>
             <Plus className="h-4 w-4" /> Cadastrar
@@ -189,6 +237,10 @@ export function PacientesTable() {
                       <Button variant="ghost" size="icon" title="Atender"
                         onClick={() => router.push(`/inbox?p=${r.id}`)}>
                         <MessageSquare className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" title="Excluir"
+                        onClick={() => removePatient(r)}>
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </div>
                   </td>

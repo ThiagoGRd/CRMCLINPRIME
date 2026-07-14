@@ -6,7 +6,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { CC_BADGE, type Lead, type Stage } from "@/lib/funil";
 import { formatCurrency, formatPhoneDisplay, formatDateBR } from "@/lib/format";
-import { MessageSquare } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { MessageSquare, Pencil } from "lucide-react";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   if (!value) return null;
@@ -26,6 +27,7 @@ export function PatientFichaDialog({
   onClose: () => void;
   onAtender: (id: string) => void;
 }) {
+  const router = useRouter();
   const cc = lead?.ccStatus ? CC_BADGE[lead.ccStatus] : null;
   const stageName = lead ? stages.find((s) => s.id === lead.stageId)?.name ?? stages[0]?.name : "";
 
@@ -71,6 +73,9 @@ export function PatientFichaDialog({
               )}
             </div>
             <DialogFooter className="border-t border-border px-6 py-4">
+              <Button variant="outline" onClick={() => router.push(`/pacientes?editar=${lead.id}`)}>
+                <Pencil className="h-4 w-4" /> Editar
+              </Button>
               <Button onClick={() => onAtender(lead.id)}>
                 <MessageSquare className="h-4 w-4" /> Atender no CRM
               </Button>

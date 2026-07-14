@@ -37,13 +37,18 @@ export default async function DashboardPage() {
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
 
-  const [{ data: mRaw }, { data: weekRows }, { data: recent }] = await Promise.all([
+  const [{ data: mRaw }, { data: weekRows }, { data: events }, { data: recent }] = await Promise.all([
     supabase.rpc("get_month_metrics", { p_org: org!.id, p_year: year, p_month: month }),
     supabase
       .from("patients")
       .select("created_at")
       .gte("created_at", new Date(now.getTime() - 42 * 24 * 3600 * 1000).toISOString())
       .limit(5000),
+    supabase
+      .from("activity_logs")
+      .select("action, details, created_at, patient:patients(name)")
+      .order("created_at", { ascending: false })
+      .limit(8),
     supabase
       .from("patients")
       .select("name, source, created_at")
@@ -54,6 +59,17 @@ export default async function DashboardPage() {
   const m = (mRaw ?? {}) as Metrics;
   const series = computeWeekly((weekRows ?? []) as { created_at: string }[], now);
   const recentLeads = (recent ?? []) as { name: string; source: string; created_at: string }[];
+
+  type EventRow = { action: string; details: Record<string, unknown> | null; created_at: string; patient: { name: string } | { name: string }[] | null };
+  const recentEvents = ((events ?? []) as EventRow[]).map((e) => {
+    const p = Array.isArray(e.patient) ? e.patient[0] : e.patient;
+    const name = p?.name ?? "Paciente";
+    let text = "";
+    if (e.action === "message_sent") text = `Mensagem enviada para ${name}`;
+    else if (e.action === "stage_moved") text = `${name}: ${e.details?.from_stage ?? "?"} → ${e.details?.to_stage ?? "?"}`;
+    else text = `${e.action} — ${name}`;
+    return { text, date: e.created_at };
+  });
 
   const kpis = [
     { label: "Faturamento do mês", value: formatCurrency(m.faturamento ?? 0), hint: `em ${MES_FULL[month - 1]}`, icon: DollarSign },
@@ -96,25 +112,34 @@ export default async function DashboardPage() {
         </Card>
 
         <Card className="p-6">
-          <div className="mb-4 font-heading text-base font-bold">Leads recentes</div>
+          <div className="mb-4 font-heading text-base font-bold">
+            {recentEvents.length > 0 ? "Eventos recentes" : "Leads recentes"}
+          </div>
           <div className="space-y-1">
-            {recentLeads.length === 0 && (
-              <div className="text-sm text-muted-foreground">Nenhum lead recente.</div>
-            )}
-            {recentLeads.map((l, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between border-b border-white/5 py-2.5 last:border-0"
-              >
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium">{l.name}</div>
-                  <div className="text-xs text-muted-foreground">{l.source || "Geral"}</div>
-                </div>
-                <div className="shrink-0 text-xs text-muted-foreground">
-                  {formatDateBR(l.created_at)}
-                </div>
-              </div>
-            ))}
+            {recentEvents.length > 0
+              ? recentEvents.map((e, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-3 border-b border-white/5 py-2.5 last:border-0"
+                  >
+                    <div className="min-w-0 truncate text-sm">{e.text}</div>
+                    <div className="shrink-0 text-xs text-muted-foreground">{formatDateBR(e.date)}</div>
+                  </div>
+                ))
+              : recentLeads.map((l, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between border-b border-white/5 py-2.5 last:border-0"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">{l.name}</div>
+                      <div className="text-xs text-muted-foreground">{l.source || "Geral"}</div>
+                    </div>
+                    <div className="shrink-0 text-xs text-muted-foreground">
+                      {formatDateBR(l.created_at)}
+                    </div>
+                  </div>
+                ))}
           </div>
         </Card>
       </div>
