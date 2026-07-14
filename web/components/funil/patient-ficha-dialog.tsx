@@ -31,13 +31,18 @@ export function PatientFichaDialog({
 
   return (
     <Dialog open={!!lead} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
+      <DialogContent className="gap-0 p-0">
         {lead && (
           <>
-            <DialogHeader>
-              <DialogTitle className="font-heading">{lead.name}</DialogTitle>
+            <DialogHeader className="border-b border-border px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-emerald-500 text-sm font-bold text-white">
+                  {lead.name.slice(0, 2).toUpperCase()}
+                </div>
+                <DialogTitle className="font-heading text-lg">{lead.name}</DialogTitle>
+              </div>
             </DialogHeader>
-            <div>
+            <div className="px-6 py-2">
               <Row label="Telefone" value={formatPhoneDisplay(lead.phone)} />
               <Row label="Etapa no funil" value={stageName} />
               <Row
@@ -65,7 +70,7 @@ export function PatientFichaDialog({
                 </div>
               )}
             </div>
-            <DialogFooter>
+            <DialogFooter className="border-t border-border px-6 py-4">
               <Button onClick={() => onAtender(lead.id)}>
                 <MessageSquare className="h-4 w-4" /> Atender no CRM
               </Button>

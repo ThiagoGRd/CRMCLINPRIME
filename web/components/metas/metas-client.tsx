@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/components/org-context";
-import { formatCurrency, formatDateBR, MES_FULL, MES_ABREV } from "@/lib/format";
+import { formatCurrency, formatDateBR, formatPhoneDisplay, MES_FULL, MES_ABREV } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -236,52 +236,78 @@ function DetailDialog({ detail, year, month, profId, onClose }: {
 }) {
   const org = useOrg();
   const supabase = useMemo(() => createClient(), []);
+  const metric = detail?.metric ?? "";
+  const headers =
+    metric === "vendas" ? ["Paciente", "Valor", "Data"] :
+    metric === "leads" ? ["Nome", "Telefone", "Origem", "Data"] :
+    ["Paciente", "Telefone", "Procedimento", "Data"];
+
   const { data, isLoading } = useQuery({
     queryKey: ["metas-detail", detail?.metric, year, month],
     enabled: !!detail,
     queryFn: async () => {
       const start = `${year}-${String(month).padStart(2, "0")}-01`;
       const end = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
-      const metric = detail!.metric;
       if (metric === "leads") {
         const { data } = await supabase.from("patients").select("name,phone,source,created_at").gte("created_at", start).lt("created_at", end).order("created_at", { ascending: false }).limit(2000);
-        return (data ?? []).map((r) => ({ a: r.name, b: r.phone, c: r.source, d: formatDateBR(r.created_at) }));
+        return (data ?? []).map((r) => [r.name, formatPhoneDisplay(r.phone), r.source, formatDateBR(r.created_at)]);
       }
       if (metric === "vendas") {
         let q = supabase.from("crm_sales").select("patient_name,amount,sale_date").gte("sale_date", start).lt("sale_date", end).order("sale_date", { ascending: false }).limit(2000);
         if (profId) q = q.eq("professional_id", profId);
         const { data } = await q;
-        return (data ?? []).map((r) => ({ a: r.patient_name, b: formatCurrency(r.amount), c: "", d: formatDateBR(r.sale_date) }));
+        return (data ?? []).map((r) => [r.patient_name, formatCurrency(r.amount), formatDateBR(r.sale_date)]);
       }
-      // agendamentos / comparecimentos
       let q = supabase.from("crm_attendances").select("patient_name,phone,category,appt_date,status").eq("in_funnel", true).gte("appt_date", start).lt("appt_date", end).order("appt_date", { ascending: false }).limit(2000);
       if (metric === "comparecimentos") q = q.eq("status", "compareceu");
       const { data } = await q;
-      return (data ?? []).map((r) => ({ a: r.patient_name, b: r.phone, c: r.category, d: formatDateBR(r.appt_date) }));
+      return (data ?? []).map((r) => [r.patient_name, formatPhoneDisplay(r.phone), r.category || "—", formatDateBR(r.appt_date)]);
     },
   });
-  const rows = data ?? [];
+  const rows = (data ?? []) as (string | number)[][];
+
   return (
     <Dialog open={!!detail} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle className="font-heading">{detail?.title} — {MES_FULL[month - 1]}/{year}</DialogTitle></DialogHeader>
-        <div className="max-h-[60vh] overflow-y-auto">
-          {isLoading ? <div className="py-6 text-center text-muted-foreground">Carregando...</div> :
-            rows.length === 0 ? <div className="py-6 text-center text-muted-foreground">Nenhum registro.</div> :
-              <table className="w-full text-sm">
-                <tbody>
-                  {rows.map((r, i) => (
-                    <tr key={i} className="border-b border-white/[.04]">
-                      <td className="py-2 pr-3 font-medium">{r.a}</td>
-                      <td className="py-2 pr-3 text-muted-foreground">{r.b}</td>
-                      <td className="py-2 pr-3 text-muted-foreground">{r.c}</td>
-                      <td className="py-2 text-right text-muted-foreground">{r.d}</td>
-                    </tr>
+      <DialogContent className="max-w-2xl gap-0 p-0">
+        <DialogHeader className="border-b border-border px-6 py-4">
+          <DialogTitle className="font-heading">
+            {detail?.title} <span className="text-muted-foreground">— {MES_FULL[month - 1]}/{year}</span>
+          </DialogTitle>
+        </DialogHeader>
+        <div className="max-h-[62vh] overflow-y-auto px-2">
+          {isLoading ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">Carregando...</div>
+          ) : rows.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">Nenhum registro nesse mês.</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-popover">
+                <tr className="text-left text-muted-foreground">
+                  {headers.map((h, i) => (
+                    <th key={i} className={`px-4 py-2.5 text-xs font-semibold ${i === headers.length - 1 ? "text-right" : ""}`}>{h}</th>
                   ))}
-                </tbody>
-              </table>}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={i} className="border-t border-white/[.04] hover:bg-white/[.02]">
+                    {r.map((cell, j) => (
+                      <td
+                        key={j}
+                        className={`px-4 py-2.5 ${j === 0 ? "font-medium" : "text-muted-foreground"} ${j === r.length - 1 ? "whitespace-nowrap text-right" : ""}`}
+                      >
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
-        <div className="text-xs text-muted-foreground">{rows.length} registro(s)</div>
+        <div className="border-t border-border px-6 py-3 text-xs text-muted-foreground">
+          {rows.length} registro(s)
+        </div>
       </DialogContent>
     </Dialog>
   );
