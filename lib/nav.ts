@@ -8,6 +8,7 @@ import {
   BarChart3,
   Heart,
   Link2,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,6 +31,7 @@ export const NAV: NavItem[] = [
   { href: "/metas", label: "Metas & Vendas", subtitle: "Resultados do funil e financeiro por período", icon: BarChart3, group: "ops" },
   { href: "/followup", label: "Follow-up", subtitle: "Resgate de orçamentos em aberto e faltas", icon: Heart, group: "ops" },
   { href: "/conexoes", label: "Conexões", subtitle: "Canais de WhatsApp e Instagram conectados", icon: Link2, group: "config" },
+  { href: "/configuracoes", label: "Configurações", subtitle: "Organização, funil, regra do CRC e equipe", icon: Settings, group: "config" },
 ];
 
 export function navByHref(pathname: string): NavItem | undefined {
