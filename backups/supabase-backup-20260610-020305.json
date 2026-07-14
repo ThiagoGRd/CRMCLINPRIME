@@ -1,0 +1,2091 @@
+{
+ "chats": [
+  {
+   "id": 12,
+   "created_at": "2026-05-28T04:11:38.61+00:00",
+   "phone": "558296537663@s.whatsapp.net",
+   "updated_at": null,
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": null,
+   "ai_service": "pause",
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "novo",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-28T05:21:31.972414+00:00",
+   "evo_server_url": null,
+   "evo_instance": null,
+   "evo_apikey": null
+  },
+  {
+   "id": 11,
+   "created_at": "2026-05-28T04:07:21.944+00:00",
+   "phone": "558291148570@s.whatsapp.net",
+   "updated_at": null,
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": null,
+   "ai_service": "pause",
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "novo",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-28T05:21:31.972414+00:00",
+   "evo_server_url": null,
+   "evo_instance": null,
+   "evo_apikey": null
+  },
+  {
+   "id": 10,
+   "created_at": "2026-05-28T04:04:38.713+00:00",
+   "phone": "5582991234567@s.whatsapp.net",
+   "updated_at": null,
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": "1. PERFIL DO PACIENTE & DADOS CADASTRAIS\n* Nome: Não informado\n* Email: Não informado\n* Telefone: 5582991234567@s.whatsapp.net\n* Status: Lead\n\n2. INTERESSE CLÍNICO & QUALIFICAÇÃO\n* Procedimento de Interesse: Implante dentário\n* Queixa Principal: Perda de dente recente\n* Mídias Visualizadas: Não informado\n\n3. STATUS DO AGENDAMENTO (CONSULTA)\n* Procedimento de Interesse: Implante dentário\n* Especialidade: Odontologia\n* Profissional Identificado: Dr. Thiago Cruz\n* Data/Hora: Não informado\n* Status Atual: Em negociação\n\n4. ESTADO ATUAL DA CONVERSA\n* Último Agente Ativo: Sofia\n* Próximo Passo: Aguardar resposta do paciente para agendar avaliação gratuita\n\n5. HISTÓRICO RECENTE CONSOLIDADO\nPaciente manifestou interesse em implante dentário após perda recente de um dente. Sofia explicou os benefícios do implante, tecnologia utilizada na ClinPrime e ofereceu avaliação gratuita com o Dr. Thiago Cruz, propondo iniciar agendamento.",
+   "ai_service": null,
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "novo",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-28T05:21:31.972414+00:00",
+   "evo_server_url": null,
+   "evo_instance": null,
+   "evo_apikey": null
+  },
+  {
+   "id": 13,
+   "created_at": "2026-05-28T04:12:24.936+00:00",
+   "phone": "5519982727700@s.whatsapp.net",
+   "updated_at": null,
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": null,
+   "ai_service": "pause",
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "novo",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-28T05:21:31.972414+00:00",
+   "evo_server_url": null,
+   "evo_instance": null,
+   "evo_apikey": null
+  },
+  {
+   "id": 17,
+   "created_at": "2026-05-29T01:02:38.247+00:00",
+   "phone": "558291858500@s.whatsapp.net",
+   "updated_at": "2026-05-29T01:02:38.338+00:00",
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": null,
+   "ai_service": "pause",
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "novo",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-29T01:02:38.311947+00:00",
+   "evo_server_url": "https://evolutionapi.clinprime.shop",
+   "evo_instance": "Thiago Cruz",
+   "evo_apikey": "97AD0B808EB9-45FF-92BB-D1E5ABBA3BBF"
+  },
+  {
+   "id": 15,
+   "created_at": "2026-05-29T00:41:48.511+00:00",
+   "phone": "558291302615@s.whatsapp.net",
+   "updated_at": null,
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": null,
+   "ai_service": "pause",
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "novo",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-29T00:41:48.622198+00:00",
+   "evo_server_url": null,
+   "evo_instance": null,
+   "evo_apikey": null
+  },
+  {
+   "id": 18,
+   "created_at": "2026-05-29T01:10:13.099+00:00",
+   "phone": null,
+   "updated_at": null,
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": null,
+   "ai_service": null,
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "novo",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-29T01:10:13.15562+00:00",
+   "evo_server_url": null,
+   "evo_instance": null,
+   "evo_apikey": null
+  },
+  {
+   "id": 19,
+   "created_at": "2026-05-29T01:10:13.573+00:00",
+   "phone": null,
+   "updated_at": null,
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": null,
+   "ai_service": null,
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "novo",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-29T01:10:13.669537+00:00",
+   "evo_server_url": null,
+   "evo_instance": null,
+   "evo_apikey": null
+  },
+  {
+   "id": 25,
+   "created_at": "2026-05-29T12:01:31.42+00:00",
+   "phone": "558299871191@s.whatsapp.net",
+   "updated_at": "2026-05-29T12:04:38.606+00:00",
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": null,
+   "ai_service": "pause",
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "novo",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-29T12:01:31.474503+00:00",
+   "evo_server_url": "https://evolutionapi.clinprime.shop",
+   "evo_instance": "CLINPRIME",
+   "evo_apikey": "4EFDF062158C-41DA-8706-C393E11AF5EA"
+  },
+  {
+   "id": 20,
+   "created_at": "2026-05-29T02:09:54.84+00:00",
+   "phone": "554195507659@s.whatsapp.net",
+   "updated_at": "2026-05-29T02:09:54.927+00:00",
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": null,
+   "ai_service": "pause",
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "novo",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-29T02:09:54.903428+00:00",
+   "evo_server_url": "https://evolutionapi.clinprime.shop",
+   "evo_instance": "Thiago Cruz",
+   "evo_apikey": "97AD0B808EB9-45FF-92BB-D1E5ABBA3BBF"
+  },
+  {
+   "id": 26,
+   "created_at": "2026-05-29T12:03:02.998+00:00",
+   "phone": "558299597050@s.whatsapp.net",
+   "updated_at": "2026-05-29T12:03:15.7+00:00",
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": null,
+   "ai_service": "pause",
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "novo",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-29T12:03:03.138923+00:00",
+   "evo_server_url": "https://evolutionapi.clinprime.shop",
+   "evo_instance": "CLINPRIME",
+   "evo_apikey": "4EFDF062158C-41DA-8706-C393E11AF5EA"
+  },
+  {
+   "id": 27,
+   "created_at": "2026-05-29T12:04:16.132+00:00",
+   "phone": "558293470665@s.whatsapp.net",
+   "updated_at": "2026-05-29T12:04:16.321+00:00",
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": null,
+   "ai_service": "reativada",
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "novo",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-29T12:04:16.18549+00:00",
+   "evo_server_url": "https://evolutionapi.clinprime.shop",
+   "evo_instance": "CLINPRIME",
+   "evo_apikey": "4EFDF062158C-41DA-8706-C393E11AF5EA"
+  },
+  {
+   "id": 16,
+   "created_at": "2026-05-29T01:00:02.514+00:00",
+   "phone": "558296026436@s.whatsapp.net",
+   "updated_at": "2026-05-29T01:00:02.773+00:00",
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": "1. PERFIL DO PACIENTE & DADOS CADASTRAIS\n* Nome: [Não informado]\n* Email: [Não informado]\n* Telefone: 558296026436@s.whatsapp.net\n* Status: Lead\n\n2. INTERESSE CLÍNICO & QUALIFICAÇÃO\n* Procedimento de Interesse: Prótese fixa (protocolo) e Facetas\n* Queixa Principal: Desejo por dentes mais brancos; paciente tem alguns dentes firmes e não usa dentadura atualmente; busca melhorar cor, formato ou tamanho dos dentes\n* Mídias Visualizadas: Não\n\n3. STATUS DO AGENDAMENTO (CONSULTA)\n* Procedimento de Interesse: Prótese fixa (protocolo)\n* Especialidade: Odontologia\n* Profissional Identificado: Dr. Thiago Cruz\n* Data/Hora: [Não informado]\n* Status Atual: Não iniciado\n\n4. ESTADO ATUAL DA CONVERSA\n* Último Agente Ativo: Sofia (IA)\n* Próximo Passo: Aguardar resposta do paciente sobre o que mais incomoda no sorriso — cor, formato ou tamanho dos dentes\n\n5. HISTÓRICO RECENTE CONSOLIDADO\nPaciente confirmou que ainda possui alguns dentes firmes, o que facilita o planejamento do tratamento com prótese fixa protocolo e facetas para melhorar a estética do sorriso. Sofia solicitou que o paciente informe qual aspecto do sorriso incomoda mais atualmente: cor, formato ou tamanho dos dentes.",
+   "ai_service": null,
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "qualificado",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-29T03:12:22.973+00:00",
+   "evo_server_url": "https://evolutionapi.clinprime.shop",
+   "evo_instance": "CLINPRIME",
+   "evo_apikey": "4EFDF062158C-41DA-8706-C393E11AF5EA"
+  },
+  {
+   "id": 22,
+   "created_at": "2026-05-29T11:25:02.532+00:00",
+   "phone": "558293289057@s.whatsapp.net",
+   "updated_at": "2026-05-29T11:25:02.605+00:00",
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": null,
+   "ai_service": null,
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "novo",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-29T11:25:02.581345+00:00",
+   "evo_server_url": "https://evolutionapi.clinprime.shop",
+   "evo_instance": "Thiago Cruz",
+   "evo_apikey": "97AD0B808EB9-45FF-92BB-D1E5ABBA3BBF"
+  },
+  {
+   "id": 28,
+   "created_at": "2026-05-29T12:06:06.453+00:00",
+   "phone": "558299121500@s.whatsapp.net",
+   "updated_at": "2026-05-29T12:06:06.66+00:00",
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": null,
+   "ai_service": "reativada",
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "novo",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-29T12:06:06.501821+00:00",
+   "evo_server_url": "https://evolutionapi.clinprime.shop",
+   "evo_instance": "CLINPRIME",
+   "evo_apikey": "4EFDF062158C-41DA-8706-C393E11AF5EA"
+  },
+  {
+   "id": 29,
+   "created_at": "2026-05-29T12:06:46.158+00:00",
+   "phone": "558298201098@s.whatsapp.net",
+   "updated_at": "2026-05-29T12:06:46.372+00:00",
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": null,
+   "ai_service": "reativada",
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "novo",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-29T12:06:46.199036+00:00",
+   "evo_server_url": "https://evolutionapi.clinprime.shop",
+   "evo_instance": "CLINPRIME",
+   "evo_apikey": "4EFDF062158C-41DA-8706-C393E11AF5EA"
+  },
+  {
+   "id": 23,
+   "created_at": "2026-05-29T11:58:44.079+00:00",
+   "phone": "558291163810@s.whatsapp.net",
+   "updated_at": "2026-05-29T12:04:45.369+00:00",
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": null,
+   "ai_service": "pause",
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "novo",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-29T11:58:44.157052+00:00",
+   "evo_server_url": "https://evolutionapi.clinprime.shop",
+   "evo_instance": "CLINPRIME",
+   "evo_apikey": "4EFDF062158C-41DA-8706-C393E11AF5EA"
+  },
+  {
+   "id": 30,
+   "created_at": "2026-05-29T23:38:35.57+00:00",
+   "phone": "558299227799@s.whatsapp.net",
+   "updated_at": "2026-05-29T23:38:35.664+00:00",
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": "1. PERFIL DO PACIENTE & DADOS CADASTRAIS\n* Nome: Não informado\n* Email: Não informado\n* Telefone: 558299227799@s.whatsapp.net\n* Status: Lead\n\n2. INTERESSE CLÍNICO & QUALIFICAÇÃO\n* Procedimento de Interesse: Não informado\n* Queixa Principal: Não informado\n* Mídias Visualizadas: Não\n\n3. STATUS DO AGENDAMENTO (CONSULTA)\n* Procedimento de Interesse: Não informado\n* Especialidade: Não informado\n* Profissional Identificado: Não identificado\n* Data/Hora: Não informado\n* Status Atual: Não iniciado\n\n4. ESTADO ATUAL DA CONVERSA\n* Último Agente Ativo: Sofia\n* Próximo Passo: Aguardar o paciente informar nome e motivo do contato\n\n5. HISTÓRICO RECENTE CONSOLIDADO\nPaciente entrou em contato e respondeu com \"Vou lhe mostrar que não é\". Sofia respondeu se apresentando novamente e solicitando nome e detalhes do motivo do contato para melhor atendimento.",
+   "ai_service": null,
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "qualificado",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-29T23:39:25.826+00:00",
+   "evo_server_url": "https://evolutionapi.clinprime.shop",
+   "evo_instance": "Thiago Cruz",
+   "evo_apikey": "97AD0B808EB9-45FF-92BB-D1E5ABBA3BBF"
+  },
+  {
+   "id": 24,
+   "created_at": "2026-05-29T12:00:24.9+00:00",
+   "phone": "558293714705@s.whatsapp.net",
+   "updated_at": "2026-05-29T12:04:54.016+00:00",
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": null,
+   "ai_service": "pause",
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "novo",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-29T12:00:24.984769+00:00",
+   "evo_server_url": "https://evolutionapi.clinprime.shop",
+   "evo_instance": "CLINPRIME",
+   "evo_apikey": "4EFDF062158C-41DA-8706-C393E11AF5EA"
+  },
+  {
+   "id": 21,
+   "created_at": "2026-05-29T11:16:07.55+00:00",
+   "phone": "558296517322@s.whatsapp.net",
+   "updated_at": "2026-05-29T11:16:07.731+00:00",
+   "conversation_id": null,
+   "app": "delivery",
+   "email": null,
+   "memoria_contexto": "1. PERFIL DO PACIENTE & DADOS CADASTRAIS\n* Nome: Pastora Renata\n* Email: [Não informado]\n* Telefone: 558296517322@s.whatsapp.net\n* Status: Lead\n\n2. INTERESSE CLÍNICO & QUALIFICAÇÃO\n* Procedimento de Interesse: Aparelho Ortodôntico\n* Queixa Principal: Desejo de melhorar o sorriso; incômodo leve na parte inferior do sorriso que ocorre principalmente ao sorrir, sem afetar fala ou outras situações\n* Mídias Visualizadas: Não\n\n3. STATUS DO AGENDAMENTO (CONSULTA)\n* Procedimento de Interesse: Aparelho Ortodôntico\n* Especialidade: Odontologia\n* Profissional Identificado: Dr. Thiago\n* Data/Hora: [Não informado]\n* Status Atual: Em negociação\n\n4. ESTADO ATUAL DA CONVERSA\n* Último Agente Ativo: Sofia (IA)\n* Próximo Passo: Aguardar resposta da paciente detalhando se o desconforto ocorre apenas ao sorrir ou também em outras situações do dia a dia\n\n5. HISTÓRICO RECENTE CONSOLIDADO\nPaciente Pastora Renata deseja melhorar o sorriso e relata incômodo leve localizado na parte inferior do sorriso, que ocorre principalmente ao sorrir, sem afetar a fala ou outras atividades. Está interessada em regularização ortodôntica após 6 anos sem uso do aparelho. Sofia solicitou mais informações para entender se o desconforto ocorre somente ao sorrir ou em outras situações cotidianas.",
+   "ai_service": null,
+   "dor_ancora": null,
+   "procedimento_interesse": null,
+   "stage_funil": "qualificado",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-05-29T11:29:04.517+00:00",
+   "evo_server_url": "https://evolutionapi.clinprime.shop",
+   "evo_instance": "Thiago Cruz",
+   "evo_apikey": "97AD0B808EB9-45FF-92BB-D1E5ABBA3BBF"
+  },
+  {
+   "id": 14,
+   "created_at": "2026-05-28T04:19:15.859+00:00",
+   "phone": "558299800467@s.whatsapp.net",
+   "updated_at": "2026-06-03T02:07:15.026+00:00",
+   "conversation_id": null,
+   "app": "delivery",
+   "email": "não informado",
+   "memoria_contexto": "Cliente novo mandou um documento fiscal confuso, não respondeu sobre os dentes ou sorriso, esperando que a gente peça mais detalhes para entender o que precisa.",
+   "ai_service": "pause",
+   "dor_ancora": "dor",
+   "procedimento_interesse": "",
+   "stage_funil": "qualificado",
+   "consulta_agendada": false,
+   "ultimo_contato": "2026-06-03T15:37:28.574+00:00",
+   "evo_server_url": null,
+   "evo_instance": null,
+   "evo_apikey": null
+  }
+ ],
+ "n8n_chat_histories": [
+  {
+   "id": 3,
+   "session_id": "558296537663@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "isso  bacana",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-28T04:11:38.914509+00:00"
+  },
+  {
+   "id": 4,
+   "session_id": "558296537663@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "https://www.youtube.com/watch?v=vYtaGw3vRII",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-28T04:11:39.24244+00:00"
+  },
+  {
+   "id": 5,
+   "session_id": "558291148570@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Login e senha",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-28T04:12:04.848674+00:00"
+  },
+  {
+   "id": 6,
+   "session_id": "558291148570@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "cad ?",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-28T04:12:09.343085+00:00"
+  },
+  {
+   "id": 7,
+   "session_id": "5519982727700@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "To voltando pra ia",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-28T04:12:25.138568+00:00"
+  },
+  {
+   "id": 8,
+   "session_id": "5519982727700@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "As meninas so tapadas vei",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-28T04:12:30.326525+00:00"
+  },
+  {
+   "id": 9,
+   "session_id": "5519982727700@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "To treinando de novo",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-28T04:12:33.945436+00:00"
+  },
+  {
+   "id": 10,
+   "session_id": "5519982727700@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Mas ligao pqp",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-28T04:12:37.656119+00:00"
+  },
+  {
+   "id": 11,
+   "session_id": "5519982727700@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Ow gerao ruim de desenrolar",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-28T04:12:45.956439+00:00"
+  },
+  {
+   "id": 12,
+   "session_id": "5519982727700@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Travam muito",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-28T04:12:48.345375+00:00"
+  },
+  {
+   "id": 13,
+   "session_id": "5519982727700@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Quanto mais novo pior ta sendo",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-28T04:12:53.842472+00:00"
+  },
+  {
+   "id": 139,
+   "session_id": "558299800467@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Vou mandar aqui viu",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-06-03T19:18:11.468535+00:00"
+  },
+  {
+   "id": 140,
+   "session_id": "558299800467@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Espera",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-06-03T19:18:14.327463+00:00"
+  },
+  {
+   "id": 141,
+   "session_id": "558299800467@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Quando ela chegar aqui na sala",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-06-03T19:18:15.637834+00:00"
+  },
+  {
+   "id": 142,
+   "session_id": "558299800467@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "Ta cerro",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-06-03T19:18:25.531998+00:00"
+  },
+  {
+   "id": 19,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Oi",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T00:44:31.002643+00:00"
+  },
+  {
+   "id": 20,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Oi",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T00:49:55.174767+00:00"
+  },
+  {
+   "id": 21,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Oi",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T01:00:17.998243+00:00"
+  },
+  {
+   "id": 22,
+   "session_id": "558291858500@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Fica pra amanh",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T01:02:38.624946+00:00"
+  },
+  {
+   "id": 23,
+   "session_id": "558291858500@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Foi mal",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T01:02:40.091584+00:00"
+  },
+  {
+   "id": 24,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Oi",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T01:04:36.964497+00:00"
+  },
+  {
+   "id": 25,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Oi",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T01:09:00.436729+00:00"
+  },
+  {
+   "id": 26,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Oi",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T01:19:52.234029+00:00"
+  },
+  {
+   "id": 27,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "...",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T01:19:53.400894+00:00"
+  },
+  {
+   "id": 28,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Oi",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T01:23:46.464272+00:00"
+  },
+  {
+   "id": 29,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "Oi! Tudo bem? Me conta, o que voc est buscando para o seu sorriso?",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T01:23:47.253116+00:00"
+  },
+  {
+   "id": 30,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Queria um dente mais branco",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T02:07:55.518334+00:00"
+  },
+  {
+   "id": 31,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "Oi! Me conta, o que mais te incomoda no seu sorriso hoje  a cor, o formato ou o tamanho dos dentes? Quero entender melhor para te ajudar.",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T02:07:56.31321+00:00"
+  },
+  {
+   "id": 32,
+   "session_id": "554195507659@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Vim do instagram e quero conhecer a IA da SED.",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T02:09:55.135123+00:00"
+  },
+  {
+   "id": 33,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Eu queria um dente mais branco",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T02:10:45.833837+00:00"
+  },
+  {
+   "id": 34,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "Oi! Entendi que voc quer um dente mais branco. Me conta uma coisa: hoje voc usa dentadura ou ainda tem alguns dentes?",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T02:10:46.931206+00:00"
+  },
+  {
+   "id": 35,
+   "session_id": "554195507659@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "Opa! Boa noite! Tudo bem? Aqui  o Nicolas da SED, s que na verso IA haha To aqui pra mostrar de forma personalizada como nossa IA vai te ajudar! Me confirma seu nome? Aqui para mim aparece Thiago...",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T02:10:50.273041+00:00"
+  },
+  {
+   "id": 36,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Tenho alguns dentes",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T02:11:38.095296+00:00"
+  },
+  {
+   "id": 37,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "Entendi! Voc ainda usa dentadura ou esses dentes que tem esto firmes? Isso me ajuda a entender melhor para te orientar.",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T02:11:39.979846+00:00"
+  },
+  {
+   "id": 38,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Esto firmes",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T02:12:09.090999+00:00"
+  },
+  {
+   "id": 39,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "Que bom saber que seus dentes esto firmes! Me conta, voc ainda usa a dentadura ou est s com esses dentes firmes mesmo? Isso vai ajudar a entender direitinho como podemos te ajudar a melhorar o sorriso.",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T02:12:09.869632+00:00"
+  },
+  {
+   "id": 40,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Os dentes esto firmes",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T02:12:41.284577+00:00"
+  },
+  {
+   "id": 41,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "Entendi! Voc ainda usa dentadura ou est s com esses dentes firmes mesmo? Quero entender direitinho pra te ajudar melhor.",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T02:12:42.054332+00:00"
+  },
+  {
+   "id": 42,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Boa noite",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T03:11:48.357082+00:00"
+  },
+  {
+   "id": 43,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "Oi, tudo bem? Aqui  a Sofia da ClinPrime. Vi que voc tem interesse em prtese fixa protocolo e facetas para deixar seu sorriso mais branco e bonito. Me conta, voc ainda usa dentadura ou tem alguns dentes firmes?",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T03:11:49.447624+00:00"
+  },
+  {
+   "id": 44,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Ainda tenho alguns dentes",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T03:12:28.55445+00:00"
+  },
+  {
+   "id": 45,
+   "session_id": "558291302615@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "Entendi! Voc mencionou que ainda tem alguns dentes firmes, isso  timo para planejarmos o melhor tratamento. Me conta: o que te incomoda mais hoje no seu sorriso  a cor, o formato ou o tamanho dos dentes?",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T03:12:29.437297+00:00"
+  },
+  {
+   "id": 46,
+   "session_id": "554195507659@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "Bom dia, . Tudo bem? Conseguiu ver minha mensagem?",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T10:01:04.344967+00:00"
+  },
+  {
+   "id": 47,
+   "session_id": "558291163810@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Ol bom dia!! Hoje  o dia da sua avaliao com o Dr Thiago e estamos ansiosos para te receber aqui na Clinica!! Estamos muito felizes com seu primeiro passo para realizar seu sonho de ter seu sorriso transformado, obrigada por nos escolher para participar desse momento!!  Aguardamos voc!!",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T11:58:49.56381+00:00"
+  },
+  {
+   "id": 48,
+   "session_id": "558293714705@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Ol bom dia!! Hoje  o dia da sua avaliao com o Dr Thiago e estamos ansiosos para te receber aqui na Clinica!! Estamos muito felizes com seu primeiro passo para realizar seu sonho de ter seu sorriso transformado, obrigada por nos escolher para participar desse momento!!  Aguardamos voc!!",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T12:00:30.335153+00:00"
+  },
+  {
+   "id": 49,
+   "session_id": "558299871191@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Ol bom dia!! Hoje  o dia da sua avaliao com o Dr Thiago e estamos ansiosos para te receber aqui na Clinica!! Estamos muito felizes com seu primeiro passo para realizar seu sonho de ter seu sorriso transformado, obrigada por nos escolher para participar desse momento!!  Aguardamos voc!!",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T12:01:36.731922+00:00"
+  },
+  {
+   "id": 50,
+   "session_id": "558299597050@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Ol bom dia!! Hoje  o dia da sua avaliao com o Dr Thiago e estamos ansiosos para te receber aqui na Clinica!! Estamos muito felizes com seu primeiro passo para realizar seu sonho de ter seu sorriso transformado, obrigada por nos escolher para participar desse momento!!  Aguardamos voc!!",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T12:03:08.430576+00:00"
+  },
+  {
+   "id": 51,
+   "session_id": "558293470665@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Ol bom dia!! Hoje  o dia da sua avaliao com o Dr Thiago e estamos ansiosos para te receber aqui na Clinica!! Estamos muito felizes com seu primeiro passo para realizar seu sonho de ter seu sorriso transformado, obrigada por nos escolher para participar desse momento!!  Aguardamos voc!!",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T12:04:29.348088+00:00"
+  },
+  {
+   "id": 52,
+   "session_id": "558299121500@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Ol bom dia!! Hoje  o dia da sua avaliao com o Dr Thiago e estamos ansiosos para te receber aqui na Clinica!! Estamos muito felizes com seu primeiro passo para realizar seu sonho de ter seu sorriso transformado, obrigada por nos escolher para participar desse momento!!  Aguardamos voc!!",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T12:06:20.995895+00:00"
+  },
+  {
+   "id": 53,
+   "session_id": "558298201098@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Ol bom dia!! Hoje  o dia da sua avaliao com o Dr Thiago e estamos ansiosos para te receber aqui na Clinica!! Estamos muito felizes com seu primeiro passo para realizar seu sonho de ter seu sorriso transformado, obrigada por nos escolher para participar desse momento!!  Aguardamos voc!!",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T12:07:03.156407+00:00"
+  },
+  {
+   "id": 54,
+   "session_id": "558293714705@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "Bom dia",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T12:09:24.057463+00:00"
+  },
+  {
+   "id": 55,
+   "session_id": "558293714705@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Bom dia!!",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-05-29T12:09:44.548304+00:00"
+  },
+  {
+   "id": 143,
+   "session_id": "558299800467@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-06-03T19:18:31.836757+00:00"
+  },
+  {
+   "id": 133,
+   "session_id": "558299800467@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Moio",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-06-03T14:08:53.961772+00:00"
+  },
+  {
+   "id": 134,
+   "session_id": "558299800467@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "Oi! Aqui é a Sofia, da ClinPrime Odontologia em São Miguel dos Campos. Com quem eu tenho o prazer de falar? 😊 Me conta o que está te incomodando com seus dentes ou sorriso.",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-06-03T14:08:53.961772+00:00"
+  },
+  {
+   "id": 135,
+   "session_id": "558299800467@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Acabou aqui",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-06-03T14:09:03.332409+00:00"
+  },
+  {
+   "id": 136,
+   "session_id": "558299800467@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "Oi! Posso saber seu nome para te ajudar melhor? Me conta o que está te incomodando no seu sorriso ou nos seus dentes hoje.",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-06-03T14:09:03.332409+00:00"
+  },
+  {
+   "id": 144,
+   "session_id": "558299800467@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Pronto",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-06-03T19:19:30.916942+00:00"
+  },
+  {
+   "id": 145,
+   "session_id": "558299800467@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Pode vir",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-06-03T19:19:32.587056+00:00"
+  },
+  {
+   "id": 146,
+   "session_id": "558299800467@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "Ok",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-06-03T19:19:36.608296+00:00"
+  },
+  {
+   "id": 137,
+   "session_id": "558299800467@s.whatsapp.net",
+   "message": {
+    "type": "human",
+    "content": "Código da Obra Código A.R.T. Exigibilidade ISSQN Regime Especial de Tributação Simples Nacional Classificação Tributária Competência 1-Exigível 0-Nenhum (X) Sim () Não 1.2301.21.00 MACEIÓ - AL MACEIÓ - AL Município Prestação ISSQN a Reter Munícipio Incidência Valor do Serviço Desconto Incondicionado Desconto Condicionado Outras Retenções Deduções Previstas em Lei Base de Cálculo Alíquota ISSQN 550,00 0,00 0,00 0,00 0,00 550,00 3,00 550,00 ( ) Sim (X) Não 0,00 05/2026 Outras Informações 1- Uma via desta Nota Fiscal será enviada através do e-mail fornecido pelo Tomador do Serviço. 2- A autenticidade desta Nota Fiscal poderá ser verificada no site, http://maceio.giss.com.br com a utilização do Código de Verificação. 3 - Documento emitido por ME ou EPP optante pelo Simples Nacional.Não gera direito a crédito fiscal de ISS e IPI. Nomenclatura Brasileira de Serviços Indicador de Operação Situação Tributária 30104 200 200029 IBS CBS Valor Líquido Retenções Federais 0,00 PIS/COFINS - Apuração Própria PREFEITURA MUNICIPAL DE MACEIÓ SECRETARIA MUNICIPAL DE FAZENDA Tipo RPS NOTA FISCAL DE SERVIÇO ELETRÔNICA - NFS-e Série RPSRPS NFS-e Substituída 1161 NFS-e Código de Verificação HJKUSLIJ4 Emissão da NFS-e 27/05/2026 16:42:24 Prestador de Serviço Número: 3731Endereço CPF/CNPJ: 34.846.834/0001-34 Nome/Razão Social: MONTEIRO & CRUZ GINECOLOGIA E OBSTETRICIA LTDA ÁLVARO OTACÍLIO CEP: 57036-850 Bairro: JATIÚCAComplemento: BLOCO: A-;SALA: 705;COMPLEMENTO: ITALIA; E-mail: rosangelabrascont@hotmail.com Município: MACEIÓ UF: AL Telefone: 3338-2643 Telefone: (82)99602-6436 Atividade Econômica 4.03 / 8630502 - atividade médica ambulatorial com recursos para realização de exames complementares Tomador de Serviço CPF/CNPJ: Nome/Razão Social: Endereço: 106.801.814-31 Thiago Augusto Araújo Andrade Cruz Rua Vinte e Nove de Setembro Município: SAO MIGUEL DOS CAMPOS Bairro: VALOR REFERENTE A CONSULTA DE OBSTETRÍCIA REALIZADA NO DIA 06/05/2026 - DRA GRACE PAULA CORREIA MONTEIRO HOLANDA CRM/AL 5995 Centro E-mail: PIS IRINSS CSLLTipo PIS COFINS Tipo COFINS Tributos Federais (R$) 0,00  Apuração Própria  0,000,00 0,00 Apuração Própria  0,00 Discriminação do Serviço Valor Aproximado dos Tributos Federal FonteEstadual Municipal Simples 0.00%0.00% 0.00% 0.00% NIF: CEP: 57240-030 UF: AL Complemento: Número: 43 Inscrição Municipal: Inscrição 901457774 Identificação Prestação de Serviços Detalhamento de Valores (R$) BrasilPaís: País: Brasil,",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-06-03T15:37:32.733452+00:00"
+  },
+  {
+   "id": 138,
+   "session_id": "558299800467@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "Parece que você enviou um documento fiscal. Posso ajudar com algo relacionado ao atendimento odontológico na ClinPrime? Me conta o que está te incomodando nos dentes ou sorriso para eu entender melhor e ajudar você. Qual é o seu nome?",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-06-03T15:37:32.733452+00:00"
+  },
+  {
+   "id": 147,
+   "session_id": "558299800467@s.whatsapp.net",
+   "message": {
+    "type": "ai",
+    "content": "oi",
+    "additional_kwargs": {},
+    "response_metadata": {}
+   },
+   "created_at": "2026-06-08T04:02:39.115152+00:00"
+  }
+ ],
+ "customers": [],
+ "chat_messages": [],
+ "crm_patients": [
+  {
+   "id": "f5880d79-9657-4d2e-8c7f-91fb89db9590",
+   "name": "5519982727700",
+   "phone": "5519982727700",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": null,
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": null,
+   "customer_id": null,
+   "created_at": "2026-05-28T04:12:24.936+00:00",
+   "updated_at": null,
+   "chat_session_id": null
+  },
+  {
+   "id": "8eb8fecd-0b69-4fea-914b-dd12da4c0935",
+   "name": "554195507659",
+   "phone": "554195507659",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": null,
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": null,
+   "customer_id": null,
+   "created_at": "2026-05-29T02:09:54.84+00:00",
+   "updated_at": "2026-05-29T02:09:54.927+00:00",
+   "chat_session_id": null
+  },
+  {
+   "id": "dbb8dad5-ec99-4ba3-8622-5d9f0bdd1702",
+   "name": "558291148570",
+   "phone": "558291148570",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": null,
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": null,
+   "customer_id": null,
+   "created_at": "2026-05-28T04:07:21.944+00:00",
+   "updated_at": null,
+   "chat_session_id": null
+  },
+  {
+   "id": "add4185a-ca41-4f1a-aa8f-ad92c5754755",
+   "name": "558291163810",
+   "phone": "558291163810",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": null,
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": null,
+   "customer_id": null,
+   "created_at": "2026-05-29T11:58:44.079+00:00",
+   "updated_at": "2026-05-29T12:04:45.369+00:00",
+   "chat_session_id": null
+  },
+  {
+   "id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "name": "558291302615",
+   "phone": "558291302615",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": null,
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": null,
+   "customer_id": null,
+   "created_at": "2026-05-29T00:41:48.511+00:00",
+   "updated_at": null,
+   "chat_session_id": null
+  },
+  {
+   "id": "898fb815-7551-48fd-8fe8-22ee814d66ac",
+   "name": "558291858500",
+   "phone": "558291858500",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": null,
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": null,
+   "customer_id": null,
+   "created_at": "2026-05-29T01:02:38.247+00:00",
+   "updated_at": "2026-05-29T01:02:38.338+00:00",
+   "chat_session_id": null
+  },
+  {
+   "id": "dcc6a5b9-b0d1-4376-aa0c-9c8558beeeb6",
+   "name": "558293289057",
+   "phone": "558293289057",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": null,
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": null,
+   "customer_id": null,
+   "created_at": "2026-05-29T11:25:02.532+00:00",
+   "updated_at": "2026-05-29T11:25:02.605+00:00",
+   "chat_session_id": null
+  },
+  {
+   "id": "9823709c-981d-4a76-b76a-b289afec40cb",
+   "name": "558293470665",
+   "phone": "558293470665",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": null,
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": null,
+   "customer_id": null,
+   "created_at": "2026-05-29T12:04:16.132+00:00",
+   "updated_at": "2026-05-29T12:04:16.321+00:00",
+   "chat_session_id": null
+  },
+  {
+   "id": "2196b7c2-ccf4-4f72-8c9d-09bb764fcda5",
+   "name": "558293714705",
+   "phone": "558293714705",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": null,
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": null,
+   "customer_id": null,
+   "created_at": "2026-05-29T12:00:24.9+00:00",
+   "updated_at": "2026-05-29T12:04:54.016+00:00",
+   "chat_session_id": null
+  },
+  {
+   "id": "a13b06d1-0265-4995-9a95-294a4ce4a335",
+   "name": "558296026436",
+   "phone": "558296026436",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": null,
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": null,
+   "customer_id": null,
+   "created_at": "2026-05-29T01:00:02.514+00:00",
+   "updated_at": "2026-05-29T01:00:02.773+00:00",
+   "chat_session_id": null
+  },
+  {
+   "id": "a364b790-c86b-4c3f-97f0-b44961fbcb7d",
+   "name": "558296517322",
+   "phone": "558296517322",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": null,
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": null,
+   "customer_id": null,
+   "created_at": "2026-05-29T11:16:07.55+00:00",
+   "updated_at": "2026-05-29T11:16:07.731+00:00",
+   "chat_session_id": null
+  },
+  {
+   "id": "6a209414-c036-4068-808c-e013c6d5e950",
+   "name": "558296537663",
+   "phone": "558296537663",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": null,
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": null,
+   "customer_id": null,
+   "created_at": "2026-05-28T04:11:38.61+00:00",
+   "updated_at": null,
+   "chat_session_id": null
+  },
+  {
+   "id": "c10ca2e0-2f9e-4ba8-aaa9-919eff8971d6",
+   "name": "558298201098",
+   "phone": "558298201098",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": null,
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": null,
+   "customer_id": null,
+   "created_at": "2026-05-29T12:06:46.158+00:00",
+   "updated_at": "2026-05-29T12:06:46.372+00:00",
+   "chat_session_id": null
+  },
+  {
+   "id": "632314bd-4f2d-476d-9358-dabcc49b4b84",
+   "name": "558299121500",
+   "phone": "558299121500",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": null,
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": null,
+   "customer_id": null,
+   "created_at": "2026-05-29T12:06:06.453+00:00",
+   "updated_at": "2026-05-29T12:06:06.66+00:00",
+   "chat_session_id": null
+  },
+  {
+   "id": "d8da48ad-39ce-4708-abb6-665f03468a8e",
+   "name": "5582991234567",
+   "phone": "5582991234567",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": null,
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": null,
+   "customer_id": null,
+   "created_at": "2026-05-28T04:04:38.713+00:00",
+   "updated_at": null,
+   "chat_session_id": null
+  },
+  {
+   "id": "2a1018a0-85f6-495f-8c7a-58a20d39b27f",
+   "name": "558299227799",
+   "phone": "558299227799",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": null,
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": null,
+   "customer_id": null,
+   "created_at": "2026-05-29T23:38:35.57+00:00",
+   "updated_at": "2026-05-29T23:38:35.664+00:00",
+   "chat_session_id": null
+  },
+  {
+   "id": "25b73683-d8c4-4aeb-b0c1-fd8b7df5d0f1",
+   "name": "558299597050",
+   "phone": "558299597050",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": null,
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": null,
+   "customer_id": null,
+   "created_at": "2026-05-29T12:03:02.998+00:00",
+   "updated_at": "2026-05-29T12:03:15.7+00:00",
+   "chat_session_id": null
+  },
+  {
+   "id": "dd654fb0-ed7c-4523-9586-2280a540047e",
+   "name": "558299800467",
+   "phone": "558299800467",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": "",
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": "dor",
+   "customer_id": null,
+   "created_at": "2026-05-28T04:19:15.859+00:00",
+   "updated_at": "2026-06-03T02:07:15.026+00:00",
+   "chat_session_id": null
+  },
+  {
+   "id": "9470fd5c-1217-495b-9ba9-875ef994ec21",
+   "name": "558299871191",
+   "phone": "558299871191",
+   "email": null,
+   "cpf": null,
+   "treatment_interest": null,
+   "treatment_value": null,
+   "source": "whatsapp",
+   "assigned_dentist": null,
+   "notes": null,
+   "customer_id": null,
+   "created_at": "2026-05-29T12:01:31.42+00:00",
+   "updated_at": "2026-05-29T12:04:38.606+00:00",
+   "chat_session_id": null
+  }
+ ],
+ "crm_messages": [
+  {
+   "id": "984c0af4-e4c2-4406-8aab-f592ff3f487b",
+   "patient_id": "6a209414-c036-4068-808c-e013c6d5e950",
+   "direction": "inbound",
+   "content": "isso  bacana",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-28T04:11:38.914509+00:00"
+  },
+  {
+   "id": "11713d83-5ae0-49fb-a97e-6b2f2f8cc294",
+   "patient_id": "6a209414-c036-4068-808c-e013c6d5e950",
+   "direction": "inbound",
+   "content": "https://www.youtube.com/watch?v=vYtaGw3vRII",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-28T04:11:39.24244+00:00"
+  },
+  {
+   "id": "c8ff0bb0-7648-45f8-b179-740941be329f",
+   "patient_id": "dbb8dad5-ec99-4ba3-8622-5d9f0bdd1702",
+   "direction": "inbound",
+   "content": "Login e senha",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-28T04:12:04.848674+00:00"
+  },
+  {
+   "id": "18ce6e91-16b0-42de-9b3a-27f7f60507f6",
+   "patient_id": "dbb8dad5-ec99-4ba3-8622-5d9f0bdd1702",
+   "direction": "inbound",
+   "content": "cad ?",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-28T04:12:09.343085+00:00"
+  },
+  {
+   "id": "c6eeb202-04f1-4c4d-97e3-632503e2f0ab",
+   "patient_id": "f5880d79-9657-4d2e-8c7f-91fb89db9590",
+   "direction": "inbound",
+   "content": "To voltando pra ia",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-28T04:12:25.138568+00:00"
+  },
+  {
+   "id": "ee1f39e3-dfc1-487c-b4b6-c1c1c8b921fc",
+   "patient_id": "f5880d79-9657-4d2e-8c7f-91fb89db9590",
+   "direction": "inbound",
+   "content": "As meninas so tapadas vei",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-28T04:12:30.326525+00:00"
+  },
+  {
+   "id": "6fea86e2-7be0-45ce-9d4d-82bee49b7596",
+   "patient_id": "f5880d79-9657-4d2e-8c7f-91fb89db9590",
+   "direction": "inbound",
+   "content": "To treinando de novo",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-28T04:12:33.945436+00:00"
+  },
+  {
+   "id": "1ca21203-8e47-413c-b195-d0868a6fef77",
+   "patient_id": "f5880d79-9657-4d2e-8c7f-91fb89db9590",
+   "direction": "inbound",
+   "content": "Mas ligao pqp",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-28T04:12:37.656119+00:00"
+  },
+  {
+   "id": "3b584078-a1b6-41da-a6f8-41f7bae7b534",
+   "patient_id": "f5880d79-9657-4d2e-8c7f-91fb89db9590",
+   "direction": "inbound",
+   "content": "Ow gerao ruim de desenrolar",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-28T04:12:45.956439+00:00"
+  },
+  {
+   "id": "c97a7c99-b952-4fef-b185-eebaf9c380f5",
+   "patient_id": "f5880d79-9657-4d2e-8c7f-91fb89db9590",
+   "direction": "inbound",
+   "content": "Travam muito",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-28T04:12:48.345375+00:00"
+  },
+  {
+   "id": "ae612c1d-b8dc-4ea1-89d0-60cb8101d104",
+   "patient_id": "f5880d79-9657-4d2e-8c7f-91fb89db9590",
+   "direction": "inbound",
+   "content": "Quanto mais novo pior ta sendo",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-28T04:12:53.842472+00:00"
+  },
+  {
+   "id": "57d86667-9549-4e59-82ab-91cb29e51e84",
+   "patient_id": "dd654fb0-ed7c-4523-9586-2280a540047e",
+   "direction": "inbound",
+   "content": "Vou mandar aqui viu",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-06-03T19:18:11.468535+00:00"
+  },
+  {
+   "id": "fbc3ffe0-fb2d-4baa-8dd1-2539a9003760",
+   "patient_id": "dd654fb0-ed7c-4523-9586-2280a540047e",
+   "direction": "inbound",
+   "content": "Espera",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-06-03T19:18:14.327463+00:00"
+  },
+  {
+   "id": "650a42b4-b6e3-4496-9ce9-04c1b90383f4",
+   "patient_id": "dd654fb0-ed7c-4523-9586-2280a540047e",
+   "direction": "inbound",
+   "content": "Quando ela chegar aqui na sala",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-06-03T19:18:15.637834+00:00"
+  },
+  {
+   "id": "93206d9b-2a63-405a-8883-13c1c1ca2fdf",
+   "patient_id": "dd654fb0-ed7c-4523-9586-2280a540047e",
+   "direction": "outbound",
+   "content": "Ta cerro",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-06-03T19:18:25.531998+00:00"
+  },
+  {
+   "id": "1fdce17f-4ef5-442f-8d19-37d41bf6839c",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "inbound",
+   "content": "Oi",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T00:44:31.002643+00:00"
+  },
+  {
+   "id": "e9e4fc9c-cbfb-4485-87f9-6bb6772970cb",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "inbound",
+   "content": "Oi",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T00:49:55.174767+00:00"
+  },
+  {
+   "id": "c5fb7ffc-41e2-495e-b5fb-3cc7353ebc55",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "inbound",
+   "content": "Oi",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T01:00:17.998243+00:00"
+  },
+  {
+   "id": "68bc8981-32cb-4761-9533-b9b33a2f9883",
+   "patient_id": "898fb815-7551-48fd-8fe8-22ee814d66ac",
+   "direction": "inbound",
+   "content": "Fica pra amanh",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T01:02:38.624946+00:00"
+  },
+  {
+   "id": "3a081e60-9a4b-4eff-9e1a-7cbdc54c76a4",
+   "patient_id": "898fb815-7551-48fd-8fe8-22ee814d66ac",
+   "direction": "inbound",
+   "content": "Foi mal",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T01:02:40.091584+00:00"
+  },
+  {
+   "id": "bc8ffd46-4a1f-4289-8cba-c4bcbebc11b1",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "inbound",
+   "content": "Oi",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T01:04:36.964497+00:00"
+  },
+  {
+   "id": "6f36a3ca-0507-4f50-a8e5-8686a4b5a15d",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "inbound",
+   "content": "Oi",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T01:09:00.436729+00:00"
+  },
+  {
+   "id": "1b8f08b0-37e6-4b03-be5e-0319d2cb5434",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "inbound",
+   "content": "Oi",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T01:19:52.234029+00:00"
+  },
+  {
+   "id": "aada861f-490d-46f9-97e1-c880f5930aff",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "outbound",
+   "content": "...",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T01:19:53.400894+00:00"
+  },
+  {
+   "id": "ab9c09b8-bfb7-4506-852b-791e69897fc9",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "inbound",
+   "content": "Oi",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T01:23:46.464272+00:00"
+  },
+  {
+   "id": "31059c8a-1d6a-45a0-b6ea-66ce6888923b",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "outbound",
+   "content": "Oi! Tudo bem? Me conta, o que voc est buscando para o seu sorriso?",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T01:23:47.253116+00:00"
+  },
+  {
+   "id": "7d8e9e14-e275-4da1-82b2-92f39a9071f0",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "inbound",
+   "content": "Queria um dente mais branco",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T02:07:55.518334+00:00"
+  },
+  {
+   "id": "6fb0bcd7-f422-4ffa-b534-d67da6d81d4d",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "outbound",
+   "content": "Oi! Me conta, o que mais te incomoda no seu sorriso hoje  a cor, o formato ou o tamanho dos dentes? Quero entender melhor para te ajudar.",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T02:07:56.31321+00:00"
+  },
+  {
+   "id": "04a3c8e1-0503-46b5-9183-4cd9877feac6",
+   "patient_id": "8eb8fecd-0b69-4fea-914b-dd12da4c0935",
+   "direction": "inbound",
+   "content": "Vim do instagram e quero conhecer a IA da SED.",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T02:09:55.135123+00:00"
+  },
+  {
+   "id": "04c62929-f3b1-4eca-b937-1b874184d778",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "inbound",
+   "content": "Eu queria um dente mais branco",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T02:10:45.833837+00:00"
+  },
+  {
+   "id": "5da08d30-a294-4f38-a85a-0a00cb86a864",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "outbound",
+   "content": "Oi! Entendi que voc quer um dente mais branco. Me conta uma coisa: hoje voc usa dentadura ou ainda tem alguns dentes?",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T02:10:46.931206+00:00"
+  },
+  {
+   "id": "9252b82c-cf19-4cd8-b7e1-5dacbf93253f",
+   "patient_id": "8eb8fecd-0b69-4fea-914b-dd12da4c0935",
+   "direction": "outbound",
+   "content": "Opa! Boa noite! Tudo bem? Aqui  o Nicolas da SED, s que na verso IA haha To aqui pra mostrar de forma personalizada como nossa IA vai te ajudar! Me confirma seu nome? Aqui para mim aparece Thiago...",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T02:10:50.273041+00:00"
+  },
+  {
+   "id": "9d71aea8-99b8-48e2-9f14-ddc2321653e6",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "inbound",
+   "content": "Tenho alguns dentes",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T02:11:38.095296+00:00"
+  },
+  {
+   "id": "eb366e4d-5c23-4e1b-b12c-4e0ef6f7b16c",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "outbound",
+   "content": "Entendi! Voc ainda usa dentadura ou esses dentes que tem esto firmes? Isso me ajuda a entender melhor para te orientar.",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T02:11:39.979846+00:00"
+  },
+  {
+   "id": "c4c4d8cc-fd8a-421a-87e8-db24b7d87608",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "inbound",
+   "content": "Esto firmes",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T02:12:09.090999+00:00"
+  },
+  {
+   "id": "2eeb2060-059c-40e4-b412-1b20fd70db4f",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "outbound",
+   "content": "Que bom saber que seus dentes esto firmes! Me conta, voc ainda usa a dentadura ou est s com esses dentes firmes mesmo? Isso vai ajudar a entender direitinho como podemos te ajudar a melhorar o sorriso.",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T02:12:09.869632+00:00"
+  },
+  {
+   "id": "bf5908de-1248-4b61-8e5c-ce53fc94965e",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "inbound",
+   "content": "Os dentes esto firmes",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T02:12:41.284577+00:00"
+  },
+  {
+   "id": "561ff337-fa1f-446a-ba5b-707d8e66b809",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "outbound",
+   "content": "Entendi! Voc ainda usa dentadura ou est s com esses dentes firmes mesmo? Quero entender direitinho pra te ajudar melhor.",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T02:12:42.054332+00:00"
+  },
+  {
+   "id": "faedc8b4-e36d-4eb5-bf37-85f01661530f",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "inbound",
+   "content": "Boa noite",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T03:11:48.357082+00:00"
+  },
+  {
+   "id": "2f499b9e-04d2-411a-8854-b83b3a807821",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "outbound",
+   "content": "Oi, tudo bem? Aqui  a Sofia da ClinPrime. Vi que voc tem interesse em prtese fixa protocolo e facetas para deixar seu sorriso mais branco e bonito. Me conta, voc ainda usa dentadura ou tem alguns dentes firmes?",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T03:11:49.447624+00:00"
+  },
+  {
+   "id": "17bed3f3-8246-4781-bf26-510e44b2da74",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "inbound",
+   "content": "Ainda tenho alguns dentes",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T03:12:28.55445+00:00"
+  },
+  {
+   "id": "7e7dc0d2-8e24-4a2c-a308-631d3b66fe91",
+   "patient_id": "cc2cca28-c876-4e4f-b500-2f3410ed27cd",
+   "direction": "outbound",
+   "content": "Entendi! Voc mencionou que ainda tem alguns dentes firmes, isso  timo para planejarmos o melhor tratamento. Me conta: o que te incomoda mais hoje no seu sorriso  a cor, o formato ou o tamanho dos dentes?",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T03:12:29.437297+00:00"
+  },
+  {
+   "id": "6980f2a7-c909-4ea7-b6cc-df95a22c3054",
+   "patient_id": "8eb8fecd-0b69-4fea-914b-dd12da4c0935",
+   "direction": "outbound",
+   "content": "Bom dia, . Tudo bem? Conseguiu ver minha mensagem?",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T10:01:04.344967+00:00"
+  },
+  {
+   "id": "60a48c1a-a678-4bc4-869c-e3ce46693db0",
+   "patient_id": "add4185a-ca41-4f1a-aa8f-ad92c5754755",
+   "direction": "inbound",
+   "content": "Ol bom dia!! Hoje  o dia da sua avaliao com o Dr Thiago e estamos ansiosos para te receber aqui na Clinica!! Estamos muito felizes com seu primeiro passo para realizar seu sonho de ter seu sorriso transformado, obrigada por nos escolher para participar desse momento!!  Aguardamos voc!!",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T11:58:49.56381+00:00"
+  },
+  {
+   "id": "ee8d56bd-3e81-4adc-bd87-bfc9920c64bd",
+   "patient_id": "2196b7c2-ccf4-4f72-8c9d-09bb764fcda5",
+   "direction": "inbound",
+   "content": "Ol bom dia!! Hoje  o dia da sua avaliao com o Dr Thiago e estamos ansiosos para te receber aqui na Clinica!! Estamos muito felizes com seu primeiro passo para realizar seu sonho de ter seu sorriso transformado, obrigada por nos escolher para participar desse momento!!  Aguardamos voc!!",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T12:00:30.335153+00:00"
+  },
+  {
+   "id": "c06ba917-47d9-48ff-979d-999401068650",
+   "patient_id": "9470fd5c-1217-495b-9ba9-875ef994ec21",
+   "direction": "inbound",
+   "content": "Ol bom dia!! Hoje  o dia da sua avaliao com o Dr Thiago e estamos ansiosos para te receber aqui na Clinica!! Estamos muito felizes com seu primeiro passo para realizar seu sonho de ter seu sorriso transformado, obrigada por nos escolher para participar desse momento!!  Aguardamos voc!!",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T12:01:36.731922+00:00"
+  },
+  {
+   "id": "1cf21ff2-0b95-4f27-b71f-2aa5c5dfff78",
+   "patient_id": "25b73683-d8c4-4aeb-b0c1-fd8b7df5d0f1",
+   "direction": "inbound",
+   "content": "Ol bom dia!! Hoje  o dia da sua avaliao com o Dr Thiago e estamos ansiosos para te receber aqui na Clinica!! Estamos muito felizes com seu primeiro passo para realizar seu sonho de ter seu sorriso transformado, obrigada por nos escolher para participar desse momento!!  Aguardamos voc!!",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T12:03:08.430576+00:00"
+  },
+  {
+   "id": "1476dbfa-de2d-453a-9816-95f494d6d2e6",
+   "patient_id": "9823709c-981d-4a76-b76a-b289afec40cb",
+   "direction": "inbound",
+   "content": "Ol bom dia!! Hoje  o dia da sua avaliao com o Dr Thiago e estamos ansiosos para te receber aqui na Clinica!! Estamos muito felizes com seu primeiro passo para realizar seu sonho de ter seu sorriso transformado, obrigada por nos escolher para participar desse momento!!  Aguardamos voc!!",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T12:04:29.348088+00:00"
+  },
+  {
+   "id": "74b3ff9a-1ee9-42c5-ab7f-31b2fcb1bf0a",
+   "patient_id": "632314bd-4f2d-476d-9358-dabcc49b4b84",
+   "direction": "inbound",
+   "content": "Ol bom dia!! Hoje  o dia da sua avaliao com o Dr Thiago e estamos ansiosos para te receber aqui na Clinica!! Estamos muito felizes com seu primeiro passo para realizar seu sonho de ter seu sorriso transformado, obrigada por nos escolher para participar desse momento!!  Aguardamos voc!!",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T12:06:20.995895+00:00"
+  },
+  {
+   "id": "434a3b57-6dcf-4f8b-ae61-d8eaf04e42e8",
+   "patient_id": "c10ca2e0-2f9e-4ba8-aaa9-919eff8971d6",
+   "direction": "inbound",
+   "content": "Ol bom dia!! Hoje  o dia da sua avaliao com o Dr Thiago e estamos ansiosos para te receber aqui na Clinica!! Estamos muito felizes com seu primeiro passo para realizar seu sonho de ter seu sorriso transformado, obrigada por nos escolher para participar desse momento!!  Aguardamos voc!!",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T12:07:03.156407+00:00"
+  },
+  {
+   "id": "623f3f52-8726-42a0-9edd-c4d5700c6385",
+   "patient_id": "2196b7c2-ccf4-4f72-8c9d-09bb764fcda5",
+   "direction": "outbound",
+   "content": "Bom dia",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T12:09:24.057463+00:00"
+  },
+  {
+   "id": "ac1c641f-3001-40d5-b38e-9005d4991525",
+   "patient_id": "2196b7c2-ccf4-4f72-8c9d-09bb764fcda5",
+   "direction": "inbound",
+   "content": "Bom dia!!",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-05-29T12:09:44.548304+00:00"
+  },
+  {
+   "id": "78e5a2ab-bf34-40c0-859a-5fde1ce5fa48",
+   "patient_id": "dd654fb0-ed7c-4523-9586-2280a540047e",
+   "direction": "inbound",
+   "content": "Moio",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-06-03T14:08:53.961772+00:00"
+  },
+  {
+   "id": "45c3f610-2a87-4641-b816-77e61bac2f6d",
+   "patient_id": "dd654fb0-ed7c-4523-9586-2280a540047e",
+   "direction": "outbound",
+   "content": "Oi! Aqui é a Sofia, da ClinPrime Odontologia em São Miguel dos Campos. Com quem eu tenho o prazer de falar? 😊 Me conta o que está te incomodando com seus dentes ou sorriso.",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-06-03T14:08:53.961772+00:00"
+  },
+  {
+   "id": "e38dc7f3-2b9e-4f25-8876-196ed9f4539d",
+   "patient_id": "dd654fb0-ed7c-4523-9586-2280a540047e",
+   "direction": "inbound",
+   "content": "Acabou aqui",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-06-03T14:09:03.332409+00:00"
+  },
+  {
+   "id": "7bc729b7-e9ef-4d14-8a88-71c7ff3fe215",
+   "patient_id": "dd654fb0-ed7c-4523-9586-2280a540047e",
+   "direction": "outbound",
+   "content": "Oi! Posso saber seu nome para te ajudar melhor? Me conta o que está te incomodando no seu sorriso ou nos seus dentes hoje.",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-06-03T14:09:03.332409+00:00"
+  },
+  {
+   "id": "7dfc0656-d552-453a-a4ba-2cd9f6cceb1d",
+   "patient_id": "dd654fb0-ed7c-4523-9586-2280a540047e",
+   "direction": "inbound",
+   "content": "Pronto",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-06-03T19:19:30.916942+00:00"
+  },
+  {
+   "id": "c6739374-a3dd-4edf-ac78-1e95eb5346f7",
+   "patient_id": "dd654fb0-ed7c-4523-9586-2280a540047e",
+   "direction": "inbound",
+   "content": "Pode vir",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-06-03T19:19:32.587056+00:00"
+  },
+  {
+   "id": "3ada02df-cc68-497b-8133-e44885e005d2",
+   "patient_id": "dd654fb0-ed7c-4523-9586-2280a540047e",
+   "direction": "outbound",
+   "content": "Ok",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-06-03T19:19:36.608296+00:00"
+  },
+  {
+   "id": "56d9f482-a83f-4b3f-88a8-0a6996146dda",
+   "patient_id": "dd654fb0-ed7c-4523-9586-2280a540047e",
+   "direction": "inbound",
+   "content": "Código da Obra Código A.R.T. Exigibilidade ISSQN Regime Especial de Tributação Simples Nacional Classificação Tributária Competência 1-Exigível 0-Nenhum (X) Sim () Não 1.2301.21.00 MACEIÓ - AL MACEIÓ - AL Município Prestação ISSQN a Reter Munícipio Incidência Valor do Serviço Desconto Incondicionado Desconto Condicionado Outras Retenções Deduções Previstas em Lei Base de Cálculo Alíquota ISSQN 550,00 0,00 0,00 0,00 0,00 550,00 3,00 550,00 ( ) Sim (X) Não 0,00 05/2026 Outras Informações 1- Uma via desta Nota Fiscal será enviada através do e-mail fornecido pelo Tomador do Serviço. 2- A autenticidade desta Nota Fiscal poderá ser verificada no site, http://maceio.giss.com.br com a utilização do Código de Verificação. 3 - Documento emitido por ME ou EPP optante pelo Simples Nacional.Não gera direito a crédito fiscal de ISS e IPI. Nomenclatura Brasileira de Serviços Indicador de Operação Situação Tributária 30104 200 200029 IBS CBS Valor Líquido Retenções Federais 0,00 PIS/COFINS - Apuração Própria PREFEITURA MUNICIPAL DE MACEIÓ SECRETARIA MUNICIPAL DE FAZENDA Tipo RPS NOTA FISCAL DE SERVIÇO ELETRÔNICA - NFS-e Série RPSRPS NFS-e Substituída 1161 NFS-e Código de Verificação HJKUSLIJ4 Emissão da NFS-e 27/05/2026 16:42:24 Prestador de Serviço Número: 3731Endereço CPF/CNPJ: 34.846.834/0001-34 Nome/Razão Social: MONTEIRO & CRUZ GINECOLOGIA E OBSTETRICIA LTDA ÁLVARO OTACÍLIO CEP: 57036-850 Bairro: JATIÚCAComplemento: BLOCO: A-;SALA: 705;COMPLEMENTO: ITALIA; E-mail: rosangelabrascont@hotmail.com Município: MACEIÓ UF: AL Telefone: 3338-2643 Telefone: (82)99602-6436 Atividade Econômica 4.03 / 8630502 - atividade médica ambulatorial com recursos para realização de exames complementares Tomador de Serviço CPF/CNPJ: Nome/Razão Social: Endereço: 106.801.814-31 Thiago Augusto Araújo Andrade Cruz Rua Vinte e Nove de Setembro Município: SAO MIGUEL DOS CAMPOS Bairro: VALOR REFERENTE A CONSULTA DE OBSTETRÍCIA REALIZADA NO DIA 06/05/2026 - DRA GRACE PAULA CORREIA MONTEIRO HOLANDA CRM/AL 5995 Centro E-mail: PIS IRINSS CSLLTipo PIS COFINS Tipo COFINS Tributos Federais (R$) 0,00  Apuração Própria  0,000,00 0,00 Apuração Própria  0,00 Discriminação do Serviço Valor Aproximado dos Tributos Federal FonteEstadual Municipal Simples 0.00%0.00% 0.00% 0.00% NIF: CEP: 57240-030 UF: AL Complemento: Número: 43 Inscrição Municipal: Inscrição 901457774 Identificação Prestação de Serviços Detalhamento de Valores (R$) BrasilPaís: País: Brasil,",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-06-03T15:37:32.733452+00:00"
+  },
+  {
+   "id": "c34d1d6a-08e0-4661-b7c6-be49d93c2b4b",
+   "patient_id": "dd654fb0-ed7c-4523-9586-2280a540047e",
+   "direction": "outbound",
+   "content": "Parece que você enviou um documento fiscal. Posso ajudar com algo relacionado ao atendimento odontológico na ClinPrime? Me conta o que está te incomodando nos dentes ou sorriso para eu entender melhor e ajudar você. Qual é o seu nome?",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-06-03T15:37:32.733452+00:00"
+  },
+  {
+   "id": "eb6daa30-3188-4cdc-8985-355b13a9a861",
+   "patient_id": "dd654fb0-ed7c-4523-9586-2280a540047e",
+   "direction": "outbound",
+   "content": "oi",
+   "message_type": "text",
+   "status": "delivered",
+   "whatsapp_message_id": null,
+   "sent_by": null,
+   "created_at": "2026-06-08T04:02:39.115152+00:00"
+  }
+ ],
+ "backup_timestamp": "2026-06-10T05:02:27.851592+00:00"
+}
