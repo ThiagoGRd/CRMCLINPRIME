@@ -3,6 +3,7 @@ import { getMyOrg } from "@/lib/org";
 import { formatCurrency, MES_FULL, formatDateBR } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { LeadsChart } from "@/components/dashboard/leads-chart";
+import { SyncClinicorpButton } from "@/components/sync-clinicorp-button";
 import { DollarSign, ShoppingBag, UserCheck, Receipt } from "lucide-react";
 
 type Metrics = {
@@ -80,6 +81,13 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          Números de {MES_FULL[month - 1]} — sincronizados do Clinicorp.
+        </div>
+        <SyncClinicorpButton year={year} month={month} />
+      </div>
+
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {kpis.map((k) => {

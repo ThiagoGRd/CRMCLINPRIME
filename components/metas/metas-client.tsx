@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { SyncClinicorpButton, monthRange } from "@/components/sync-clinicorp-button";
 import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/components/org-context";
 import { formatCurrency, formatDateBR, formatPhoneDisplay, MES_FULL, MES_ABREV } from "@/lib/format";
@@ -37,20 +38,18 @@ export function MetasClient() {
   const [goalForm, setGoalForm] = useState<Goal>({});
   const [detail, setDetail] = useState<{ metric: string; title: string } | null>(null);
 
+  const [syncing, setSyncing] = useState(false);
+
   const { data, refetch } = useQuery({
     queryKey: ["metas", year, month],
     queryFn: async () => {
-      const start = `${year}-${String(month).padStart(2, "0")}-01`;
+      const { from: start } = monthRange(year, month);
       const [m, g, f, ys] = await Promise.all([
         supabase.rpc("get_month_metrics", { p_org: org.id, p_year: year, p_month: month }),
         supabase.from("crm_goals").select("*").eq("org_id", org.id).eq("year", year).eq("month", month).maybeSingle(),
         supabase.from("crm_finance").select("credit,debit,net").eq("org_id", org.id).eq("month_start", start).maybeSingle(),
         supabase.rpc("get_year_summary", { p_org: org.id, p_year: year }),
       ]);
-      // sync em background pra manter fresco
-      supabase.functions.invoke("clinicorp-agenda", {
-        body: { action: "sync_month", from: start, to: `${year}-${String(month).padStart(2, "0")}-28` },
-      }).catch(() => {});
       return {
         m: (m.data ?? {}) as Metrics,
         goal: (g.data ?? {}) as Goal,
@@ -59,6 +58,20 @@ export function MetasClient() {
       };
     },
   });
+
+  // Sync do Clinicorp ao abrir/trocar de mês — e RECARREGA quando termina
+  // (antes o sync rodava solto e a tela continuava mostrando o número velho).
+  useEffect(() => {
+    let cancelled = false;
+    const { from, to } = monthRange(year, month);
+    setSyncing(true);
+    supabase.functions
+      .invoke("clinicorp-agenda", { body: { action: "sync_month", from, to, org_id: org.id } })
+      .then(() => { if (!cancelled) refetch(); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setSyncing(false); });
+    return () => { cancelled = true; };
+  }, [year, month, org.id, supabase, refetch]);
 
   const m = data?.m ?? ({} as Metrics);
   const goal = data?.goal ?? {};
@@ -107,6 +120,13 @@ export function MetasClient() {
           <SelectContent>{[NOW.getFullYear(), NOW.getFullYear() - 1].map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
         </Select>
         <div className="flex-1" />
+        {syncing && (
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
+            sincronizando Clinicorp...
+          </span>
+        )}
+        <SyncClinicorpButton year={year} month={month} />
         <Button variant="outline" onClick={() => { setGoalForm(goal); setGoalOpen(true); }}>Definir metas</Button>
       </div>
 
