@@ -1,137 +1,156 @@
-# Plano de Desenvolvimento — ClinPrime CRM → SaaS Comercializável
+# Plano de Desenvolvimento v2 — ClinPrime CRM
 
-> Objetivo: transformar o CRM atual (single-tenant, focado na ClinPrime) num produto SaaS
-> multi-empresa que qualquer cliente conecta o **WhatsApp e o Instagram**, com login,
-> planos e automação — referência de mercado: DKW System / WeSales.
-
----
-
-## PARTE 1 — Auditoria seção por seção (estado atual)
-
-### Legenda
-✅ pronto para uso interno · ⚠️ funciona mas não está pronto para consumidor final · ❌ não existe
-
-| # | Seção | Estado | O que falta para o consumidor final |
-|---|-------|--------|--------------------------------------|
-| 1 | **Login / Autenticação** | ❌ | Não existe. A chave anon do Supabase está exposta no front e **sem RLS** — qualquer pessoa com a URL acessa todos os dados. É o item mais crítico. |
-| 2 | **Dashboard** | ⚠️ | KPIs carregam dados reais, mas os comparativos ("+22.4% este mês") são texto fixo fake. Faturamento sempre R$ 0 (não há fonte de valores). Precisa de métricas reais calculadas por período. |
-| 3 | **Pipeline (Kanban)** | ⚠️ | Drag-and-drop funciona e persiste. Mas as 7 etapas são fixas no código — cada cliente precisa criar/renomear as suas. Falta: valor por card, filtros, motivos de perda. |
-| 4 | **Contatos** | ⚠️ | CRUD funciona. "Simular Lead Ads" é botão de demonstração. Terminologia "paciente/tratamento" é fixa do nicho odonto — precisa ser configurável (lead/cliente/aluno...). Falta importação CSV. |
-| 5 | **Multiatendimento** | ⚠️ | ✅ Realtime (WebSocket) funcionando, toggle IA×Humano funcionando. Falta: envio real ativado (webhook n8n importado mas inativo), renderizar áudio/imagem (hoje só texto), abas Instagram/E-mail são decorativas, sem atribuição de atendente, sem filas, sem tags, sem busca. |
-| 6 | **Automação** | ⚠️ | Painel lista regras do Supabase e dispara simulações. Os 7 workflows n8n do CRM estão importados porém inativos. Sem builder visual (gatilho→condição→ação). |
-| 7 | **Agenda** | ⚠️ | Renderiza consultas criadas no CRM. Sem integração com Google Calendar nem Clinicorp no front. Sem visão semanal/mensal real. |
-| 8 | **IA no painel (copilot)** | ❌ | As respostas do painel de IA são **hardcoded no front** (fake). A Sofia real vive no Dify+n8n, desconectada do painel. Precisa de API real por tenant. |
-| 9 | **Backend (server/)** | ⚠️ | Express completo (rotas, Evolution, n8n) mas **não é usado** — o front fala direto com o Supabase. `.env` com placeholders (service key, Evolution key). Decidir: ativar o backend ou aprofundar o modelo serverless com RLS. |
-| 10 | **Automação de produção (Sofia)** | ⚠️ | O fluxo real é o `003 FIXING` no n8n (não os templates). Funciona, mas: 1 instância Evolution fixa, 1 agente Dify fixo, filtro de teste limita a 1 número, e o worker `webhook.clinprime.shop` está travado (mensagens novas não chegam!). O Supabase que ele grava é um **terceiro projeto**, diferente do CRM — dados fragmentados. |
-
-### Conclusão da auditoria
-O produto hoje é um **MVP interno de nicho** com boa base visual e automação real funcionando para 1 cliente (ClinPrime). Para comercializar faltam 4 pilares: **(a)** autenticação/multi-tenant com RLS, **(b)** conexão self-service de canais (WhatsApp + Instagram) por cliente, **(c)** automação genérica (não hardcoded por cliente), **(d)** billing/onboarding.
+> **Documento vivo.** Atualizado em 19/07/2026, após a migração completa pra Next.js.
+> Objetivo: (1) operação da ClinPrime redonda e lucrativa → (2) produto SaaS vendável pra outras clínicas.
+> Referência de mercado: DKW System / WeSales.
 
 ---
 
-## PARTE 2 — Plano de desenvolvimento por fases
+## O que JÁ está pronto (v1 concluída)
 
-### FASE 0 — Estabilização do que existe (≈1 semana)
-*Sem isso, nem o cliente atual funciona direito.*
-
-- [ ] **Consertar/reapontar o worker de webhook** — `webhook.clinprime.shop` travado em "starting up"; reapontar Evolution → `n8n.clinprime.shop` ou reiniciar o container.
-- [ ] **Unificar o Supabase** — hoje são 3 projetos (CRM `sterdootrqzlnbbidkcj`, produção da Sofia em outro, mais um ocioso). Migrar tudo para UM projeto.
-- [ ] Ativar os 7 workflows n8n do CRM (envio de mensagem, boas-vindas, reengajamento...).
-- [ ] Remover `FiltroLeticiaTest` quando for liberar para todos os números.
-- [ ] Preencher secrets do `.env` (service key, Evolution key) e tirar do repositório público qualquer chave.
-- [ ] ⚠️ **Repositório é público no GitHub com a anon key commitada** — tornar privado já.
-
-### FASE 1 — Fundação SaaS: auth + multi-tenant (≈2–3 semanas)
-*O alicerce de tudo. Nada de comercial existe sem isso.*
-
-- [ ] **Supabase Auth**: login e-mail/senha, recuperação, convite de membros.
-- [ ] Modelo de dados multi-tenant:
-  - `organizations` (tenant) · `org_members` (papéis: admin, gestor, atendente)
-  - `tenant_id` em TODAS as tabelas (patients, deals, messages, chats, ...)
-- [ ] **RLS (Row Level Security)** em todas as tabelas: usuário só vê dados da própria organização. Isso elimina o problema da anon key exposta.
-- [ ] Renomear domínio do vocabulário: `patients` → `contacts` com rótulo configurável por tenant ("Paciente", "Lead", "Aluno"...).
-- [ ] Tela de configurações da organização (nome, logo, etapas do funil customizáveis).
-- [ ] Decisão de front: manter vanilla JS no curto prazo (mais rápido) e planejar migração para **Next.js + React** na Fase 4/5 (necessário p/ white label e escala de UI).
-
-### FASE 2 — Conexão de canais self-service (≈2–3 semanas)
-*O coração do produto: cada cliente conecta seu próprio WhatsApp e Instagram.*
-
-**WhatsApp (via Evolution API):**
-- [ ] Tela "Conexões": botão **Conectar WhatsApp** → cria instância Evolution via API (`POST /instance/create` com nome = tenant) → exibe **QR Code no próprio CRM** → mostra status (conectado/desconectado/bateria).
-- [ ] 1 instância Evolution por tenant; webhook de TODAS as instâncias aponta para UM workflow n8n genérico.
-- [ ] **Workflow n8n multi-tenant**: resolve o tenant pelo nome da instância (lookup no Supabase) e carrega configurações do tenant (agente IA, funil, mensagens) dinamicamente — fim do hardcode por cliente.
-- [ ] Risco a gerenciar: Evolution = API não-oficial (Baileys), risco de banimento. Roadmap: oferecer também **WhatsApp Cloud API oficial** (Meta) como opção premium.
-
-**Instagram (via Meta Graph API):**
-- [ ] App Meta (Facebook Developers) com produto **Instagram Messaging**.
-- [ ] OAuth: cliente clica "Conectar Instagram" → login Meta → concede permissão à página/conta business.
-- [ ] Webhook de DMs do Instagram → mesmo pipeline n8n → mesma inbox.
-- [ ] Normalizador de canal: cada mensagem carrega `channel: whatsapp|instagram`, e a inbox mostra o ícone correspondente (as abas que hoje são decorativas passam a funcionar).
-- [ ] Automação de comentários/stories (referência DKW) — fase posterior, requer permissões adicionais do app Meta.
-
-### FASE 3 — Multiatendimento nível mercado (≈2 semanas)
-*Transformar o chat atual num inbox de equipe de verdade.*
-
-- [ ] Ativar envio real (workflows `enviar-whatsapp` ativos) — texto primeiro, depois mídia.
-- [ ] Renderizar e enviar **áudio, imagem, documento** no chat.
-- [ ] **Filas e atribuição**: distribuir conversas entre atendentes, "puxar para mim", transferir.
-- [ ] Tags coloridas, busca, filtros (não lidas / minhas / sem atendente).
-- [ ] Notas internas na conversa (invisíveis ao cliente).
-- [ ] Respostas rápidas/templates por tenant.
-- [ ] **IA por tenant**: cada organização configura seu agente (prompt próprio no Dify ou motor próprio via API). O toggle IA×Humano já está pronto ✅.
-
-### FASE 4 — Automação comercializável (≈2–3 semanas)
-
-- [ ] **Builder de automação no CRM** (gatilho → condição → ação) salvo no Supabase e executado pelo motor n8n genérico. Gatilhos: nova mensagem, mudança de etapa, tag adicionada, inatividade. Ações: enviar mensagem, mover etapa, adicionar tag, notificar atendente, webhook.
-- [ ] **Campanhas em massa** com aquecimento, intervalos aleatórios e limites anti-ban.
-- [ ] Cadência de follow-up (sequências: dia 0, dia 1, dia 3...).
-- [ ] Relatórios: conversas por atendente, tempo de resposta, conversão por etapa.
-
-### FASE 5 — Produto e comercialização (≈2 semanas)
-
-- [ ] **Billing**: assinaturas via Stripe ou Asaas. Planos com limites (usuários, contatos, instâncias, mensagens IA) — espelhar a estrutura do DKW (Básico/Pro/Enterprise).
-- [ ] **Onboarding wizard**: criar conta → conectar WhatsApp (QR) → importar contatos → configurar funil → primeira automação.
-- [ ] **White label** (diferencial DKW): logo, cores e domínio próprio por parceiro (exige front em Next.js — motivo da migração planejada).
-- [ ] Landing page, termos de uso, política de privacidade.
-- [ ] **LGPD**: consentimento, exportação e exclusão de dados por contato (crítico — dados de saúde no nicho odonto são dados sensíveis).
+- ✅ Multi-tenant no Supabase (orgs, RLS `is_org_member`, views com `security_invoker`)
+- ✅ Frontend 100% Next.js 16 + React 19 + Tailwind v4 + shadcn/ui, no ar em crmclinprime.vercel.app
+- ✅ 10 telas: Dashboard, Funil (kanban dinâmico), Pacientes, Multiatendimento (Realtime), Metas & Vendas, Follow-up, Agenda, Automações, Conexões, Configurações
+- ✅ Integração Clinicorp completa: agenda (criar/cancelar/marcar), vendas/faturamento (estimates), financeiro (cash flow), badge de orçamento no funil, sync com botão manual + automático
+- ✅ Regra do funil CRC/Layla (configurável pela UI), cadência de faltas (pg_cron, desligada aguardando textos)
+- ✅ Inbox PRO: respostas rápidas, tags, atribuição, painel lateral, IA×Humano unificado com o bot
+- ✅ Builder de automações, QR polling nas conexões, ficha/edição/exclusão de pacientes
 
 ---
 
-## Arquitetura-alvo (resumo)
+## FASE 0 — Segurança & Estabilidade *(esta semana — bloqueia o resto)*
+
+*Proteger o que já funciona. Itens 0.1–0.3 e 0.6 dependem do Thiago; o resto é dev.*
+
+| # | Item | Quem | Esforço | Critério de aceite |
+|---|------|------|---------|--------------------|
+| 0.1 | **Repo privado** no GitHub (chaves vazaram no histórico) | Thiago | 2 min | Repo inacessível deslogado |
+| 0.2 | **Rotacionar chave ElevenLabs** → me passar a nova | Thiago + dev | 15 min | Nova chave no nó do wf 003; antiga revogada |
+| 0.3 | **Rotacionar chave Dify** → atualizar n8n + `platform_settings.dify_key` | Thiago + dev | 30 min | Sofia responde; investigar o **502 do Copilot** na mesma tacada |
+| 0.4 | **Health-check com alerta**: edge function + pg_cron (10 min) que verifica (a) última mensagem processada pelo bot, (b) status da instância Evolution, (c) último sync Clinicorp — e manda WhatsApp pro Thiago quando degradar | dev | ½ dia | Simular queda → alerta chega no WhatsApp em ≤10 min |
+| 0.5 | **Ensaio de restore** do backup do Supabase (nunca testado) | dev | 2 h | Restore num projeto de teste, dados íntegros |
+| 0.6 | Trocar a senha do CRM (circulou em sessões de trabalho) | Thiago | 1 min | — |
+
+**Total dev: ~1 dia.**
+
+---
+
+## FASE 1 — Inteligência de Dinheiro *(semana 1–2 — maior retorno por esforço)*
+
+*Responder à pergunta que paga as contas: qual campanha/origem gera venda?*
+
+### 1.1 Relatório de ROI por origem/campanha ⭐
+- Nova tela **"Resultados"**: funil por origem — leads → agendados → compareceram → orçamento → aprovados → **R$** (período selecionável).
+- RPC `get_source_funnel(org, from, to)` cruzando `crm_patients.source` × `crm_attendances` × `crm_estimates` (match por `phone_canon`, já existe).
+- **Pré-requisito:** normalizar `source` na importação de leads — gravar o **nome da campanha** vindo da planilha do Meta, não só "Instagram".
+- Aceite: tela mostra, por campanha, conversão etapa a etapa e receita; números batem com conferência manual de 1 campanha.
+- Esforço: **2 dias**.
+
+### 1.2 Tempo de primeira resposta
+- Métrica por conversa: delta entre 1ª mensagem inbound e 1ª resposta (bot ou humano). Card no Dashboard + lista de "leads esperando há mais de X min".
+- Esforço: **1 dia**.
+
+### 1.3 Motivo de perda
+- Campo `lost_reason` no deal; ao marcar orçamento reprovado/perdido, modal pede o motivo (preço / sumiu / concorrente / outro).
+- Relatório simples de motivos no Metas.
+- Esforço: **1 dia**.
+
+**Total: ~4 dias.**
+
+---
+
+## FASE 2 — Operação Diária *(semana 2–3 — a dor da Layla)*
+
+### 2.1 Notificações 🔔
+- **No app:** título da aba pisca + som + badge de não-lidas ao chegar mensagem (Realtime já entrega o evento).
+- **Notification API** do navegador (permissão em 1 clique).
+- **Resumo pró-ativo:** pg_cron manda WhatsApp pro Thiago (via Evolution) — "resumo do dia: X leads novos, Y sem resposta". Configurável em Configurações.
+- Esforço: **1½ dia**.
+
+### 2.2 Áudio no inbox 🎤
+- Renderizar mensagens de áudio recebidas com player (verificar como o 003 guarda a mídia; se só transcreve, exibir a transcrição identificada como áudio).
+- Fase b (depois): enviar áudio pelo CRM.
+- Esforço: **1–2 dias** (depende do que o 003 salva).
+
+### 2.3 Notas + tarefas por paciente 📝
+- Tabelas `crm_notes` (texto, autor, data) e `crm_tasks` (descrição, due_date, done).
+- UI na ficha do paciente + painel lateral do inbox; card "Tarefas de hoje" no Dashboard.
+- Esforço: **1½ dia**.
+
+### 2.4 Agendar de dentro do inbox 📅
+- Botão "Agendar" no painel lateral reusa o `NewAppointmentDialog` (nome/telefone pré-preenchidos).
+- Esforço: **½ dia**.
+
+### 2.5 Mobile (PWA) 📱
+- `manifest.json` + ícone (instalável na tela inicial), layout responsivo priorizando **Inbox** e **Funil**; sidebar vira menu hambúrguer.
+- Esforço: **2 dias**.
+
+**Total: ~7 dias.**
+
+---
+
+## FASE 3 — SaaS Core *(semana 4–6 — só depois da operação redonda)*
+
+### 3.0 Decisão estratégica (antes de codar): o CRM exige Clinicorp?
+- **Recomendação:** modo standalone — org sem Clinicorp esconde/degrada as telas de agenda/vendas Clinicorp e usa agenda própria. Mercado 10x maior.
+- Implementação: feature flag por org (`settings.integrations.clinicorp = on/off`).
+
+### 3.1 Convite de membros por e-mail
+- Edge function admin (`inviteUserByEmail` do Supabase Auth) + tela Equipe ganha "Convidar" (e-mail + papel). Fluxo de definir senha no primeiro acesso.
+- Esforço: **1 dia**.
+
+### 3.2 Onboarding wizard
+- Passos: criar conta → criar organização → conectar WhatsApp (QR) → importar contatos (CSV) → configurar funil (template) → pronto.
+- Esforço: **3–4 dias**.
+
+### 3.3 Billing
+- **Recomendação: Asaas** (PIX + cartão + boleto, Brasil-first) — alternativa Stripe.
+- Planos (ex.: Start / Pro / Clínica+), webhook de pagamento → `organizations.plan`, gates por plano (nº de usuários, canais, automações).
+- Esforço: **4–5 dias**.
+
+### 3.4 White-label
+- Tema por org: cores primárias + logo (já existe `logo_url`) via CSS vars; subdomínio por cliente (`clinica.clinprime.app`) com wildcard na Vercel.
+- Esforço: **2–3 dias**.
+
+### 3.5 Instagram real
+- App Meta + OAuth + Instagram Messaging API na inbox. **⚠️ App Review da Meta leva semanas — iniciar o processo no começo da Fase 3, em paralelo.**
+- Esforço: **3–4 dias de dev** + espera do review.
+
+**Total: ~3 semanas de dev + review da Meta.**
+
+---
+
+## FASE 4 — Melhoria Contínua *(sem prazo, por demanda)*
+
+- Mídia completa no inbox (imagem/documento, envio de mídia)
+- Relatórios de atendimento (conversas/atendente, tempo médio, conversão por atendente)
+- **LGPD** (crítico antes de escalar: consentimento no primeiro contato, exportação e exclusão de dados — dado de saúde é sensível)
+- Campanhas em massa com anti-ban (aproveitar o motor da cadência)
+- Cadência de faltas: **ligar** (aguarda textos do Thiago — infra pronta)
+- Google Calendar (para clínicas sem Clinicorp)
+- Central de ajuda / docs do produto
+- Testes automatizados (e2e das 5 jornadas principais)
+
+---
+
+## Ordem de execução resumida
 
 ```
-Cliente (browser)
-  └─ Front (Next.js futuramente; vanilla JS no início) + Supabase Auth (JWT)
-        └─ Supabase (1 projeto único)
-             ├─ RLS por tenant_id  ← segurança real
-             ├─ Realtime (inbox ao vivo — já funciona)
-             └─ Tabelas: organizations, org_members, contacts, deals,
-                messages, channels, automations, subscriptions
-n8n (1 conjunto de workflows GENÉRICOS, multi-tenant por lookup)
-  ├─ Inbound WhatsApp (Evolution, 1 instância/tenant)
-  ├─ Inbound Instagram (Meta Graph webhooks)
-  ├─ Motor de automação (lê regras do Supabase)
-  └─ IA por tenant (Dify ou API direta — prompt por organização)
-Evolution API  ← instâncias criadas via API pelo próprio CRM
-Meta App       ← OAuth Instagram por cliente
-Stripe/Asaas   ← billing
+AGORA    → Fase 0 (segurança/alertas)            ~1 dia dev + 20 min Thiago
+Semana 1 → Fase 1 (ROI + resposta + perda)       ~4 dias
+Semana 2 → Fase 2 (notificações, áudio, notas,   ~7 dias
+            agendar no chat, PWA)
+Semana 4 → Fase 3 (SaaS: convites, onboarding,   ~3 semanas
+            billing, white-label, Instagram)      + App Review Meta
+Contínuo → Fase 4
 ```
 
-## Cronograma estimado
+## Dependências do Thiago (ninguém mais pode fazer)
 
-| Fase | Duração | Acumulado |
-|------|---------|-----------|
-| 0 — Estabilização | 1 sem | 1 sem |
-| 1 — Auth + multi-tenant | 2–3 sem | ~4 sem |
-| 2 — Canais (WhatsApp + Instagram) | 2–3 sem | ~7 sem |
-| 3 — Multiatendimento PRO | 2 sem | ~9 sem |
-| 4 — Automação | 2–3 sem | ~11 sem |
-| 5 — Produto/billing | 2 sem | **~13 sem (≈3 meses)** |
-
-## Riscos principais
-
-1. **Repo público com chaves** — resolver HOJE (Fase 0).
-2. **Banimento WhatsApp** (API não-oficial) — mitigar com limites/aquecimento; oferecer Cloud API oficial depois.
-3. **Aprovação do app Meta** para Instagram Messaging leva semanas (App Review) — iniciar o processo cedo, na Fase 1.
-4. **LGPD com dados de saúde** — tratar desde a modelagem (Fase 1), não depois.
-5. **Fragmentação atual de dados** (3 Supabases) — unificar antes de construir em cima.
+1. Tornar o repo privado (2 min) — **hoje**
+2. Rotacionar chaves ElevenLabs e Dify e me passar as novas (15 min)
+3. Trocar a senha do CRM (1 min)
+4. Aprovar os textos da cadência de faltas (quando quiser ligá-la)
+5. Confirmar se a planilha de leads traz o **nome da campanha** (pré-requisito do relatório de ROI)
+6. Decidir: produto exige Clinicorp ou terá modo standalone? (antes da Fase 3)
+7. Criar conta Asaas (ou Stripe) quando chegar o billing
