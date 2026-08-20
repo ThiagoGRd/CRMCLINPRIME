@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
 
     function apptRow(a) {
       return {
-        org_id: oid, appt_date: (a.date || '').slice(0,10), from_time: a.fromTime, phone: a.MobilePhone || '',
+        clinicorp_id: String(a.id), org_id: oid, appt_date: (a.date || '').slice(0,10), from_time: a.fromTime, phone: a.MobilePhone || '',
         patient_name: a.PatientName || a.Name || 'Sem nome', professional_id: profId, category: a.CategoryDescription || '',
         status: mapStatus(a.StatusId), create_user_id: String(a.CreateUserId ?? ''), created_by: String(a.CreatedBy ?? ''),
         in_funnel: inFunnel(a), synced_at: new Date().toISOString(),
@@ -128,7 +128,14 @@ Deno.serve(async (req) => {
       if (!resp.ok) return { synced: 0 };
       const data = await resp.json(); const items = Array.isArray(data) ? data : (data.appointments ?? []);
       const rws = items.filter((a) => !a.Deleted && (!profId || String(a.Dentist_PersonId) === profId)).map(apptRow);
-      if (rws.length) await admin.from('crm_attendances').upsert(rws, { onConflict: 'org_id,appt_date,phone,from_time' });
+      if (rws.length) {
+        // onConflict por clinicorp_id (id real do agendamento no Clinicorp), NAO mais por
+        // data+telefone+hora: dois pacientes diferentes podem compartilhar telefone (ex: mesma
+        // familia) e cair no mesmo horario -- a chave antiga colidia nesse caso e derrubava o
+        // upsert do LOTE INTEIRO em silencio (a func retornava sucesso mas nada era gravado).
+        const { error } = await admin.from('crm_attendances').upsert(rws, { onConflict: 'clinicorp_id' });
+        if (error) throw new Error(`upsert crm_attendances falhou: ${error.message}`);
+      }
 
       // Reconciliacao: o Clinicorp filtra appointment/list por uma data de atividade, nao pela
       // data do agendamento -- quando um horario e remarcado/cancelado ele simplesmente some da
@@ -136,16 +143,13 @@ Deno.serve(async (req) => {
       // 'agendado' ficava presa no banco pra sempre, contando pra sempre no KPI de Agendamentos.
       // So mexe em status='agendado' (provisorio); compareceu/faltou sao fatos historicos e nao
       // sao tocados aqui.
-      const currentKeys = new Set(rws.map((r) => `${r.appt_date}|${r.phone}|${r.from_time}`));
-      const { data: stored } = await admin.from('crm_attendances')
-        .select('id, appt_date, phone, from_time')
-        .eq('org_id', oid).eq('status', 'agendado').gte('appt_date', f).lte('appt_date', t);
-      const staleIds = (stored ?? [])
-        .filter((r) => !currentKeys.has(`${r.appt_date}|${r.phone || ''}|${r.from_time || ''}`))
-        .map((r) => r.id);
-      if (staleIds.length) await admin.from('crm_attendances').delete().in('id', staleIds);
+      const currentIds = rws.map((r) => r.clinicorp_id);
+      let del = admin.from('crm_attendances').delete().eq('org_id', oid).eq('status', 'agendado').gte('appt_date', f).lte('appt_date', t);
+      if (currentIds.length) del = del.not('clinicorp_id', 'in', `(${currentIds.join(',')})`);
+      const { data: removedRows, error: delErr } = await del.select('clinicorp_id');
+      if (delErr) throw new Error(`reconciliacao crm_attendances falhou: ${delErr.message}`);
 
-      return { synced: rws.length, funil: rws.filter((r) => r.in_funnel).length, removidos_orfaos: staleIds.length };
+      return { synced: rws.length, funil: rws.filter((r) => r.in_funnel).length, removidos_orfaos: removedRows?.length ?? 0 };
     }
     function phoneCanon(p) {
       let d = String(p || '').replace(/\D/g, '');
@@ -165,12 +169,18 @@ Deno.serve(async (req) => {
         est_date: (e.Date || '').slice(0,10) || null, professional_id: String(e.ProfessionalId || ''),
         professional_name: e.ProfessionalName || null, synced_at: new Date().toISOString(),
       }));
-      if (allEst.length) await admin.from('crm_estimates').upsert(allEst, { onConflict: 'clinicorp_id' });
+      if (allEst.length) {
+        const { error } = await admin.from('crm_estimates').upsert(allEst, { onConflict: 'clinicorp_id' });
+        if (error) throw new Error(`upsert crm_estimates falhou: ${error.message}`);
+      }
       const rws = items.filter((e) => String(e.Status).toUpperCase() === 'APPROVED').map((e) => ({
         org_id: oid, clinicorp_id: String(e.id), sale_date: (e.Date || '').slice(0,10), amount: net(e),
         professional_id: String(e.ProfessionalId || ''), patient_name: e.PatientName || e.Patient || null, status: 'aprovado', synced_at: new Date().toISOString(),
       }));
-      if (rws.length) await admin.from('crm_sales').upsert(rws, { onConflict: 'clinicorp_id' });
+      if (rws.length) {
+        const { error } = await admin.from('crm_sales').upsert(rws, { onConflict: 'clinicorp_id' });
+        if (error) throw new Error(`upsert crm_sales falhou: ${error.message}`);
+      }
 
       // Reconciliacao: mesmo motivo do syncAttendances -- um orcamento aprovado em julho que e
       // "tocado" de novo depois (ex: pagamento lancado) some da consulta de julho na API, mas a
@@ -178,7 +188,8 @@ Deno.serve(async (req) => {
       const currentIds = rws.map((r) => r.clinicorp_id);
       let del = admin.from('crm_sales').delete().eq('org_id', oid).gte('sale_date', f).lte('sale_date', t);
       if (currentIds.length) del = del.not('clinicorp_id', 'in', `(${currentIds.join(',')})`);
-      const { data: removedRows } = await del.select('clinicorp_id');
+      const { data: removedRows, error: delErr } = await del.select('clinicorp_id');
+      if (delErr) throw new Error(`reconciliacao crm_sales falhou: ${delErr.message}`);
 
       return { synced: rws.length, estimates: allEst.length, removidas_orfas: removedRows?.length ?? 0 };
     }
@@ -213,19 +224,22 @@ Deno.serve(async (req) => {
     const data = await resp.json(); const items = Array.isArray(data) ? data : (data.appointments ?? []);
     const raw = items.filter((a) => !a.Deleted && (!profId || String(a.Dentist_PersonId) === profId));
     const appts = raw.map((a) => ({
-      clinicorp_id: a.id, date: (a.date || '').slice(0,10), from: a.fromTime, to: a.toTime,
+      clinicorp_id: String(a.id), date: (a.date || '').slice(0,10), from: a.fromTime, to: a.toTime,
       patient: a.PatientName || a.Name || 'Sem nome', phone: a.MobilePhone || '', category: a.CategoryDescription || '',
       color: a.CategoryColor || '#6366f1', notes: a.Notes || '', clinicorp_status: mapStatus(a.StatusId),
       in_funnel: inFunnel(a), created_by_name: a.CreateUserName || '',
       confirmed: a.AlertInfo?.ConfirmSchedule && a.AlertInfo.ConfirmSchedule !== 'none',
     })).sort((x, y) => (x.date + x.from).localeCompare(y.date + y.from));
     if (raw.length) {
-      await admin.from('crm_attendances').upsert(raw.map(apptRow), { onConflict: 'org_id,appt_date,phone,from_time' });
+      const { error } = await admin.from('crm_attendances').upsert(raw.map(apptRow), { onConflict: 'clinicorp_id' });
+      if (error) return json({ error: 'falha ao gravar agenda', detail: error.message }, 500);
     }
-    const { data: att } = await admin.from('crm_attendances').select('id, appt_date, phone, from_time, status').eq('org_id', oid).gte('appt_date', from).lte('appt_date', to);
-    const key = (d, p, f) => `${d}|${p}|${f}`;
-    const map = new Map((att ?? []).map((r) => [key(r.appt_date, r.phone || '', r.from_time || ''), r]));
-    for (const a of appts) { const r = map.get(key(a.date, a.phone, a.from)); a.attendance_id = r?.id ?? null; a.status = r?.status ?? 'agendado'; }
+    // por clinicorp_id, nao mais por data+telefone+hora (dois pacientes podem compartilhar
+    // telefone e cair no mesmo horario -- a chave antiga misturava o attendance_id/status de um
+    // agendamento no botao Compareceu/Faltou do outro).
+    const { data: att } = await admin.from('crm_attendances').select('id, clinicorp_id, status').eq('org_id', oid).gte('appt_date', from).lte('appt_date', to);
+    const map = new Map((att ?? []).map((r) => [r.clinicorp_id, r]));
+    for (const a of appts) { const r = map.get(a.clinicorp_id); a.attendance_id = r?.id ?? null; a.status = r?.status ?? 'agendado'; }
     return json({ professional: org?.settings?.clinicorp_professional_name ?? 'Profissional', count: appts.length, appointments: appts });
   } catch (e) { return json({ error: String(e) }, 500); }
 });
