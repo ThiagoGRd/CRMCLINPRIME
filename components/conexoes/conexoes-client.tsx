@@ -12,7 +12,7 @@ import {
 import { Smartphone, RefreshCw, Plus, Unplug, Trash2, QrCode } from "lucide-react";
 import { toast } from "sonner";
 
-type Channel = { id: string; type: string; instance_name: string; display_name: string; status: string };
+type Channel = { id: string; type: string; instance_name: string; display_name: string; status: string; config: { display_phone?: string } | null };
 
 const STATUS: Record<string, { txt: string; color: string }> = {
   connected: { txt: "Conectado", color: "#10b981" },
@@ -31,7 +31,7 @@ export function ConexoesClient() {
   const { data } = useQuery({
     queryKey: ["channels"],
     queryFn: async () => {
-      const { data } = await supabase.from("channels").select("id,type,instance_name,display_name,status").order("created_at", { ascending: true });
+      const { data } = await supabase.from("channels").select("id,type,instance_name,display_name,status,config").order("created_at", { ascending: true });
       return (data ?? []) as Channel[];
     },
   });
@@ -144,12 +144,15 @@ export function ConexoesClient() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="font-medium">{ch.display_name}</div>
-              <div className="truncate text-xs text-muted-foreground">{ch.instance_name}</div>
+              <div className="truncate text-xs text-muted-foreground">
+                {ch.type === "whatsapp_cloud" ? `API oficial · ${ch.config?.display_phone ?? ""}` : ch.instance_name}
+              </div>
             </div>
             <span className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: st.color }}>
               <span className="h-2 w-2 rounded-full" style={{ background: st.color }} /> {st.txt}
             </span>
-            <div className="flex shrink-0 gap-0.5">
+            {/* Ações de QR/desconectar são da Evolution; número da API oficial é gerenciado na Meta. */}
+            {ch.type !== "whatsapp_cloud" && <div className="flex shrink-0 gap-0.5">
               {ch.status !== "connected" && (
                 <Button variant="ghost" size="icon" title="Mostrar QR Code" onClick={() => showQr(ch)}>
                   <QrCode className="h-4 w-4" />
@@ -164,7 +167,7 @@ export function ConexoesClient() {
               <Button variant="ghost" size="icon" title="Remover instância" onClick={() => removeChannel(ch)}>
                 <Trash2 className="h-4 w-4 text-muted-foreground" />
               </Button>
-            </div>
+            </div>}
           </Card>
         );
       })}

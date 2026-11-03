@@ -157,16 +157,17 @@ export function InboxClient() {
     setSending(true);
     setText("");
     try {
-      const { data: sendRes, error: fnErr } = await supabase.functions.invoke("evolution-proxy", {
-        body: { action: "send_text", payload: { phone: conv.phone, text: content, org_id: org.id } },
+      // A edge function envia pela Cloud API e já grava a mensagem (com o wamid).
+      const { data: sendRes, error: fnErr } = await supabase.functions.invoke("whatsapp-send", {
+        body: { patient_id: activeId, text: content },
       });
-      if (fnErr || sendRes?.error) throw new Error(sendRes?.error ?? fnErr?.message ?? "falha no envio");
+      if (fnErr || sendRes?.error) {
+        // Em resposta != 2xx o corpo (com o motivo, ex.: janela de 24h) vem em fnErr.context.
+        const detail = await (fnErr as { context?: Response } | null)?.context?.json?.().catch(() => null);
+        throw new Error(sendRes?.error ?? detail?.error ?? fnErr?.message ?? "falha no envio");
+      }
 
-      const { data: inserted } = await supabase
-        .from("messages")
-        .insert({ patient_id: activeId, direction: "outbound", content, message_type: "text", status: "sent", org_id: org.id })
-        .select("id,patient_id,direction,content,created_at")
-        .single();
+      const inserted = sendRes?.message;
       if (inserted) {
         setMessages((prev) => (prev.some((m) => m.id === inserted.id) ? prev : [...prev, inserted as Message]));
       }
