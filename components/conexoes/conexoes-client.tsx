@@ -11,9 +11,10 @@ import {
 } from "@/components/ui/dialog";
 import { Smartphone, RefreshCw, Plus, Unplug, Trash2, QrCode } from "lucide-react";
 import { toast } from "sonner";
+import { INBOXES, type InboxKey } from "@/lib/inbox";
 import { launchWhatsAppSignup } from "@/lib/whatsapp-signup";
 
-type Channel = { id: string; type: string; instance_name: string; display_name: string; status: string; config: { display_phone?: string } | null };
+type Channel = { inbox_key: InboxKey | null; id: string; type: string; instance_name: string; display_name: string; status: string; config: { display_phone?: string } | null };
 
 const STATUS: Record<string, { txt: string; color: string }> = {
   connected: { txt: "Conectado", color: "#10b981" },
@@ -29,15 +30,27 @@ export function ConexoesClient() {
   const [busy, setBusy] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const { data } = useQuery({
-    queryKey: ["channels"],
+  const { data, error: channelsError } = useQuery({
+    queryKey: ["channels", org.id],
     queryFn: async () => {
-      const { data } = await supabase.from("channels").select("id,type,instance_name,display_name,status,config").order("created_at", { ascending: true });
+      const { data, error } = await supabase.from("channels").select("id,type,instance_name,display_name,status,config,inbox_key").eq("org_id", org.id).order("created_at", { ascending: true });
+      if (error) throw error;
       return (data ?? []) as Channel[];
     },
   });
   const channels = data ?? [];
-  const refresh = () => qc.invalidateQueries({ queryKey: ["channels"] });
+  const refresh = () => qc.invalidateQueries({ queryKey: ["channels", org.id] });
+
+  async function mapInbox(ch: Channel, inboxKey: string) {
+    const { error } = await supabase.from("channels").update({ inbox_key: inboxKey || null }).eq("id", ch.id).eq("org_id", org.id);
+    if (error) toast.error("Não foi possível definir o setor", { description: error.message });
+    else {
+      toast.success("Setor do número atualizado");
+      void refresh();
+      void qc.invalidateQueries({ queryKey: ["inbox-channels", org.id] });
+      void qc.invalidateQueries({ queryKey: ["inbox-conversations", org.id] });
+    }
+  }
 
   const invoke = async (action: string, payload: Record<string, unknown>) => {
     const { data, error } = await supabase.functions.invoke("evolution-proxy", {
@@ -141,7 +154,9 @@ export function ConexoesClient() {
         <Button onClick={connect} disabled={busy}><Plus className="h-4 w-4" /> Conectar WhatsApp</Button>
       </div>
 
-      {channels.length === 0 && (
+      {channelsError && <p role="alert" className="text-sm text-red-400">Erro ao carregar canais: {channelsError.message}</p>}
+      <p className="text-sm text-muted-foreground">Defina o setor de cada número para separar as caixas. Esta classificação não conecta, migra nem altera o número no WhatsApp.</p>
+      {channels.length === 0 && !channelsError && (
         <div className="rounded-xl border border-dashed border-border py-10 text-center text-muted-foreground">
           Nenhum canal conectado ainda.
         </div>
@@ -156,6 +171,11 @@ export function ConexoesClient() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="font-medium">{ch.display_name}</div>
+              <label htmlFor={`sector-${ch.id}`} className="mt-2 block text-xs text-muted-foreground">Caixa de atendimento</label>
+              <select id={`sector-${ch.id}`} value={ch.inbox_key ?? ""} onChange={e => void mapInbox(ch, e.target.value)} className="mt-1 h-8 w-full rounded border border-input bg-background px-2 text-sm">
+                <option value="">Sem setor definido</option>
+                {INBOXES.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}
+              </select>
               <div className="truncate text-xs text-muted-foreground">
                 {ch.type === "whatsapp_cloud" ? `API oficial · ${ch.config?.display_phone ?? ""}` : ch.instance_name}
               </div>
