@@ -12,7 +12,7 @@ function json(b: unknown, s = 200) {
   return new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'Content-Type': 'application/json' } });
 }
 const GRAPH = 'https://graph.facebook.com/v25.0';
-// shortcut: um token de System User para todos os números; com Embedded Signup cada org terá o seu (channels.config).
+// Token do System User: fallback para números sem token próprio (ex.: número de teste da Meta).
 const TOKEN = Deno.env.get('WA_ACCESS_TOKEN') ?? '';
 
 Deno.serve(async (req) => {
@@ -22,7 +22,6 @@ Deno.serve(async (req) => {
     const jwt = (req.headers.get('Authorization') ?? '').replace('Bearer ', '');
     const { data: { user } } = await admin.auth.getUser(jwt);
     if (!user) return json({ error: 'nao autenticado' }, 401);
-    if (!TOKEN) return json({ error: 'WA_ACCESS_TOKEN nao configurado' }, 500);
 
     const { patient_id, text } = await req.json();
     const body = String(text ?? '').trim();
@@ -41,10 +40,14 @@ Deno.serve(async (req) => {
     q = last?.channel_id ? q.eq('id', last.channel_id) : q.order('created_at');
     const { data: channel } = await q.limit(1).maybeSingle();
     if (!channel) return json({ error: 'nenhum numero de WhatsApp conectado' }, 409);
+    // Número conectado pelo Embedded Signup tem token próprio (channel_secrets).
+    const { data: secret } = await admin.from('channel_secrets').select('access_token').eq('channel_id', channel.id).maybeSingle();
+    const token = secret?.access_token ?? TOKEN;
+    if (!token) return json({ error: 'numero sem token de acesso' }, 500);
 
     const r = await fetch(`${GRAPH}/${channel.phone_number_id}/messages`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ messaging_product: 'whatsapp', to: localToWa(patient.phone), type: 'text', text: { body } }),
     });
     const res = await r.json();

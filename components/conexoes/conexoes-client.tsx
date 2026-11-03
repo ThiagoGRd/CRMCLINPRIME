@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Smartphone, RefreshCw, Plus, Unplug, Trash2, QrCode } from "lucide-react";
 import { toast } from "sonner";
+import { launchWhatsAppSignup } from "@/lib/whatsapp-signup";
 
 type Channel = { id: string; type: string; instance_name: string; display_name: string; status: string; config: { display_phone?: string } | null };
 
@@ -73,14 +74,23 @@ export function ConexoesClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qr?.channelId]);
 
+  // Conexão oficial (Meta Embedded Signup, coexistência): o número segue funcionando no app WhatsApp Business.
   async function connect() {
     setBusy(true);
     try {
-      const data = await invoke("create_instance", { display_name: "WhatsApp ClinPrime" });
+      const { code, wabaId } = await launchWhatsAppSignup();
+      const { data, error } = await supabase.functions.invoke("whatsapp-onboard", {
+        body: { code, waba_id: wabaId, org_id: org.id },
+      });
+      if (error || data?.error) {
+        const detail = await (error as { context?: Response } | null)?.context?.json?.().catch(() => null);
+        throw new Error(data?.error ?? detail?.error ?? error?.message ?? "erro");
+      }
+      const n = (data?.connected ?? []) as { phone: string }[];
+      toast.success(n.length ? `WhatsApp conectado: ${n.map((c) => c.phone).join(", ")}` : "Conta conectada, mas nenhum número encontrado");
       refresh();
-      setQr({ img: data?.qr ?? null, channelId: data?.channel?.id ?? null });
     } catch (e) {
-      toast.error("Falha ao criar instância", { description: String((e as Error).message) });
+      toast.error("Não foi possível conectar o WhatsApp", { description: String((e as Error).message) });
     } finally {
       setBusy(false);
     }
@@ -125,7 +135,9 @@ export function ConexoesClient() {
   return (
     <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">Conecte o WhatsApp da clínica escaneando o QR Code.</div>
+        <div className="text-sm text-muted-foreground">
+          Conecte cada número do WhatsApp Business da clínica pela Meta. O app no celular continua funcionando.
+        </div>
         <Button onClick={connect} disabled={busy}><Plus className="h-4 w-4" /> Conectar WhatsApp</Button>
       </div>
 
