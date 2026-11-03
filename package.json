@@ -7,10 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/*.test.ts tests/routing/*.test.mjs tests/database/*.test.mjs supabase/functions/_shared/wa.test.ts",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/*.test.ts tests/routing/*.test.mjs tests/database/*.test.mjs supabase/functions/_shared/wa.test.ts tests/browser/fixture-contract.test.mjs",
     "typecheck": "tsc --noEmit",
     "test:routing": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/routing/*.test.mjs",
-    "test:db": "node --test tests/database/*.test.mjs"
+    "test:db": "node --test tests/database/*.test.mjs",
+    "test:browser:fixture": "node --test tests/browser/fixture-contract.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

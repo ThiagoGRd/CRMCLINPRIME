@@ -1,47 +1,36 @@
-# CRM ClinPrime: entrega da base operacional
+# CRM ClinPrime: preparação operacional
 
-## Resultado desta etapa
-Esta branch implementa a fundação do CRM, sem configurar agentes nem modificar produção.
+## Implementado na branch de revisão
 
-1. **Caixas por setor e número:** Recepção, Comercial e CRC, com classificação explícita de cada canal na tela Conexões. Um paciente mantém um cadastro único, com conversas distintas por número.
-2. **Envio determinístico:** cada envio informa a conversa e o canal. Canal incompatível ou desligado bloqueia o envio. Não existe fallback para o último número usado ou primeiro canal disponível.
-3. **Pendências duráveis:** página Pendências e painel dentro da conversa. Responsável, prazo e status são obrigatórios. Mensagens não encerram a pendência. Resolver exige evidência, registra usuário e horário, e preserva o registro resolvido.
-4. **Proteção no banco:** vínculos entre organização, paciente, conversa e responsável; RLS nas tabelas novas; identidade de conversa imutável; criação de paciente por WhatsApp serializada por telefone; eventos repetidos não duplicam mensagens e eventos antigos não recuam a atividade recente.
+- Recepção, Comercial e CRC separados por número, com conversas por paciente/canal e resposta explícita, sem fallback.
+- Pendências persistidas com responsável, prazo, status e resolução manual com evidência, autor e horário. Mensagens não as encerram.
+- Histórico antigo sem canal acessível em `/historico-legado`, somente leitura e sem inferir o número. Busca por paciente, paginação estável e tratamento de página removida.
+- Migração 400 restringe grants herdados, protege IDs de pendências e registra as tabelas CRM no Realtime existente, sem inventar policies antigas.
+- Migração 500 cria ledger de envio e claim atômico por UUID. Timeout e falha após aceite não provocam repetição. Consulta de tentativa é somente leitura.
+- Recuperação do cliente após recarga ou navegação preserva apenas os identificadores da tentativa, sem texto do paciente no armazenamento do browser. Layout do Inbox passa a empilhar painéis fora de telas largas.
+- Auditoria SQL somente leitura de predecessores, vínculos, RLS, grants por tabela/coluna, RPCs e publicação: `docs/schema/crm-preflight.sql`.
 
-O controle antigo de IA por paciente foi retirado do Inbox: ele não distinguia os números e poderia alterar outro atendimento. Nenhuma nova supervisão, credencial ou integração de agente foi adicionada.
+Nenhuma nova supervisão, API, credencial ou integração de agente foi implementada. Não houve uso de pacientes reais, migração de números, aplicação em banco externo, merge ou publicação do CRM operacional.
 
-## Verificações
-- npm test: **23/23 passaram**, incluindo testes unitários, PostgreSQL sintético e execução das funções de envio/webhook com transporte falso.
-- npm run typecheck: **passou**.
-- npm run build: **passou**, build Next.js usando URL/chave fictícias de Supabase, sem consultar produção.
-- ESLint nos arquivos alterados: **passou**, sem erros ou avisos.
-- O lint global já tinha problemas. Permanecem sete erros fora deste trabalho: efeitos em Metas e Pacientes, require em legacy/server-static.js e any nos helpers WA/onboarding. Não são um passe global de lint.
-- O teste de navegador está preparado em tests/browser, mas não foi executado até o final: o Chromium deste ambiente não consegue criar um socket local; o navegador separado não alcança o servidor local do workspace. Layout, navegação e persistência visual ainda precisam de QA em ambiente de teste.
+## Verificações desta continuação
 
-## Antes de aplicar a migração em staging
-O repositório não versiona o esquema completo do banco atual. Os testes usam um predecessor mínimo e sintético, não uma cópia de produção. Portanto, não basta executar as migrações deste repositório num banco vazio.
+**83/83 testes passaram** na verificação final local. Foram executados testes unitários, SQL real com predecessor sintético em PGlite, endpoint real com transporte falso e contratos HTTP do cliente Supabase. Typecheck e build Next.js com Supabase fictício foram executados. O lint dos arquivos alterados passou.
 
-1. Obter uma cópia de esquema sanitizada do ambiente atual, sem dados pessoais, e revisar as policies/triggers/views existentes. A migração espera organizations, org_members, channels, crm_patients, crm_messages, crm_pipeline_stages, crm_deals e phone_canon.
-2. Verificar duplicatas em (org_id,user_id) e vínculos antigos entre organizações. Dados inconsistentes bloqueiam a transação, em vez de serem reatribuídos silenciosamente.
-3. Testar a migração 20261103030000_crm_foundation.sql e restore/rollback no staging. A migração é transacional e deve ser aplicada uma vez pelo controle de migrações.
-4. Confirmar RLS e permissões das tabelas preexistentes e a publicação Supabase Realtime para crm_messages/crm_conversations. Sem publicação, o refresh manual funciona, mas atualizações ao vivo não foram garantidas.
-5. Classificar explicitamente os números existentes nos três setores. A migração não adivinha setores nem muda números/provedores.
-6. Atualizar juntas a UI, a função de envio e a migração. O contrato antigo patient_id/text deixa de ser aceito. Revisar qualquer consumidor externo dessa função antes de publicar.
-7. Testar com dois usuários de organizações distintas e números exclusivamente de teste: mesmo paciente em dois canais; troca de conversa durante envio; número desligado; evento repetido; pendência sem descrição; recarga sem nova mensagem; evidência e autoria da resolução.
+O lint global mantém sete erros preexistentes fora desta entrega: efeitos em Metas/Pacientes, CommonJS no servidor legado e tipos `any` de WA/onboarding. Não é um passe global.
 
-## Limites conhecidos e próximas fases
-- Mensagens antigas sem channel_id não são atribuídas automaticamente. Elas continuam no banco; devem receber uma estratégia explícita de histórico antes da troca operacional do Inbox.
-- A função atual de envio é da API oficial Meta. Canais Evolution/Instagram não recebem fallback por outro número. A integração correspondente precisa ser validada em etapa própria.
-- Mensagens fora da janela de 24 horas continuam dependendo de template aprovado; esta entrega não cria templates nem envia mensagens reais.
-- Em falha de gravação após aceitação do WhatsApp, o erro informa para conferir antes de reenviar. Uma caixa de saída transacional/idempotente é uma evolução recomendada antes de escala.
-- Ainda não houve teste do esquema real, entrega WhatsApp real, migração aplicada ou deploy. A branch é para revisão e validação em staging, não uma afirmação de prontidão de produção.
+A interface foi conferida em navegador usando apenas dados e adaptadores sintéticos: separação de setores, resposta atrasada sem aparecer na outra conversa, consulta de legado, pendência/resolução, resultado incerto persistente após recarga, bloqueio de texto repetido e recarga antes do registro do envio. O script Playwright atualizado em `tests/browser` não foi executado integralmente neste ambiente. Não houve teste em telefone físico, autenticação real, Realtime WebSocket, WhatsApp real ou banco hospedado.
 
-## Ordem sugerida
-1. Revisar e integrar esta fundação.
-2. Reproduzir o esquema em staging e completar os testes de UI/segurança/integração.
-3. Validar com a equipe recepção/comercial/CRC usando apenas dados e números de teste.
-4. Planejar a entrada em operação separadamente, com autorização e checklist de backup.
-5. Só depois definir a integração/supervisão dos agentes.
+## Antes de staging e produção
 
-## Correções encontradas na revisão
-Descrição opcional vazia agora é compatível com a coluna NOT NULL; mensagens antigas sem canal também validam a organização do paciente; novas URLs de conversa substituem a seleção anterior; o RPC rejeita evidência composta somente de espaços, tabs ou quebras de linha. Quatro novos testes reproduziram os defeitos antes das correções e passaram depois delas.
+1. Obter esquema sanitizado do ambiente atual. O repositório não contém o predecessor completo; não basta executar as migrações em um banco vazio.
+2. Rodar e revisar a pré-auditoria em uma cópia autorizada. Contagem bloqueada ou tipo incompatível não é aprovação. Conferir policies/grants antigos e dois tenants.
+3. Aplicar e testar as migrações 300 → 400 → 500 em staging, com backup/restore. A 400 exige publicação Supabase Realtime existente e RLS de mensagens ativa; não presume que as policies sejam corretas.
+4. Validar Realtime com JWTs sintéticos, isolamento entre organizações, reconexão e remoção de usuários. Os testes locais de publicação são somente de catálogo.
+5. Classificar explicitamente os números em setores e validar somente números de teste. Evolution/Instagram continuam sem transporte substituto ou fallback; a função implementada usa a API oficial Meta. Templates fora da janela de 24h ainda exigem implementação/configuração própria.
+6. Implantar UI, funções e migrações em conjunto quando autorizado. Consumidores antigos `patient_id/text` são incompatíveis; novos clientes precisam `request_id/conversation_id/channel_id/text`.
+7. Definir reconciliação operacional e desbloqueio auditado de tentativas desconhecidas antes de produção. O estado conservador pode bloquear uma conversa quando só existe marcador local e o resultado ainda não foi localizado. Não limpar cache nem criar novo UUID para contornar a incerteza. Ver `CRM-OUTBOUND-SAFETY.md`.
+8. Validar concorrência real de múltiplas conexões/workers e os fluxos completos com a equipe. PGlite e mocks não comprovam infraestrutura distribuída.
+
+## Revisão independente
+
+Defeitos reproduzidos e corrigidos incluem grants `TRUNCATE` herdados apesar de RLS, ID de pendência mutável, perda de evidência de aceite tardio, perda de UUID após recarga/cache de navegação, sobrescrita de marcador por outra aba, página histórica HTTP 416 e lacunas no inventário de permissões da outbox. Regressões acompanham as correções.

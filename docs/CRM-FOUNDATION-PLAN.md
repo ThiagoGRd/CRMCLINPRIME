@@ -49,3 +49,7 @@
 23 testes automatizados passaram. Typecheck, build Next.js e lint dos arquivos alterados passaram. A revisão encontrou quatro defeitos e todos foram corrigidos com testes de regressão que falharam antes da correção.
 
 A validação visual no navegador e a validação no esquema real do Supabase ainda estão pendentes; não são cobertas pelos checks acima. O lint global permanece com sete erros preexistentes fora deste trabalho. Consulte CRM-FOUNDATION-READINESS.md antes de integrar ou aplicar.
+
+## Continuação: preparação operacional
+
+O status de 23 testes acima registra a primeira entrega. A continuação em `docs/superpowers/plans/2026-11-03-crm-readiness.md` acrescenta histórico legado somente leitura, segurança/preflight/Realtime e envio com identidade durável. Verificação atual: **83/83 testes**, typecheck, build sintético e lint dos arquivos alterados passaram. Foram exercitados fluxos sintéticos no navegador; o script completo e as integrações reais permanecem pendentes. Consulte a versão atual de CRM-FOUNDATION-READINESS.md.
