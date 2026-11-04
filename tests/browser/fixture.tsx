@@ -1,0 +1,14 @@
+import React from 'react';
+import Link from 'next/link';
+import { createRoot } from 'react-dom/client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { OrgProvider } from '../../components/org-context';
+import { InboxClient } from '../../components/inbox/inbox-client';
+import { LegacyHistoryClient } from '../../components/legacy-history/legacy-history-client';
+import { PendingItemsWorkspace } from '../../components/pendencias/pending-items-panel';
+import { Toaster } from 'sonner';
+import { fixtureIds } from './fixture-identities';
+const org = {id: fixtureIds.org, role: 'admin', displayName: 'Equipe de teste', name: 'Clínica de teste', contactLabel: null, logoUrl: null, settings: null};
+const client = new QueryClient({defaultOptions: {queries: {retry: false}, mutations: {retry: false}}});
+const page = window.location.pathname === '/historico-legado' ? <LegacyHistoryClient/> : window.location.pathname === '/pendencias' ? <PendingItemsWorkspace/> : <InboxClient/>;
+createRoot(document.getElementById('root')!).render(<QueryClientProvider client={client}><OrgProvider org={org}><main className="p-5"><header className="mb-4 flex gap-4"><strong>ClinPrime · ambiente sintético</strong><Link className="underline" href="/">Voltar às caixas</Link></header>{page}</main><Toaster/></OrgProvider></QueryClientProvider>);

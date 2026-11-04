@@ -1,0 +1,22 @@
+-- Minimal synthetic predecessor schema. Never run against a real Supabase project.
+create role anon; create role authenticated; create role service_role bypassrls;
+create schema auth;
+create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+create table public.organizations(id uuid primary key);
+create table public.org_members(org_id uuid references organizations, user_id uuid, primary key(org_id,user_id));
+create table public.crm_patients(id uuid primary key, org_id uuid not null references organizations, last_message_at timestamptz);
+create table public.channels(id uuid primary key, org_id uuid not null references organizations, type text, status text, phone_number_id text);
+create table public.crm_messages(id uuid primary key default gen_random_uuid(), org_id uuid not null references organizations, patient_id uuid references crm_patients, channel_id uuid references channels on delete set null, whatsapp_message_id text unique, created_at timestamptz default now());
+grant usage on schema public,auth to authenticated,service_role;
+grant select on org_members to authenticated;
+insert into organizations values ('00000000-0000-0000-0000-000000000001'),('00000000-0000-0000-0000-000000000002');
+insert into org_members values ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000011'),('00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000022');
+insert into crm_patients(id,org_id) values ('00000000-0000-0000-0000-000000000101','00000000-0000-0000-0000-000000000001'),('00000000-0000-0000-0000-000000000102','00000000-0000-0000-0000-000000000002');
+insert into channels values ('00000000-0000-0000-0000-000000000201','00000000-0000-0000-0000-000000000001','whatsapp_cloud','connected','one'),('00000000-0000-0000-0000-000000000202','00000000-0000-0000-0000-000000000001','whatsapp_cloud','connected','two'),('00000000-0000-0000-0000-000000000203','00000000-0000-0000-0000-000000000002','whatsapp_cloud','connected','three');
+insert into crm_messages(org_id,patient_id,channel_id,whatsapp_message_id) values ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000101',null,'legacy');
+alter table crm_patients alter column id set default gen_random_uuid();
+alter table crm_patients add column name text, add column phone text, add column source text, add column channel text, add column created_at timestamptz default now();
+create function public.phone_canon(phone text) returns text language sql immutable as $$ select substring(regexp_replace(phone,'\D','','g') from 1 for 2)||right(regexp_replace(phone,'\D','','g'),8) $$;
+create table crm_pipeline_stages(id uuid primary key default gen_random_uuid(),org_id uuid,position integer);
+create table crm_deals(id uuid primary key default gen_random_uuid(),org_id uuid,patient_id uuid,stage_id uuid);
+insert into crm_pipeline_stages(org_id,position) values ('00000000-0000-0000-0000-000000000001',1);

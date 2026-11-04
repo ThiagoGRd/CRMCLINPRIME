@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { NAV, navByHref } from "@/lib/nav";
 import { useOrg } from "@/components/org-context";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ShieldCheck, LogOut, Plus } from "lucide-react";
+import { ShieldCheck, LogOut, Plus, Menu, X } from "lucide-react";
 import { Copilot } from "@/components/copilot/copilot";
 
 export function AppShell({
@@ -21,6 +22,12 @@ export function AppShell({
   const router = useRouter();
   const org = useOrg();
   const active = navByHref(pathname);
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) { if (event.key === "Escape") setMenuOpen(false); }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   async function logout() {
     await createClient().auth.signOut();
@@ -35,9 +42,11 @@ export function AppShell({
   ];
 
   return (
-    <div className="flex h-dvh overflow-hidden">
+    <div className="crm-app-shell flex h-dvh overflow-hidden" data-menu-open={menuOpen}>
+      <button type="button" className="crm-mobile-menu" aria-label={menuOpen ? "Fechar menu" : "Abrir menu"} aria-expanded={menuOpen} aria-controls="crm-sidebar" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button>
+      {menuOpen && <button type="button" className="crm-mobile-backdrop" aria-label="Fechar navegação" onClick={() => setMenuOpen(false)} />}
       {/* Sidebar */}
-      <aside className="flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
+      <aside id="crm-sidebar" className="flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
         <div className="flex items-center gap-2.5 px-5 py-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-emerald-500 text-white">
             <ShieldCheck className="h-5 w-5" />
@@ -57,6 +66,8 @@ export function AppShell({
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={() => setMenuOpen(false)}
+                      aria-current={isActive ? "page" : undefined}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                         isActive

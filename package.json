@@ -6,7 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test --test-concurrency=1 tests/*.test.ts tests/routing/*.test.mjs tests/database/*.test.mjs supabase/functions/_shared/wa.test.ts tests/browser/fixture-contract.test.mjs tests/postgres/guard.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "test:routing": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test --test-concurrency=1 tests/routing/*.test.mjs",
+    "test:db": "node --test --test-concurrency=1 tests/database/*.test.mjs",
+    "test:browser:fixture": "node --test tests/browser/fixture-contract.test.mjs",
+    "test:postgres": "node --test --test-concurrency=1 tests/postgres/*.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -31,12 +37,14 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.15",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "pg": "8.23.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
