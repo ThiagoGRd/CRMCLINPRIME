@@ -52,3 +52,17 @@ CUA verificou observação com evidência mantendo incerteza, cancelamento de te
 Os 27 contratos HTTP em `tests/browser/fixture-contract.test.mjs` usam o cliente Supabase real contra fronteira falsa. O runner Playwright completo e as novas sequências de navegador não foram executados. CUA com adaptador estático não comprova o conjunto HTTP + navegador + banco, Realtime, JWT real ou WhatsApp. Nenhum telefone físico, banco hospedado, provedor autenticado ou paciente real foi usado.
 
 O antigo controle de IA por prefixo de telefone não foi restaurado: não há contrato/esquema do consumidor suficiente para comprovar a pausa por canal. Ver `CRM-AI-COMPATIBILITY.md`. É um bloqueio explícito para preservar esse recurso com segurança antes de produção, não uma afirmação de que a IA foi pausada.
+
+## Sessão e concorrência PostgreSQL
+
+A seleção da organização agora valida a sessão com `auth.getUser()`, filtra a associação pelo usuário e ordena por organização antes do limite. Ela não usa mais o papel ou nome da primeira associação visível de um colega. O dashboard não consulta métricas quando não há vínculo válido. Oito testes cobrem o cliente Supabase real com fronteira HTTP sintética, incluindo401.
+
+`npm run test:postgres` usa conexões PostgreSQL independentes contra um cluster descartável. A verificação final local em PostgreSQL16.15 passou11/11 checks: barreiras observam o PID bloqueador e o lock real antes de liberar o commit. Cobrem claim repetido, as duas ordens claim/cancelamento, conclusão do worker, reconciliação e primeiro contato. Cópias temporárias dos SQLs sem locks falharam nos cenários correspondentes. Nenhum SQL de migração foi alterado por esses ensaios.
+
+A revisão independente encontrou e corrigiu herança de `PGOPTIONS` apesar de uma string vazia no cliente. O teste agora instancia o `pg.Client` real com variáveis hostis fictícias. Guardas exigem loopback, identidade descartável, opt-in e catálogo vazio antes de DDL. Isso evita alvo acidental, mas não autoriza usar túneis ou bancos compartilhados.
+
+O novo CI roda testes sintéticos, PostgreSQL16, typecheck e build, sem segredos/deploy. Remove arquivos de ambiente apenas do checkout descartável e fornece configuração falsa. A execução hospedada será registrada após publicação; um teste local não equivale a execução do Docker/GitHub.
+
+A conexão Supabase tornou possível iniciar inspeção de catálogo do projeto existente. Isso não concede permissão para ler registros, executar contagens sobre pacientes, aplicar migrações ou testar provedores reais. Ver `CRM-STAGING-ROUTE.md`.
+
+Verificação final desta etapa: **170/170 testes do comando completo passaram**, além dos **11/11 checks PostgreSQL** executados em cluster novo. Typecheck, build com Supabase fictício, lint dos arquivos alterados e diff-check passaram. Os três checks de guarda também fazem parte do comando normal; não somar as contagens como testes distintos.

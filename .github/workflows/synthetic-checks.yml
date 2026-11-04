@@ -1,0 +1,55 @@
+name: Synthetic CRM checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: synthetic-crm-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Explicit fake build values take precedence over tracked .env.production.
+      # No application server, hosted Supabase, provider or deployment is invoked.
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:9
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: synthetic-ci-anon-key-not-a-credential
+      NEXT_TELEMETRY_DISABLED: '1'
+      CRM_TEST_DATABASE_URL: postgresql://crm_test_owner:synthetic-only@127.0.0.1:55439/crm_concurrency_test
+      CRM_TEST_ALLOW_DISPOSABLE_DATABASE: '1'
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: crm_test_owner
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: crm_concurrency_test
+        ports:
+          - 127.0.0.1:55439:5432
+        options: >-
+          --health-cmd "pg_isready -U crm_test_owner -d crm_concurrency_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Exclude environment files from the disposable CI checkout
+        run: find . -maxdepth 1 -type f -name '.env*' -delete
+      - run: npm ci
+      - run: npm test
+      - run: npm run test:postgres
+      - run: npm run typecheck
+      - run: npm run build
