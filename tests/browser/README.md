@@ -1,6 +1,7 @@
 # Synthetic UI fixture
 
-The fixture bundles the real Inbox, pending-item and legacy-history components.
+The fixture bundles the real Inbox, start-conversation dialog, template picker,
+operator-review panel, pending-item and legacy-history components.
 Queries and function invocations use the real Supabase browser client and a local
 HTTP server. Only `auth.getSession` is adapted to an in-memory synthetic user.
 The fixture never reads environment files, signs in to Supabase, contacts a real
@@ -15,10 +16,22 @@ node --test tests/browser/fixture-contract.test.mjs
 ```
 
 These exercise the real Supabase HTTP request builder against a localhost server.
-They verify the UUID send contract, matching response identity, status-only
-no-send behavior, uncertain transport, loss before claim, scoped outbound reads
-and legacy null filtering/pagination. They validate the test boundary, not the
-production database or browser UI. The production suites remain `npm test`.
+They verify UUID send identity, matching responses, status-only queries, uncertain
+transport, loss before claim, scoped ledger/audit reads, legacy null filtering and
+pagination, name/phone search, escaped `ilike`, `single`/`maybeSingle`, insertion,
+route reuse, concurrent insert recovery and lost-insert-response recovery. The
+real `openConversation` and patient-search helpers use the installed Supabase
+client over HTTP, not a fluent-client mock.
+
+Template checks exercise read-only catalogs/windows, explicit template payloads,
+preview integrity, expired-window free-text rejection and message-kind/provider-ID
+ledger fields. Operator checks cover successful audit acknowledgement with an
+unchanged uncertain state, local finalization and cancellation without transport.
+The fixture imports the real pure route, policy and outbound-response helpers.
+It does **not** execute the Edge handlers or SQL; its in-memory reconciliation,
+uniqueness and window gating are test scaffolding, not evidence about production
+atomicity, RLS, authorization or provider behavior. The production suites remain
+`npm test`.
 
 The optional bundler is kept outside application dependencies:
 
@@ -45,7 +58,8 @@ The printed localhost URL is available only from the same execution environment.
 Set `CRM_BROWSER_PORT` for a fixed port; otherwise the server chooses a free one.
 Ctrl-C ends the fixture. Serve mode does not require or import Playwright.
 A read-only `/__fixture__/state` endpoint exposes synthetic send counts, status
-lookups, outbound rows, request payloads and fixture errors for verification.
+lookups, outbound rows, audit records, cancellations, conversation/pending records,
+request payloads and fixture errors for verification.
 No production data is present in this endpoint.
 
 The initial delivery scenario is selectable before starting the server:
@@ -57,6 +71,16 @@ The initial delivery scenario is selectable before starting the server:
   connection before any outbound row or simulated provider delivery exists.
   Reload must recover its browser marker and keep sending blocked, even though
   the server returns `not_found`. Later sends default to success.
+- `CRM_BROWSER_SCENARIO=accepted-before-storage`: the simulated provider accepts
+  once, but the CRM message is not yet saved. The operator can finalize it locally.
+
+The default fixture has a one-hour-old inbound in each seeded conversation, based
+on startup time rather than a fixed date. Use `CRM_BROWSER_WINDOW=expired` for a
+25-hour-old inbound and a template-only UI. All routing/database identities are
+synthetic UUIDs in `fixture-identities.ts`. Maria Teste has three routed
+conversations; João Sintético has none initially and is available in patient search.
+The synthetic catalog contains one text template, `retorno_sintetico · pt_BR`,
+with one body variable. No catalog request contacts Meta.
 
 Manual checks:
 
@@ -73,7 +97,24 @@ Manual checks:
 5. Open “Consultar histórico antigo sem canal”. Check its 41 synthetic legacy
    rows paginate 40/1, routed and partially routed records never appear, no send
    control exists, and Back/Forward returns to the correct page.
-6. Repeat narrow/mobile viewport inspection; the fixture provides a viewport
+6. Use “Abrir conversa”, find João Sintético by name or phone, select Recepção,
+   then Cancel. Reopen and check the selection reset. Open the conversation and
+   repeat: only one route is created, no send occurs, and free text stays blocked
+   because João has no inbound. Opening a disconnected CRC route is also allowed
+   to organize work, but sending remains blocked.
+7. Open “Templates aprovados” in João's conversation or an expired-window fixture.
+   Select the approved template, fill its variable and inspect the rendered preview.
+   “Voltar” must not send. Confirming sends an explicit `kind: "template"` request,
+   not free text; it does not open the free-text window.
+8. In `uncertain-after-claim`, use “Conferir tentativa”, supply evidence and register
+   an observation. The dialog closes and the audit appears, but delivery remains
+   uncertain and the duplicate draft stays blocked. Unsafe cancellation/finalization
+   must fail without adding another transport.
+9. In `accepted-before-storage`, finalize after entering evidence. The message
+   appears once and the simulated send count stays one. In `drop-before-claim`,
+   cancel the recovered marker after entering evidence. Reload and verify the
+   cancellation stays terminal with no transport.
+10. Repeat narrow/mobile viewport inspection; the fixture provides a viewport
    meta tag. Realtime is not emulated, so local websocket connection errors are
    expected and realtime delivery itself is not part of this fixture's coverage.
 
@@ -90,11 +131,16 @@ The standard script covers sector separation, UUID send routing, late response
 isolation, durable pending items, evidence-only resolution, disconnected channels,
 ambiguous patient links, uncertain delivery, duplicate protection, status-only
 lookups, metadata-only reload-before-claim protection and legacy page navigation,
-pagination and read-only behavior. Successful runs save synthetic screenshots in
-`/tmp/crm-browser-output`.
+pagination and read-only behavior. `operator-scenarios.mjs` additionally covers
+open/cancel/reopen/reuse, no-inbound template policy, preview dismissal, explicit
+template serialization, audit evidence, observation, accepted-send finalization
+and absent-request cancellation/reload. The automated suite manages its own
+failure modes and requires the default `success`/`open` settings. Successful runs
+save synthetic screenshots in `/tmp/crm-browser-output`.
 
-**Verification status:** HTTP boundary tests, bundling and typechecking were run
-successfully. The automated browser runner was not executed in this environment,
+**Verification status:** 27 HTTP boundary tests, build-only bundling, syntax checks,
+typechecking and fixture lint were run successfully. The automated browser runner
+was not executed in this environment,
 where browser operation must use CUA. No automated browser pass or new screenshot
 is claimed by those checks. Any separate manual CUA results must be reported
 independently. The synthetic server does not prove production RLS, authentication,

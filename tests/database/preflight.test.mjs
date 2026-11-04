@@ -121,3 +121,22 @@ test('preflight exposes unsafe outbox grants and RLS plus missing message write 
     }
   } finally {await db.close();}
 });
+
+test('preflight inventories recovery and template schema, grants and inbound evidence after600/700',async()=>{
+ const db=new PGlite();try{
+  await db.exec(await load('./fixture.sql'));await db.exec(await load('../../supabase/migrations/20261103030000_crm_foundation.sql'));
+  await db.exec(`alter table org_members add column role text default 'admin';alter table channels add column waba_id text;
+    alter table crm_messages add column direction text,add column content text,add column message_type text,add column status text,add column sent_by uuid;`);
+  for(const name of ['50000_crm_outbound_requests','60000_crm_outbound_reconciliation','70000_whatsapp_window_templates'])await db.exec(await load(`../../supabase/migrations/202611030${name}.sql`));
+  const result=await audit(db);
+  for(const table of ['crm_outbound_cancellations','crm_outbound_reconciliations']){assert.equal(find(result.rows,`${table}.rls`)?.status,'enabled');assert.equal(find(result.rows,`${table}.authenticated`)?.details.truncate,false);assert.equal(find(result.rows,`${table}.authenticated`)?.details.insert,false)}
+  for(const column of ['org_members.role','channels.waba_id','crm_outbound_requests.message_kind','crm_outbound_requests.template_payload','crm_outbound_reconciliations.evidence','crm_outbound_cancellations.cancelled_by'])assert.equal(find(result.rows,column)?.status,'present');
+  assert.equal(find(result.rows,'get_crm_whatsapp_window(uuid, uuid, uuid).authenticated')?.details.execute,false);
+  assert.equal(find(result.rows,'reconcile_crm_outbound_request(uuid, uuid, uuid, text, text).service_role')?.details.execute,true);
+  assert.equal(find(result.rows,'claim_crm_outbound_request(uuid, uuid, uuid, uuid, text, text, jsonb).authenticated')?.details.execute,false);
+  assert.equal(find(result.rows,'crm_outbound_requests.template_payload.authenticated')?.details.select,true);
+  assert.equal(find(result.notices,'inbound_invalid_timestamp')?.count,0);
+  await db.exec(`update crm_messages set direction='inbound',created_at=clock_timestamp()+interval '1 hour';grant insert on crm_outbound_reconciliations to authenticated;grant execute on function get_crm_whatsapp_window(uuid,uuid,uuid) to anon;`);
+  const unsafe=await audit(db);assert.equal(find(unsafe.notices,'inbound_invalid_timestamp')?.count,1);assert.equal(find(unsafe.rows,'crm_outbound_reconciliations.authenticated')?.details.insert,true);assert.equal(find(unsafe.rows,'get_crm_whatsapp_window(uuid, uuid, uuid).anon')?.details.execute,true);
+ }finally{await db.close()}
+});

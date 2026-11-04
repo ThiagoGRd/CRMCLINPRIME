@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/components/org-context";
 import { CC_BADGE, STAGE_FALLBACK_COLORS, type Lead, type Stage } from "@/lib/funil";
 import { formatCurrency, formatPhoneDisplay, MES_ABREV } from "@/lib/format";
+import { moveLeadStage } from "@/lib/funil-move";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -116,6 +117,7 @@ export function FunilBoard({
   const [month, setMonth] = useState("all");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [ficha, setFicha] = useState<Lead | null>(null);
+  const pendingMoves = useRef(new Set<string>());
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const firstStageId = stages[0]?.id;
@@ -151,24 +153,19 @@ export function FunilBoard({
     const lead = leads.find((l) => l.id === leadId);
     if (!lead || lead.stageId === targetStageId) return;
 
-    const stageName = stages.find((s) => s.id === targetStageId)?.name ?? "";
-    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, stageId: targetStageId } : l)));
+    const targetStage = stages.find((stage) => stage.id === targetStageId);
+    if (!targetStage) return;
 
-    const supabase = createClient();
-    try {
-      if (lead.dealId) {
-        await supabase.from("deals").update({ stage_id: targetStageId, moved_at: new Date().toISOString() }).eq("id", lead.dealId);
-      } else {
-        const { data } = await supabase
-          .from("deals")
-          .insert({ patient_id: leadId, stage_id: targetStageId, org_id: org.id, position: 0, moved_at: new Date().toISOString() })
-          .select("id")
-          .single();
-        if (data) setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, dealId: data.id } : l)));
-      }
-      toast.success(`Movido para: ${stageName}`);
-    } catch {
-      toast.error("Erro ao mover no servidor");
+    const result = await moveLeadStage({
+      client: createClient(), orgId: org.id, lead, targetStageId,
+      pendingMoves: pendingMoves.current, setLeads,
+    });
+    if (result.status === "moved") {
+      toast.success(`Movido para: ${targetStage.name}`);
+    } else if (result.status === "failed") {
+      toast.error("Não foi possível confirmar a mudança de etapa. Confira o funil antes de tentar novamente.");
+    } else {
+      toast.info("Aguarde a mudança de etapa em andamento.");
     }
   }
 

@@ -15,25 +15,36 @@ SELECT 'environment' AS section, 'audit_context' AS check_id, 'review' AS status
     'wal_level',current_setting('wal_level'),
     'role',current_user) AS details;
 
--- Required predecessor columns used by migration 300 and its stored functions.
+-- Required predecessor and operational columns used by migrations 300–700.
+-- New operational tables/columns are expected to be absent before their migration.
 -- Types are reported rather than silently coerced; review_type is not a pass.
 WITH expected(table_name,column_name,expected_type) AS (VALUES
   ('organizations','id','uuid'),
-  ('org_members','org_id','uuid'),('org_members','user_id','uuid'),
+  ('org_members','org_id','uuid'),('org_members','user_id','uuid'),('org_members','role','text'),
   ('crm_patients','id','uuid'),('crm_patients','org_id','uuid'),
   ('crm_patients','name','text'),('crm_patients','phone','text'),
   ('crm_patients','source','text'),('crm_patients','channel','text'),
   ('crm_patients','created_at','timestamp with time zone'),
   ('crm_patients','last_message_at','timestamp with time zone'),
   ('channels','id','uuid'),('channels','org_id','uuid'),
-  ('channels','type','text'),('channels','status','text'),('channels','phone_number_id','text'),
+  ('channels','type','text'),('channels','status','text'),('channels','phone_number_id','text'),('channels','waba_id','text'),
   ('crm_messages','id','uuid'),('crm_messages','org_id','uuid'),
   ('crm_messages','patient_id','uuid'),('crm_messages','channel_id','uuid'),
   ('crm_messages','whatsapp_message_id','text'),('crm_messages','created_at','timestamp with time zone'),
   ('crm_messages','direction','text'),('crm_messages','content','text'),
   ('crm_messages','message_type','text'),('crm_messages','status','text'),('crm_messages','sent_by','uuid'),
   ('crm_pipeline_stages','id','uuid'),('crm_pipeline_stages','org_id','uuid'),('crm_pipeline_stages','position','integer'),
-  ('crm_deals','id','uuid'),('crm_deals','org_id','uuid'),('crm_deals','patient_id','uuid'),('crm_deals','stage_id','uuid')
+  ('crm_deals','id','uuid'),('crm_deals','org_id','uuid'),('crm_deals','patient_id','uuid'),('crm_deals','stage_id','uuid'),
+  ('crm_outbound_requests','message_kind','text'),('crm_outbound_requests','template_payload','jsonb'),
+  ('crm_outbound_cancellations','request_id','uuid'),('crm_outbound_cancellations','org_id','uuid'),
+  ('crm_outbound_cancellations','conversation_id','uuid'),('crm_outbound_cancellations','cancelled_by','uuid'),
+  ('crm_outbound_cancellations','created_at','timestamp with time zone'),
+  ('crm_outbound_reconciliations','id','uuid'),('crm_outbound_reconciliations','request_id','uuid'),
+  ('crm_outbound_reconciliations','org_id','uuid'),('crm_outbound_reconciliations','conversation_id','uuid'),
+  ('crm_outbound_reconciliations','actor_id','uuid'),('crm_outbound_reconciliations','operation','text'),
+  ('crm_outbound_reconciliations','evidence','text'),('crm_outbound_reconciliations','previous_state','text'),
+  ('crm_outbound_reconciliations','resulting_state','text'),('crm_outbound_reconciliations','provider_message_id','text'),
+  ('crm_outbound_reconciliations','message_id','uuid'),('crm_outbound_reconciliations','created_at','timestamp with time zone')
 )
 SELECT 'predecessor_columns' AS section, e.table_name||'.'||e.column_name AS check_id,
   CASE WHEN a.attname IS NULL THEN 'missing'
@@ -68,7 +79,7 @@ SELECT 'roles' AS section,e.role_name AS check_id,
 FROM expected e LEFT JOIN pg_roles r ON r.rolname=e.role_name ORDER BY check_id;
 
 WITH expected(table_name) AS (VALUES ('organizations'),('org_members'),('channels'),('channel_secrets'),
-  ('crm_patients'),('crm_messages'),('crm_pipeline_stages'),('crm_deals'),('crm_conversations'),('crm_pending_items'),('crm_outbound_requests'))
+  ('crm_patients'),('crm_messages'),('crm_pipeline_stages'),('crm_deals'),('crm_conversations'),('crm_pending_items'),('crm_outbound_requests'),('crm_outbound_cancellations'),('crm_outbound_reconciliations'))
 SELECT 'rls' AS section,e.table_name||'.rls' AS check_id,
   CASE WHEN c.oid IS NULL THEN 'missing' WHEN c.relrowsecurity THEN 'enabled' ELSE 'disabled' END AS status,
   jsonb_build_object('forced',c.relforcerowsecurity,'owner',pg_get_userbyid(c.relowner),
@@ -80,10 +91,10 @@ SELECT 'policies' AS section,tablename||'.'||policyname AS check_id,'review' AS 
     'permissive',permissive,'using',qual,'with_check',with_check) AS details
 FROM pg_policies WHERE schemaname='public' AND tablename IN
   ('organizations','org_members','channels','channel_secrets','crm_patients','crm_messages',
-   'crm_pipeline_stages','crm_deals','crm_conversations','crm_pending_items','crm_outbound_requests') ORDER BY check_id;
+   'crm_pipeline_stages','crm_deals','crm_conversations','crm_pending_items','crm_outbound_requests','crm_outbound_cancellations','crm_outbound_reconciliations') ORDER BY check_id;
 
 WITH tables(table_name) AS (VALUES ('organizations'),('org_members'),('channels'),('channel_secrets'),
-  ('crm_patients'),('crm_messages'),('crm_pipeline_stages'),('crm_deals'),('crm_conversations'),('crm_pending_items'),('crm_outbound_requests')),
+  ('crm_patients'),('crm_messages'),('crm_pipeline_stages'),('crm_deals'),('crm_conversations'),('crm_pending_items'),('crm_outbound_requests'),('crm_outbound_cancellations'),('crm_outbound_reconciliations')),
 roles(role_name) AS (VALUES ('anon'),('authenticated'),('service_role'))
 SELECT 'privileges' AS section,t.table_name||'.'||r.role_name AS check_id,
   CASE WHEN c.oid IS NULL OR pr.oid IS NULL THEN 'missing' ELSE 'review' END AS status,
@@ -106,7 +117,7 @@ FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
 JOIN pg_attribute a ON a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped CROSS JOIN pg_roles r
 WHERE n.nspname='public' AND r.rolname IN ('anon','authenticated','service_role') AND c.relname IN
   ('org_members','channels','channel_secrets','crm_patients','crm_messages','crm_conversations',
-   'crm_pending_items','crm_outbound_requests') ORDER BY check_id;
+   'crm_pending_items','crm_outbound_requests','crm_outbound_cancellations','crm_outbound_reconciliations') ORDER BY check_id;
 
 SELECT 'default_privileges' AS section,pg_get_userbyid(d.defaclrole)||'.'||d.defaclobjtype::text AS check_id,'review' AS status,
   jsonb_build_object('schema',COALESCE(n.nspname,'all schemas'),'acl',d.defaclacl::text) AS details
@@ -118,7 +129,7 @@ SELECT 'constraints' AS section,c.relname||'.'||k.conname AS check_id,
   jsonb_build_object('definition',pg_get_constraintdef(k.oid),'type',k.contype) AS details
 FROM pg_constraint k JOIN pg_class c ON c.oid=k.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace
 WHERE n.nspname='public' AND c.relname IN ('org_members','channels','crm_patients','crm_messages',
-  'crm_pipeline_stages','crm_deals','crm_conversations','crm_pending_items','crm_outbound_requests') ORDER BY check_id;
+  'crm_pipeline_stages','crm_deals','crm_conversations','crm_pending_items','crm_outbound_requests','crm_outbound_cancellations','crm_outbound_reconciliations') ORDER BY check_id;
 
 SELECT 'indexes' AS section,i.relname AS check_id,
   CASE WHEN x.indisvalid AND x.indisready THEN 'valid' ELSE 'invalid' END AS status,
@@ -127,7 +138,7 @@ SELECT 'indexes' AS section,i.relname AS check_id,
 FROM pg_index x JOIN pg_class i ON i.oid=x.indexrelid JOIN pg_class c ON c.oid=x.indrelid
 JOIN pg_namespace n ON n.oid=c.relnamespace
 WHERE n.nspname='public' AND c.relname IN ('org_members','channels','crm_patients','crm_messages',
-  'crm_pipeline_stages','crm_deals','crm_conversations','crm_pending_items','crm_outbound_requests') ORDER BY check_id;
+  'crm_pipeline_stages','crm_deals','crm_conversations','crm_pending_items','crm_outbound_requests','crm_outbound_cancellations','crm_outbound_reconciliations') ORDER BY check_id;
 
 SELECT 'function_privileges' AS section,p.proname||'('||oidvectortypes(p.proargtypes)||').' || r.rolname AS check_id,
   'review' AS status,jsonb_build_object('execute',has_function_privilege(r.oid,p.oid,'EXECUTE'),
@@ -137,14 +148,15 @@ WHERE n.nspname='public' AND r.rolname IN ('anon','authenticated','service_role'
   ('crm_is_org_member','resolve_pending_item','ensure_whatsapp_patient','crm_guard_conversation_identity',
    'crm_guard_pending_item','crm_guard_pending_id','crm_link_message_conversation','crm_advance_conversation_activity',
    'claim_crm_outbound_request','complete_crm_outbound_request','finish_crm_outbound_request',
-   'get_crm_outbound_request','crm_outbound_result','crm_guard_outbound_request')
+   'get_crm_outbound_request','crm_outbound_result','crm_guard_outbound_request',
+   'reconcile_crm_outbound_request','crm_guard_outbound_history','get_crm_whatsapp_window')
 ORDER BY check_id;
 
 SELECT 'triggers' AS section,c.relname||'.'||t.tgname AS check_id,'review' AS status,
   jsonb_build_object('enabled',t.tgenabled,'definition',pg_get_triggerdef(t.oid)) AS details
 FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace
 WHERE NOT t.tgisinternal AND n.nspname='public' AND c.relname IN
-  ('org_members','channels','crm_patients','crm_messages','crm_deals','crm_conversations','crm_pending_items','crm_outbound_requests') ORDER BY check_id;
+  ('org_members','channels','crm_patients','crm_messages','crm_deals','crm_conversations','crm_pending_items','crm_outbound_requests','crm_outbound_cancellations','crm_outbound_reconciliations') ORDER BY check_id;
 
 SELECT 'publication' AS section,'supabase_realtime' AS check_id,
   CASE WHEN p.oid IS NULL THEN 'missing' ELSE 'review' END AS status,
@@ -203,6 +215,10 @@ BEGIN
       'SELECT count(*) FROM public.crm_pending_items p LEFT JOIN public.crm_conversations c ON c.id=p.conversation_id AND c.org_id=p.org_id AND c.patient_id=p.patient_id WHERE c.id IS NULL',false),
     ('pending_assignee_outside_org',ARRAY['crm_pending_items.org_id','crm_pending_items.assigned_to','org_members.org_id','org_members.user_id'],
       'SELECT count(*) FROM public.crm_pending_items p WHERE NOT EXISTS (SELECT 1 FROM public.org_members m WHERE m.org_id=p.org_id AND m.user_id=p.assigned_to)',false),
+    ('inbound_invalid_timestamp',ARRAY['crm_messages.direction','crm_messages.created_at'],
+      'SELECT count(*) FROM public.crm_messages WHERE direction=''inbound'' AND (created_at IS NULL OR NOT isfinite(created_at) OR created_at>now())',false),
+    ('whatsapp_channels_without_waba',ARRAY['channels.type','channels.waba_id'],
+      'SELECT count(*) FROM public.channels WHERE type=''whatsapp_cloud'' AND nullif(btrim(waba_id),'''') IS NULL',true),
     ('channels_unclassified',ARRAY['channels.inbox_key'],
       'SELECT count(*) FROM public.channels WHERE inbox_key IS NULL',true)
   ) AS checks(check_id,required_columns,query_text,informational)

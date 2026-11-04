@@ -9,7 +9,11 @@ import { useOrg } from "@/components/org-context";
 import { CC_BADGE } from "@/lib/funil";
 import { formatPhoneDisplay, formatCurrency, formatDateBR } from "@/lib/format";
 import { INBOXES, resolveInboxSelection, conversationFromLink, filterConversations, mergeConversationMessage, restoreFailedDraft, type InboxKey } from "@/lib/inbox";
-import { classifySendResult, hasUnknownOutboundMarker, readOutboundMarkers, persistOutboundMarker, removeOutboundMarker, hasUnresolvedDuplicate, isUnresolvedOutbound, mergeOutboundAttempts, type OutboundAttempt, type OutboundState, type SendIntent } from "@/lib/outbound";
+import { acceptOutboundAttempt, outboundRequestBody, classifySendResult, hasUnknownOutboundMarker, readOutboundMarkers, persistOutboundMarker, removeOutboundMarker, hasUnresolvedDuplicate, isUnresolvedOutbound, mergeOutboundAttempts, type OutboundAttempt, type OutboundState, type SendIntent } from "@/lib/outbound";
+import { StartConversationPanel } from "@/components/inbox/start-conversation-panel";
+import { TemplatePicker } from "@/components/inbox/template-picker";
+import { serviceWindow, type TemplateIntent } from "@/supabase/functions/_shared/whatsapp-policy";
+import { OutboundReviewPanel } from "@/components/inbox/outbound-review-panel";
 import { PendingItemsPanel } from "@/components/pendencias/pending-items-panel";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -40,8 +44,11 @@ export function InboxClient() {
   const [sendingIds, setSendingIds] = useState<Set<string>>(new Set());
   const inFlight = useRef(new Set<string>());
   const [attempts, setAttempts] = useState<Record<string, OutboundAttempt>>({});
+  const confirmedResults=useRef<Record<string,OutboundAttempt>>({});
   const [checkingIds, setCheckingIds] = useState<Set<string>>(new Set());
   const checking = useRef(new Set<string>());
+  const [now,setNow]=useState(()=>Date.now());
+  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),30000);return()=>clearInterval(timer);},[]);
   const [showPanel, setShowPanel] = useState(true);
   const [tagInput, setTagInput] = useState('');
   const [qrOpen, setQrOpen] = useState(false);
@@ -112,11 +119,11 @@ export function InboxClient() {
       const all: OutboundAttempt[] = [];
       for (let start = 0;; start += 500) {
         const {data,error} = await supabase.from('crm_outbound_requests')
-          .select('request_id,conversation_id,channel_id,content,state,failure_code')
+          .select('request_id,conversation_id,channel_id,content,state,failure_code,provider_message_id,message_kind')
           .eq('org_id',org.id).eq('conversation_id',activeId!)
           .in('state',['pending','in_flight','uncertain']).order('created_at').order('request_id').range(start,start+499);
         if (error) throw error;
-        all.push(...(data ?? []).map(row => ({request_id:row.request_id,conversation_id:row.conversation_id,channel_id:row.channel_id,text:row.content,state:row.state as OutboundState,error:'Envio pendente de confirmação. Nenhum reenvio automático será feito.'})));
+        all.push(...(data ?? []).map(row => ({request_id:row.request_id,conversation_id:row.conversation_id,channel_id:row.channel_id,text:row.content,state:row.state as OutboundState,provider_message_id:row.provider_message_id,kind:row.message_kind,error:'Envio pendente de confirmação. Nenhum reenvio automático será feito.'})));
         if (!data || data.length < 500) break;
       }
       return all;
@@ -139,8 +146,8 @@ export function InboxClient() {
         let value: unknown=null;
         try {value=await invokeSend({request_id:marker.request_id,action:'status'});} catch { /* Retain identity after a read failure. */ }
         const result=classifySendResult(intent,value);
-        if (result.state==='sent' || result.state==='failed') removeOutboundMarker(localStorage,scope,marker.request_id);
-        else restored.push({...intent,state:result.state,error:result.error});
+        if (result.state==='sent' || result.state==='failed' || result.state==='cancelled') removeOutboundMarker(localStorage,scope,marker.request_id);
+        else restored.push({...intent,state:result.state,error:result.error,provider_message_id:result.provider_message_id});
       }
       return {scope,restored};
     },
@@ -171,6 +178,9 @@ export function InboxClient() {
     },
   });
   const messages = messagesQuery.data ?? [];
+  const lastInbound=messages.filter(message=>message.direction==='inbound').at(-1)?.created_at;
+  const windowState=serviceWindow(lastInbound,now);
+  const canSendText=canSend&&!messagesQuery.isPending&&!messagesQuery.error&&windowState.open;
   useEffect(() => {bottomRef.current?.scrollIntoView({behavior: 'smooth'});}, [messagesQuery.data]);
 
   useEffect(() => {
@@ -195,8 +205,13 @@ export function InboxClient() {
 
   async function recordSendResult(intent: SendIntent, value: unknown) {
     const result = classifySendResult(intent, value);
-    setAttempts(previous => ({...previous,[intent.request_id]:{...intent,state:result.state,error:result.error}}));
-    if ((result.state === 'sent' || result.state === 'failed') && recoveryQuery.data?.scope) {
+    const previous=confirmedResults.current[intent.request_id];
+    const next=acceptOutboundAttempt(previous,{...intent,state:result.state,error:result.error,provider_message_id:result.provider_message_id});
+    // A late original send/status response cannot undo an already confirmed recovery.
+    if (next===previous) return;
+    confirmedResults.current[intent.request_id]=next;
+    setAttempts(rows => ({...rows,[intent.request_id]:next}));
+    if ((result.state === 'sent' || result.state === 'failed' || result.state === 'cancelled') && recoveryQuery.data?.scope) {
       try {removeOutboundMarker(localStorage,recoveryQuery.data.scope,intent.request_id);} catch { /* Keep the marker for a later status-only recovery. */ }
       void qc.invalidateQueries({queryKey:['outbound-recovery',org.id,intent.conversation_id]});
     }
@@ -206,9 +221,12 @@ export function InboxClient() {
       void refreshConversations();
       void qc.invalidateQueries({queryKey:['inbox-messages',org.id,intent.conversation_id]});
       void qc.invalidateQueries({queryKey:['outbound-requests',org.id,intent.conversation_id]});
+    } else if (result.state === 'cancelled') {
+      toast.success('Tentativa cancelada antes do envio.');
+      void qc.invalidateQueries({queryKey:['outbound-requests',org.id,intent.conversation_id]});
     } else if (result.state === 'failed') {
       toast.error('Mensagem recusada', {description:result.error});
-      if (intent.text) setDrafts(previous => restoreFailedDraft(previous,intent.conversation_id,intent.text));
+      if (intent.text && intent.kind!=='template') setDrafts(previous => restoreFailedDraft(previous,intent.conversation_id,intent.text));
     } else {
       toast.warning('Envio ainda não confirmado', {description:result.error});
     }
@@ -221,9 +239,10 @@ export function InboxClient() {
     return detail ?? null;
   }
 
-  async function send() {
-    if (!active || !text.trim() || !canSend || duplicateDraft || inFlight.current.has(active.id)) return;
-    const conversation=active; const content=text.trim();
+  async function send(template?:TemplateIntent):Promise<boolean> {
+    const content=template?.preview??text.trim();
+    if (!active || !content || !canSend || (!template&&!canSendText) || hasUnresolvedDuplicate(visibleAttempts,{conversation_id:active.id,channel_id:active.channel_id,text:content}) || inFlight.current.has(active.id)) return false;
+    const conversation=active;
     let intent: SendIntent | null=null; let invoked=false;
     inFlight.current.add(conversation.id);
     setSendingIds(new Set(inFlight.current));
@@ -235,20 +254,20 @@ export function InboxClient() {
       if (scope.userId!==recoveryQuery.data?.scope.userId) {
         void qc.invalidateQueries({queryKey:['outbound-recovery',org.id]});
         toast.warning('A sessão mudou. Aguarde a conferência das tentativas antes de enviar.');
-        return;
+        return false;
       }
       if (hasUnknownOutboundMarker(readOutboundMarkers(localStorage,scope),allAttempts,conversation.id)) {
         void qc.invalidateQueries({queryKey:['outbound-recovery',org.id,conversation.id]});
         toast.warning('Há uma tentativa anterior aguardando conferência. Nenhuma nova mensagem foi enviada.');
-        return;
+        return false;
       }
-      intent={request_id:crypto.randomUUID(),conversation_id:conversation.id,channel_id:conversation.channel_id,text:content};
+      intent={request_id:crypto.randomUUID(),conversation_id:conversation.id,channel_id:conversation.channel_id,text:content,...(template?{kind:'template' as const,template}:{})};
       persistOutboundMarker(localStorage,scope,intent);
       const saved=intent;
       setAttempts(previous=>({...previous,[saved.request_id]:{...saved,state:'pending'}}));
-      setDrafts(previous=>({...previous,[conversation.id]:''}));
+      if(!template)setDrafts(previous=>({...previous,[conversation.id]:''}));
       invoked=true;
-      await recordSendResult(intent,await invokeSend(intent));
+      await recordSendResult(intent,await invokeSend(outboundRequestBody(intent)));
     } catch {
       if (intent && invoked) await recordSendResult(intent,null);
       else toast.error('Envio bloqueado: não foi possível proteger a tentativa neste navegador. Nenhuma mensagem foi enviada.');
@@ -256,6 +275,7 @@ export function InboxClient() {
       inFlight.current.delete(conversation.id);
       setSendingIds(new Set(inFlight.current));
     }
+    return invoked;
   }
 
   async function checkAttempt(intent: SendIntent) {
@@ -313,12 +333,13 @@ export function InboxClient() {
       <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Caixas de atendimento">
         {INBOXES.map(item => <Button key={item.key} role="tab" aria-selected={sector === item.key} variant={sector === item.key ? 'default' : 'outline'} onClick={() => {setSelection({linkKey, id: null, sector: item.key}); setNumber('all'); setTagInput('');}}>{item.label}</Button>)}
         {channels.some(c => !c.inbox_key) && <Button role="tab" aria-selected={sector === 'unassigned'} variant={sector === 'unassigned' ? 'default' : 'outline'} onClick={() => {setSelection({linkKey, id: null, sector: 'unassigned'}); setNumber('all');}}>Sem setor</Button>}
+        <StartConversationPanel patientId={params.get('p')} onCreated={conversation=>{setSelection({linkKey,id:conversation.id,sector:conversation.inbox_key});setNumber('all');setSearch('');setTagInput('');}}/>
         <Link href="/historico-legado" className="ml-auto text-sm text-primary underline">Histórico sem canal</Link>
         <Link href="/pendencias" className="text-sm text-primary underline">Ver todas as pendências</Link>
         <Button variant="ghost" size="icon" aria-label="Atualizar conversas" onClick={() => {void refreshConversations(); void channelQuery.refetch(); void messagesQuery.refetch();}}><RefreshCw className="h-4 w-4"/></Button>
       </div>
       {error && <div role="alert" className="rounded-lg border border-red-500/40 p-3 text-sm text-red-400">Não foi possível carregar as caixas. Verifique se a migração da base operacional foi aplicada no ambiente de teste. {error.message}</div>}
-      {!currentSelection && params.get('p') && !linkedId && !conversationQuery.isPending && <div className="rounded-lg border border-amber-500/40 p-3 text-sm">Escolha o setor e a conversa deste paciente. Um link só com o paciente não escolhe um número automaticamente.</div>}
+      {!currentSelection && params.get('p') && !linkedId && !conversationQuery.isPending && <div className="rounded-lg border border-amber-500/40 p-3 text-sm">Escolha uma conversa ou use “Abrir conversa para este paciente” e selecione o número. O link do paciente não escolhe um número automaticamente.</div>}
       {sector === 'unassigned' && <div className="text-sm text-amber-400">Classifique estes números em <Link href="/conexoes" className="underline">Conexões</Link> antes de responder. Mensagens antigas sem canal conhecido não são misturadas às caixas.</div>}
       <div className="flex min-h-[550px] flex-col gap-3 xl:h-[calc(100vh-230px)] xl:flex-row">
         <aside className="flex max-h-72 w-full shrink-0 flex-col rounded-xl xl:max-h-none xl:w-64 border border-border bg-card">
@@ -347,10 +368,12 @@ export function InboxClient() {
             {recoveryQuery.error && <p role="alert" className="border-t border-border p-3 text-sm text-red-400">{recoveryQuery.error.message} O envio permanece bloqueado.</p>}
             {outboundQuery.error && <p role="alert" className="border-t border-border p-3 text-sm text-red-400">Não foi possível verificar as tentativas de envio. Atualize o histórico antes de responder.</p>}
             {visibleAttempts.length > 0 && <div role="status" className="space-y-2 border-t border-amber-500/40 p-3 text-sm"><p className="font-semibold text-amber-400">Há envios sem confirmação</p><p className="text-xs text-muted-foreground">Confira o recebimento antes de repetir. Consultar uma tentativa não envia mensagens. A mesma mensagem fica bloqueada enquanto houver dúvida.</p>{visibleAttempts.map(attempt => <div key={attempt.request_id} className="rounded border border-border p-2"><p className="whitespace-pre-wrap break-words">{attempt.text || 'Tentativa recuperada após recarga. O texto não é guardado neste navegador.'}</p><p className="my-1 text-xs text-muted-foreground">{attempt.error ?? 'Aguardando confirmação.'}</p><Button variant="outline" disabled={checkingIds.has(attempt.request_id) || sendingIds.has(attempt.conversation_id)} onClick={() => void checkAttempt(attempt)}>Consultar tentativa</Button></div>)}</div>}
+            <OutboundReviewPanel key={active.id} conversationId={active.id} attempts={visibleAttempts} memberName={memberName} onApplied={recordSendResult}/>
             {unknownRestoredAttempt && <p className="px-3 py-2 text-xs text-amber-400">Uma tentativa anterior ainda não foi localizada ou confirmada. Novos envios nesta conversa estão bloqueados para evitar duplicação.</p>}
             {duplicateDraft && <p className="px-3 py-2 text-xs text-amber-400">Esta mensagem já tem uma tentativa sem confirmação. Consulte-a acima, sem reenviar.</p>}
             {!routeReady && <p className="border-t border-border px-3 py-2 text-xs text-amber-400">Envio indisponível: este número precisa de setor definido, conexão ativa e integração oficial compatível. Nenhum outro número será usado.</p>}
-            <div className="flex gap-2 border-t border-border p-3"><Button variant="ghost" size="icon" aria-label="Respostas rápidas" onClick={() => setQrOpen(true)}><Zap className="h-4 w-4"/></Button><Input ref={inputRef} aria-label="Mensagem" value={text} onChange={e => updateDraft(e.target.value)} maxLength={4096} onKeyDown={e => {if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !qrFiltered.length) {e.preventDefault(); void send();}}} placeholder="Mensagem (/ para respostas rápidas)"/><Button size="icon" aria-label="Enviar mensagem" onClick={() => void send()} disabled={!canSend || duplicateDraft || sendingIds.has(active.id) || !text.trim()}><Send className="h-4 w-4"/></Button></div>
+            <div className="flex flex-wrap items-center gap-2 border-t border-border px-3 py-2"><p className="flex-1 text-xs text-muted-foreground">{messagesQuery.isPending?'Verificando janela de atendimento...':windowState.open?`Texto livre disponível até ${new Date(windowState.expires_at!).toLocaleString('pt-BR')}.`:'Fora da janela de 24 horas da última mensagem deste paciente neste número. Use um template aprovado.'}</p><TemplatePicker key={active.id} conversationId={active.id} channelId={active.channel_id} disabled={!canSend||sendingIds.has(active.id)} onSend={send}/></div>
+            <div className="flex gap-2 border-t border-border p-3"><Button variant="ghost" size="icon" aria-label="Respostas rápidas" onClick={() => setQrOpen(true)}><Zap className="h-4 w-4"/></Button><Input ref={inputRef} aria-label="Mensagem" value={text} onChange={e => updateDraft(e.target.value)} maxLength={4096} onKeyDown={e => {if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !qrFiltered.length) {e.preventDefault(); void send();}}} placeholder="Mensagem (/ para respostas rápidas)"/><Button size="icon" aria-label="Enviar mensagem" onClick={() => void send()} disabled={!canSendText || duplicateDraft || sendingIds.has(active.id) || !text.trim()}><Send className="h-4 w-4"/></Button></div>
           </>}
         </section>
         {active && showPanel && <aside className="flex w-full shrink-0 flex-col gap-5 xl:w-80 overflow-y-auto rounded-xl border border-border bg-card p-4">

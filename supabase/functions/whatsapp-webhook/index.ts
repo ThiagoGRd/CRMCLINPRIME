@@ -81,9 +81,16 @@ Deno.serve(async (req) => {
 });
 
 async function saveMessage(admin: SupabaseClient, channel: { id: string; org_id: string }, waId: string, name: string | null, m: WebhookMessage, direction: 'inbound' | 'outbound') {
+  // Never replace missing/invalid inbound evidence with the ingestion clock:
+  // doing so would falsely grant a fresh 24-hour customer service window.
+  // Validate before creating patients, deals, conversations or message rows.
+  const seconds = typeof m.timestamp === 'number' ? m.timestamp
+    : typeof m.timestamp === 'string' && /^[0-9]+$/.test(m.timestamp) ? Number(m.timestamp) : NaN;
+  const validTimestamp = Number.isSafeInteger(seconds) && seconds > 0 && seconds * 1000 <= Date.now();
+  if (direction === 'inbound' && !validTimestamp) throw new Error('inbound timestamp invalid');
+  const ts = validTimestamp ? new Date(seconds * 1000).toISOString() : new Date().toISOString();
   const patientId = await findOrCreatePatient(admin, channel.org_id, waId, name);
   const p = parseMessage(m);
-  const ts = m.timestamp ? new Date(Number(m.timestamp) * 1000).toISOString() : new Date().toISOString();
   const { error } = await admin.from('crm_messages').upsert({
     org_id: channel.org_id, patient_id: patientId, channel_id: channel.id, direction,
     content: p.content, message_type: p.type, status: direction === 'inbound' ? 'received' : 'sent',

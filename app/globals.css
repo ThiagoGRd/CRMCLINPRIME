@@ -108,3 +108,18 @@
     font-family: var(--font-heading);
   }
 }
+
+/* Mobile access to the existing CRM navigation. Desktop appearance is unchanged. */
+.crm-app-shell { position: relative; }
+.crm-mobile-menu, .crm-mobile-backdrop { display: none; }
+@media (max-width: 760px) {
+  .crm-mobile-menu { display: flex; position: absolute; top: 12px; left: 14px; z-index: 43; width: 36px; height: 36px; align-items: center; justify-content: center; background: var(--sidebar); border: 1px solid var(--border); border-radius: 8px; color: var(--foreground); }
+  .crm-mobile-backdrop { display: block; position: fixed; inset: 0; background: #0009; z-index: 41; }
+  .crm-app-shell > aside { position: fixed; left: 0; top: 0; bottom: 0; width: 264px; z-index: 42; transform: translateX(-100%); visibility: hidden; transition: transform .15s ease; }
+  .crm-app-shell[data-menu-open=true] > aside { transform: translateX(0); visibility: visible; }
+  .crm-app-shell[data-menu-open=true] .crm-mobile-menu { position: fixed; top: 16px; left: 218px; }
+  .crm-app-shell > div > header { padding: 12px 14px 12px 62px; height: auto; min-height: 76px; gap: 8px; flex-wrap: wrap; }
+  .crm-app-shell header h1 { font-size: 21px; }
+  .crm-app-shell header p { font-size: 12px; }
+  .crm-app-shell main { padding: 16px; }
+}

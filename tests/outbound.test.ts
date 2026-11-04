@@ -68,3 +68,25 @@ test('concurrent tab markers cannot overwrite each other or be lost when another
   outbound.removeOutboundMarker(storage,scope,'request-a');
   assert.deepEqual(outbound.readOutboundMarkers(storage,scope).map(row=>row.request_id),['request-b']);
 });
+test('audited cancellation is terminal and permits marker cleanup without inventing a message',()=>{
+  assert.equal(outbound.classifySendResult(intent,{request_id:intent.request_id,state:'cancelled'}).state,'cancelled');
+  assert.equal(outbound.isUnresolvedOutbound({state:'cancelled'}),false);
+});
+test('template transport binds the visible preview without falling back to a free-text message',()=>{
+  assert.equal(typeof outbound.outboundRequestBody,'function');
+  const template={name:'retorno',language:'pt_BR',header:[],body:['Pessoa'],preview:'Olá Pessoa'};
+  assert.deepEqual(outbound.outboundRequestBody({...intent,text:template.preview,kind:'template',template}),{request_id:intent.request_id,conversation_id:intent.conversation_id,channel_id:intent.channel_id,kind:'template',template});
+  assert.deepEqual(outbound.outboundRequestBody(intent),intent);
+  assert.throws(()=>outbound.outboundRequestBody({...intent,kind:'template'}));
+  assert.throws(()=>outbound.outboundRequestBody({...intent,kind:'template',template}));
+});
+test('status polls retain durable provider acceptance evidence for audited finalization',()=>{
+ const accepted={...intent,state:'uncertain' as const,provider_message_id:'wamid.accepted'};
+ assert.equal(outbound.mergeOutboundAttempts([accepted],[{...intent,state:'uncertain'}])[0].provider_message_id,'wamid.accepted');
+ assert.equal(outbound.mergeOutboundAttempts([{...intent,state:'uncertain'}],[accepted])[0].provider_message_id,'wamid.accepted');
+});
+test('late local send or lookup results cannot regress a settled cancellation or sent confirmation',()=>{
+ assert.equal(typeof outbound.acceptOutboundAttempt,'function');
+ for(const state of ['cancelled','sent','failed'] as const){const terminal={...intent,state};assert.equal(outbound.acceptOutboundAttempt(terminal,{...intent,state:'uncertain'}),terminal);assert.equal(outbound.acceptOutboundAttempt(terminal,{...intent,state:'pending'}),terminal);}
+ assert.equal(outbound.acceptOutboundAttempt({...intent,state:'uncertain'},{...intent,state:'sent'}).state,'sent');
+});

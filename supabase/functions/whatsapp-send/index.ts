@@ -4,6 +4,8 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { localToWa } from '../_shared/wa.ts';
 import { validateSendRoute } from '../_shared/routing.ts';
 import { outboundResponse, readProviderOutcome, type OutboundResult } from '../_shared/outbound.ts';
+import { normalizeTemplateIntent, prepareTemplateSend, PolicyError } from '../_shared/whatsapp-policy.ts';
+import { loadTextTemplateCatalog } from '../_shared/whatsapp-catalog.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -43,8 +45,42 @@ Deno.serve(async (req) => {
       if (error || !data) return json({ request_id, error: 'Não foi possível consultar esta tentativa.', retryable: false }, 503);
       return resultResponse(data, true);
     }
+    if (action === 'reconcile') {
+      const { operation, evidence } = input;
+      if (typeof conversation_id !== 'string' || !UUID.test(conversation_id) ||
+          !['finalize', 'cancel', 'observe'].includes(operation) ||
+          typeof evidence !== 'string' || !evidence.trim() || evidence.length > 2000) {
+        return json({ error: 'Conversa, operação e evidência de até 2000 caracteres obrigatórias.' }, 400);
+      }
+      // Identity comes from verified authentication, never from request actor/role fields.
+      // Recovery has no dependency on provider credentials, channel status or transport.
+      const { data, error } = await admin.rpc('reconcile_crm_outbound_request', {
+        p_request_id: request_id, p_user_id: user.id, p_conversation_id: conversation_id,
+        p_operation: operation, p_evidence: evidence.trim(),
+      });
+      if (error || !data) {
+        const code = error?.message ?? '';
+        if (code.includes('outbound_access_denied')) return json({ error: 'Apenas administradores desta organização podem registrar a conferência.' }, 403);
+        if (code.includes('outbound_request_not_found')) return json({ request_id, error: 'Tentativa não encontrada para esta operação.', retryable: false }, 404);
+        if (code.includes('outbound_cancel_unsafe')) return json({ request_id, error: 'O envio já foi iniciado. Não é seguro cancelar ou criar outra tentativa sem conferir o resultado.', retryable: false }, 409);
+        if (code.includes('outbound_acceptance_required')) return json({ request_id, error: 'Não há confirmação durável do WhatsApp para registrar esta mensagem.', retryable: false }, 409);
+        if (code.includes('outbound_request_conflict') || code.includes('outbound_observation_unavailable')) return json({ request_id, error: 'Esta operação não corresponde ao estado ou à conversa da tentativa.', retryable: false }, 409);
+        if (code.includes('outbound_evidence_required') || code.includes('outbound_input_invalid')) return json({ request_id, error: 'Operação ou evidência inválida.', retryable: false }, 400);
+        return json({ request_id, error: 'Não foi possível confirmar a conferência. Consulte esta tentativa antes de continuar.', retryable: false }, 503);
+      }
+      // Successful audit is HTTP success even if delivery remains uncertain.
+      return json(outboundResponse(data, true).body, 200);
+    }
     if (action !== undefined) return json({ error: 'ação inválida' }, 400);
-    const body = typeof text === 'string' ? text.trim() : '';
+    const kind = input.kind ?? 'text';
+    if (!['text', 'template'].includes(kind) || (kind === 'text' && input.template !== undefined) ||
+        (kind === 'template' && text !== undefined)) return json({ request_id, error: 'Tipo de mensagem inválido.', retryable: false }, 400);
+    let templateIntent: ReturnType<typeof normalizeTemplateIntent> | null = null;
+    if (kind === 'template') {
+      try { templateIntent = normalizeTemplateIntent(input.template); }
+      catch (error) { return json({ request_id, code: error instanceof PolicyError ? error.code : 'template_input_invalid', error: 'Template ou variáveis inválidos.', retryable: false }, 400); }
+    }
+    let body = kind === 'text' ? (typeof text === 'string' ? text.trim() : '') : templateIntent!.preview;
     if (typeof conversation_id !== 'string' || !UUID.test(conversation_id) ||
         typeof channel_id !== 'string' || !UUID.test(channel_id) || !body) {
       return json({ error: 'conversation_id, channel_id e texto obrigatórios' }, 400);
@@ -57,7 +93,7 @@ Deno.serve(async (req) => {
     const { data: member, error: memberError } = await admin.from('org_members').select('org_id')
       .eq('user_id', user.id).eq('org_id', conversation.org_id).maybeSingle();
     if (memberError || !member) return json({ error: 'sem acesso' }, 403);
-    const { data: channel, error: channelError } = await admin.from('channels').select('id,org_id,type,status,phone_number_id,inbox_key')
+    const { data: channel, error: channelError } = await admin.from('channels').select('id,org_id,type,status,phone_number_id,inbox_key,waba_id')
       .eq('id', channel_id).eq('org_id', conversation.org_id).maybeSingle();
     const routeError = validateSendRoute({ conversation_id, channel_id }, conversation, channel);
     if (channelError || routeError || !channel) return json({ error: routeError ?? 'canal indisponível' }, 409);
@@ -69,11 +105,26 @@ Deno.serve(async (req) => {
     const token = secret?.access_token ?? TOKEN;
     if (!token) return json({ error: 'número sem token de acesso' }, 503);
 
+    let preparedTemplate: ReturnType<typeof prepareTemplateSend> | null = null;
+    if (templateIntent) {
+      try {
+        const catalog = await loadTextTemplateCatalog({ graph: GRAPH, token, wabaId: channel.waba_id, phoneNumberId: channel.phone_number_id });
+        preparedTemplate = prepareTemplateSend(catalog, templateIntent);
+        body = preparedTemplate.content;
+      } catch (error) {
+        const unavailable = !(error instanceof PolicyError) || error.code === 'template_catalog_unavailable';
+        return json({ request_id, code: error instanceof PolicyError ? error.code : 'template_catalog_unavailable',
+          error: error instanceof PolicyError ? error.message : 'Não foi possível verificar os templates deste canal.', retryable: false }, unavailable ? 503 : 409);
+      }
+    }
+
     const { data: claim, error: claimError } = await admin.rpc('claim_crm_outbound_request', {
       p_request_id: request_id, p_user_id: user.id, p_conversation_id: conversation_id, p_channel_id: channel_id, p_content: body,
+      p_message_kind: kind, p_template_payload: preparedTemplate?.templatePayload ?? null,
     });
     if (claimError) {
       const code = claimError.message;
+      if (code?.includes('outbound_window_closed')) return json({ request_id, code: 'outside_service_window', error: 'Mais de 24h sem mensagem do paciente neste canal: use um template aprovado.', retryable: false }, 422);
       if (code?.includes('outbound_request_conflict')) return json({ request_id, error: 'Esta tentativa já pertence a outra mensagem, conversa ou usuário.', retryable: false }, 409);
       if (code?.includes('outbound_access_denied')) return json({ error: 'sem acesso' }, 403);
       if (code?.includes('outbound_route_unavailable')) return json({ error: 'canal indisponível' }, 409);
@@ -99,7 +150,8 @@ Deno.serve(async (req) => {
       const response = await fetch(`${GRAPH}/${channel.phone_number_id}/messages`, {
         method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15_000),
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messaging_product: 'whatsapp', to: localToWa(patient.phone), type: 'text', text: { body } }),
+        body: JSON.stringify({ messaging_product: 'whatsapp', to: localToWa(patient.phone),
+          ...(preparedTemplate ? { type: 'template', template: preparedTemplate.providerTemplate } : { type: 'text', text: { body } }) }),
       });
       outcome = await readProviderOutcome(response);
     } catch {

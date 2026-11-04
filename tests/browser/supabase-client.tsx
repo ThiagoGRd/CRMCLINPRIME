@@ -1,6 +1,7 @@
 // Test-only adapter: preserve the actual Supabase request builder/HTTP transport.
 // Authentication is a synthetic, non-persisted identity. It cannot access a real project.
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
+import { fixtureIds } from './fixture-identities';
 import { createClient as createRealClient } from '../../lib/supabase/client';
 
 let client: SupabaseClient | undefined;
@@ -14,7 +15,7 @@ export function createClient(): SupabaseClient {
     expires_at:Math.floor(Date.now()/1000)+86400,
     token_type:'bearer',
     user:{
-      id:'00000000-0000-4000-8000-000000000011',
+      id:fixtureIds.user,
       aud:'authenticated',role:'authenticated',
       app_metadata:{},user_metadata:{},
       created_at:'2026-11-01T10:00:00Z',
