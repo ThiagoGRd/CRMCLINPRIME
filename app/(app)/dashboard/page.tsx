@@ -34,12 +34,19 @@ function computeWeekly(rows: { created_at: string }[], now: Date) {
 export default async function DashboardPage() {
   const supabase = await createClient();
   const org = await getMyOrg(supabase);
+  if (!org) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        Sua conta ainda não está vinculada a uma organização.
+      </div>
+    );
+  }
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth() + 1;
 
   const [{ data: mRaw }, { data: weekRows }, { data: events }, { data: recent }] = await Promise.all([
-    supabase.rpc("get_month_metrics", { p_org: org!.id, p_year: year, p_month: month }),
+    supabase.rpc("get_month_metrics", { p_org: org.id, p_year: year, p_month: month }),
     supabase
       .from("patients")
       .select("created_at")
