@@ -20,6 +20,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Search, Bot, User, Zap, X, PanelRight, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { ReceptionPilotPanel } from "./reception-pilot-panel";
+import { InboxMobileNavigation, inboxPaneClass, type InboxPane } from "./inbox-mobile-navigation";
 
 type Conversation = {
   id: string;
@@ -56,6 +58,7 @@ export function InboxClient() {
   const [sending, setSending] = useState(false);
   const [aiPaused, setAiPaused] = useState(false);
   const [showPanel, setShowPanel] = useState(true);
+  const [mobilePane, setMobilePane] = useState<InboxPane>("list");
   const [tagInput, setTagInput] = useState("");
   const [qrOpen, setQrOpen] = useState(false);
   const [qrForm, setQrForm] = useState({ shortcut: "", content: "" });
@@ -95,7 +98,7 @@ export function InboxClient() {
 
   useEffect(() => {
     const p = searchParams.get("p");
-    if (p) setActiveId(p);
+    if (p) { setActiveId(p); setMobilePane("chat"); }
   }, [searchParams]);
 
   // Histórico + status IA da conversa ativa
@@ -252,9 +255,12 @@ export function InboxClient() {
     (members ?? []).find((m) => m.user_id === uid)?.display_name ?? "Sem atendente";
 
   return (
-    <div className="flex h-[calc(100vh-160px)] gap-4">
+    <div className="flex h-[calc(100dvh-160px)] min-h-0 min-w-0 flex-col gap-2">
+      <ReceptionPilotPanel key={org.id} orgId={org.id} />
+      <InboxMobileNavigation view={mobilePane} hasPatient={Boolean(active)} onChange={setMobilePane} />
+      <div className="flex min-h-0 min-w-0 flex-1 gap-4">
       {/* Lista de conversas */}
-      <div className="flex w-80 shrink-0 flex-col rounded-xl border border-border bg-card">
+      <div className={`${inboxPaneClass("list", mobilePane)} min-h-0 w-full shrink-0 flex-col rounded-xl border border-border bg-card lg:w-80`}>
         <div className="relative p-3">
           <Search className="pointer-events-none absolute left-6 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar conversa..." className="pl-9" />
@@ -263,7 +269,7 @@ export function InboxClient() {
           {filteredConvs.map((c) => (
             <button
               key={c.id}
-              onClick={() => setActiveId(c.id)}
+              onClick={() => { setActiveId(c.id); setMobilePane("chat"); }}
               className={`flex w-full items-center gap-3 border-b border-white/[.04] px-3 py-3 text-left transition-colors hover:bg-white/[.03] ${
                 activeId === c.id ? "bg-primary/10" : ""
               }`}
@@ -286,14 +292,14 @@ export function InboxClient() {
       </div>
 
       {/* Conversa ativa */}
-      <div className="flex min-w-0 flex-1 flex-col rounded-xl border border-border bg-card">
+      <div className={`${inboxPaneClass("chat", mobilePane)} min-h-0 min-w-0 flex-1 flex-col rounded-xl border border-border bg-card`}>
         {!active ? (
           <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
             Selecione uma conversa
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-3.5 sm:px-5">
               <div className="min-w-0">
                 <div className="truncate font-heading font-semibold">{active.name}</div>
                 <div className="text-xs text-muted-foreground">
@@ -305,7 +311,7 @@ export function InboxClient() {
                   {aiPaused ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
                   {aiPaused ? "Você atendendo" : "IA ativa"}
                 </Button>
-                <Button variant="ghost" size="icon" title="Painel do paciente" onClick={() => setShowPanel((v) => !v)}>
+                <Button variant="ghost" size="icon" title="Painel do paciente" onClick={() => { setShowPanel((v) => !v); setMobilePane("details"); }}>
                   <PanelRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -370,8 +376,8 @@ export function InboxClient() {
       </div>
 
       {/* Painel lateral do paciente */}
-      {active && showPanel && (
-        <div className="flex w-72 shrink-0 flex-col gap-5 overflow-y-auto rounded-xl border border-border bg-card p-4">
+      {active && (showPanel || mobilePane === "details") && (
+        <div className={`${inboxPaneClass("details", mobilePane, showPanel)} min-h-0 w-full min-w-0 shrink-0 flex-col gap-5 overflow-y-auto rounded-xl border border-border bg-card p-4 lg:w-72`}>
           <div>
             <div className="font-heading text-sm font-bold">Paciente</div>
             <div className="mt-2.5 space-y-2">
@@ -433,6 +439,8 @@ export function InboxClient() {
           </div>
         </div>
       )}
+
+      </div>
 
       {/* Dialog gerenciar respostas rápidas */}
       <Dialog open={qrOpen} onOpenChange={setQrOpen}>
