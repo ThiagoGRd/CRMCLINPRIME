@@ -81,6 +81,12 @@ export function AppShell({
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-semibold">{org.displayName ?? "Usuário"}</div>
             <div className="truncate text-xs text-muted-foreground">{org.name ?? userEmail}</div>
+            <dl className="mt-2 text-xs">
+              <dt className="text-muted-foreground">Conta em uso</dt>
+              <dd className="select-text whitespace-normal [overflow-wrap:anywhere]">
+                {userEmail || "E-mail não identificado"}
+              </dd>
+            </dl>
           </div>
           <button
             onClick={logout}
