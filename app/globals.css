@@ -95,16 +95,38 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground selection:bg-primary/25 selection:text-primary-foreground;
     background-image:
-      radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.04) 0%, transparent 40%),
-      radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.03) 0%, transparent 45%);
+      radial-gradient(circle at 12% 15%, rgba(99, 102, 241, 0.065) 0%, transparent 42%),
+      radial-gradient(circle at 88% 85%, rgba(16, 185, 129, 0.045) 0%, transparent 45%);
     background-attachment: fixed;
   }
   html {
     @apply font-sans;
+    color-scheme: dark;
   }
   h1, h2, h3, h4, .font-heading {
     font-family: var(--font-heading);
+    letter-spacing: -0.015em;
   }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* Custom subtle scrollbars for dark clinical workspace */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
 }

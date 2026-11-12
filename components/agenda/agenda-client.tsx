@@ -76,12 +76,22 @@ export function AgendaClient() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <Button variant="outline" size="icon" onClick={() => move(-1)}><ChevronLeft className="h-4 w-4" /></Button>
-        <div className="font-heading text-lg font-bold">{MES_FULL[ref.m - 1]} / {ref.y}</div>
-        <Button variant="outline" size="icon" onClick={() => move(1)}><ChevronRight className="h-4 w-4" /></Button>
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.08] bg-card/80 p-3.5">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon-sm" onClick={() => move(-1)} title="Mês anterior">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="min-w-[160px] text-center font-heading text-base font-bold">
+            {MES_FULL[ref.m - 1]} / {ref.y}
+          </div>
+          <Button variant="outline" size="icon-sm" onClick={() => move(1)} title="Próximo mês">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
         <div className="flex-1" />
-        <span className="text-sm text-muted-foreground">{appts.length} consultas</span>
+        <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold tabular-nums text-muted-foreground">
+          {appts.length} consultas no mês
+        </span>
         <NewAppointmentDialog orgId={org.id} onCreated={() => qc.invalidateQueries({ queryKey: ["agenda"] })} />
       </div>
 
@@ -90,37 +100,74 @@ export function AgendaClient() {
       ) : byDate.length === 0 ? (
         <div className="py-10 text-center text-muted-foreground">Nenhuma consulta nesse mês.</div>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-6">
           {byDate.map(([date, list]) => (
             <div key={date}>
-              <div className="mb-2 text-sm font-semibold text-muted-foreground">
-                {date.split("-").reverse().join("/")}
+              <div className="mb-2.5 flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                <span>{date.split("-").reverse().join("/")}</span>
+                <span className="rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/80">
+                  {list.length} {list.length === 1 ? "horário" : "horários"}
+                </span>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {list.sort((a, b) => a.from.localeCompare(b.from)).map((a) => {
                   const st = ST[a.status] ?? ST.agendado;
+                  const isCompareceu = a.status === "compareceu";
+                  const isFaltou = a.status === "faltou";
                   return (
-                    <Card key={a.clinicorp_id} className="flex flex-row items-center gap-4 p-3.5">
-                      <div className="w-14 shrink-0 text-center">
-                        <div className="font-heading text-sm font-bold">{a.from}</div>
+                    <Card
+                      key={a.clinicorp_id}
+                      className="flex flex-wrap items-center gap-4 p-4 transition-all hover:border-white/15 sm:flex-nowrap"
+                    >
+                      <div className="flex w-16 shrink-0 flex-col items-center justify-center rounded-lg border border-white/[0.07] bg-white/[0.03] py-1.5 text-center">
+                        <div className="font-heading text-sm font-bold tabular-nums text-foreground">{a.from}</div>
+                        {a.to && <div className="text-[10px] tabular-nums text-muted-foreground">{a.to}</div>}
                       </div>
-                      <div className="h-8 w-1 rounded-full" style={{ background: a.color || "#6366f1" }} />
+                      <div className="h-9 w-1 shrink-0 rounded-full" style={{ background: a.color || "#6366f1" }} />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium">{a.patient}</div>
-                        <div className="truncate text-xs text-muted-foreground">
-                          {a.category || "—"} · {formatPhoneDisplay(a.phone)}
+                        <div className="truncate text-sm font-semibold text-foreground">{a.patient}</div>
+                        <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {a.category || "Consulta"} · {formatPhoneDisplay(a.phone)}
                         </div>
                       </div>
-                      <span className="shrink-0 text-xs font-semibold" style={{ color: st.color }}>{st.txt}</span>
-                      <div className="flex shrink-0 gap-1">
-                        <Button variant="ghost" size="icon" title="Compareceu" onClick={() => mark(a, "compareceu")}>
-                          <Check className="h-4 w-4 text-emerald-400" />
+                      <span
+                        className="shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold"
+                        style={{
+                          color: st.color,
+                          borderColor: `${st.color}40`,
+                          backgroundColor: `${st.color}15`,
+                        }}
+                      >
+                        {st.txt}
+                      </span>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <Button
+                          variant={isCompareceu ? "success" : "outline"}
+                          size="xs"
+                          title="Marcar presença"
+                          onClick={() => mark(a, "compareceu")}
+                        >
+                          <Check className="h-3.5 w-3.5 text-emerald-400" />
+                          <span className="hidden md:inline">Compareceu</span>
                         </Button>
-                        <Button variant="ghost" size="icon" title="Faltou" onClick={() => mark(a, "faltou")}>
-                          <X className="h-4 w-4 text-red-400" />
+                        <Button
+                          variant={isFaltou ? "destructive" : "outline"}
+                          size="xs"
+                          title="Marcar falta"
+                          onClick={() => mark(a, "faltou")}
+                        >
+                          <X className="h-3.5 w-3.5 text-red-400" />
+                          <span className="hidden md:inline">Faltou</span>
                         </Button>
-                        <Button variant="ghost" size="icon" title="Cancelar consulta" onClick={() => cancelAppt(a)}>
-                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          title="Cancelar consulta no Clinicorp"
+                          className="hover:border-red-500/30 hover:bg-red-500/15 hover:text-red-400"
+                          onClick={() => cancelAppt(a)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </Card>

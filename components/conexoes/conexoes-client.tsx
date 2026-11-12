@@ -207,20 +207,20 @@ export function ConexoesClient() {
         const port = ch.config?.port;
 
         return (
-          <Card key={ch.id} className="flex flex-row items-center gap-4 p-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
+          <Card key={ch.id} className="flex flex-row items-center gap-4 p-4 transition-all hover:border-white/15">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-emerald-500/25 bg-emerald-500/15 text-emerald-400 shadow-xs">
               {isVps ? <Server className="h-5 w-5" /> : <Smartphone className="h-5 w-5" />}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium">{ch.display_name}</span>
+                <span className="font-semibold text-foreground">{ch.display_name}</span>
                 {sectorLabel && (
                   <Badge variant="secondary" className="text-[11px]">
                     {sectorLabel}
                   </Badge>
                 )}
                 {isVps && (
-                  <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30">
+                  <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-[10px] text-emerald-300">
                     VPS · Porta {port}
                   </Badge>
                 )}
@@ -229,26 +229,39 @@ export function ConexoesClient() {
                 {displayPhone ? `${displayPhone} · instância: ${ch.instance_name}` : ch.instance_name}
               </div>
             </div>
-            <span className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: st.color }}>
+            <span
+              className="flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold"
+              style={{
+                color: st.color,
+                borderColor: `${st.color}40`,
+                backgroundColor: `${st.color}15`,
+              }}
+            >
               <span className="h-2 w-2 rounded-full" style={{ background: st.color }} /> {st.txt}
             </span>
             {ch.type !== "whatsapp_cloud" && (
-              <div className="flex shrink-0 gap-0.5">
+              <div className="flex shrink-0 gap-1">
                 {ch.status !== "connected" && !isVps && (
-                  <Button variant="ghost" size="icon" title="Mostrar QR Code" onClick={() => showQr(ch)}>
-                    <QrCode className="h-4 w-4" />
+                  <Button variant="outline" size="icon-xs" title="Mostrar QR Code" onClick={() => showQr(ch)}>
+                    <QrCode className="h-3.5 w-3.5" />
                   </Button>
                 )}
-                <Button variant="ghost" size="icon" title="Atualizar status ao vivo" onClick={() => refreshStatus(ch)}>
-                  <RefreshCw className="h-4 w-4" />
+                <Button variant="outline" size="icon-xs" title="Atualizar status ao vivo" onClick={() => refreshStatus(ch)}>
+                  <RefreshCw className="h-3.5 w-3.5" />
                 </Button>
                 {!isVps && (
                   <>
-                    <Button variant="ghost" size="icon" title="Desconectar" onClick={() => disconnect(ch)}>
-                      <Unplug className="h-4 w-4 text-amber-400" />
+                    <Button variant="outline" size="icon-xs" title="Desconectar" onClick={() => disconnect(ch)}>
+                      <Unplug className="h-3.5 w-3.5 text-amber-400" />
                     </Button>
-                    <Button variant="ghost" size="icon" title="Remover instância" onClick={() => removeChannel(ch)}>
-                      <Trash2 className="h-4 w-4 text-muted-foreground" />
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      title="Remover instância"
+                      className="hover:border-red-500/30 hover:bg-red-500/15 hover:text-red-400"
+                      onClick={() => removeChannel(ch)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </>
                 )}

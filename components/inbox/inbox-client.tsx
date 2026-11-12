@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Search, Bot, User, Zap, X, PanelRight, Plus, Trash2 } from "lucide-react";
+import { Send, Search, Bot, User, Zap, X, PanelRight, Plus, Trash2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { ReceptionPilotPanel } from "./reception-pilot-panel";
 import { InboxMobileNavigation, inboxPaneClass, type InboxPane } from "./inbox-mobile-navigation";
@@ -131,19 +131,25 @@ export function InboxClient() {
       .from("patients")
       .select("id,name,phone,tags,assigned_to,treatment_interest,source,clinicorp_status,clinicorp_amount,created_at,last_message_at")
       .order("last_message_at", { ascending: false, nullsFirst: false })
-      .limit(120);
+      .limit(350);
     const list = (data ?? []) as Conversation[];
-    setConvs(list);
+    setConvs((prev) => {
+      const currentActive = activeIdRef.current ? prev.find((c) => c.id === activeIdRef.current) : null;
+      if (currentActive && !list.some((c) => c.id === currentActive.id)) {
+        return [currentActive, ...list];
+      }
+      return list;
+    });
 
     if (list.length > 0) {
-      const ids = list.slice(0, 80).map((c) => c.id);
+      const ids = list.slice(0, 150).map((c) => c.id);
       const { data: msgChs } = await supabase
         .from("messages")
         .select("patient_id,channel_id")
         .in("patient_id", ids)
         .not("channel_id", "is", null)
         .order("created_at", { ascending: false })
-        .limit(500);
+        .limit(2000);
       const map: Record<string, string[]> = {};
       for (const row of msgChs ?? []) {
         const pid = row.patient_id as string;
@@ -167,11 +173,22 @@ export function InboxClient() {
     if (!activeId) { setMessages([]); return; }
     let cancelled = false;
     (async () => {
+      // Garantir que o paciente selecionado via ?p= esteja na lista convs mesmo se for antigo
+      const { data: pat } = await supabase
+        .from("patients")
+        .select("id,name,phone,tags,assigned_to,treatment_interest,source,clinicorp_status,clinicorp_amount,created_at,last_message_at")
+        .eq("id", activeId)
+        .maybeSingle();
+      if (!cancelled && pat) {
+        setConvs((prev) => (prev.some((c) => c.id === pat.id) ? prev : [pat as Conversation, ...prev]));
+      }
+
       const { data } = await supabase
         .from("messages")
         .select("id,patient_id,channel_id,direction,content,created_at")
         .eq("patient_id", activeId)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: true })
+        .limit(1000);
       if (!cancelled) {
         const rows = (data ?? []) as Message[];
         setMessages(rows);
@@ -183,9 +200,24 @@ export function InboxClient() {
         } else if (activeChannels[0]?.id) {
           setSendChannelId(activeChannels[0].id);
         }
+
+        // Se não houver mensagens no banco mas o paciente tiver telefone, busca histórico na VPS automaticamente
+        if (rows.length === 0 && pat?.phone) {
+          const { data: syncRes } = await supabase.functions.invoke("evolution-proxy", {
+            body: { action: "sync_history", payload: { patient_id: activeId, phone: pat.phone, org_id: org.id } },
+          });
+          if (!cancelled && (syncRes?.synced ?? 0) > 0) {
+            const { data: refreshed } = await supabase
+              .from("messages")
+              .select("id,patient_id,channel_id,direction,content,created_at")
+              .eq("patient_id", activeId)
+              .order("created_at", { ascending: true })
+              .limit(1000);
+            if (!cancelled && refreshed) setMessages(refreshed as Message[]);
+          }
+        }
       }
 
-      const { data: pat } = await supabase.from("patients").select("phone").eq("id", activeId).maybeSingle();
       const phone = String(pat?.phone ?? "").replace(/\D/g, "");
       if (phone) {
         const { data: chat } = await supabase
@@ -194,7 +226,7 @@ export function InboxClient() {
       }
     })();
     return () => { cancelled = true; };
-  }, [activeId, supabase, channelFilter, activeChannels]);
+  }, [activeId, supabase, channelFilter, activeChannels, org.id]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -259,6 +291,32 @@ export function InboxClient() {
       setText(content);
     } finally {
       setSending(false);
+    }
+  }
+
+  async function syncPatientHistory() {
+    if (!activeId) return;
+    const conv = convs.find((c) => c.id === activeId);
+    if (!conv?.phone) {
+      toast.error("Paciente sem telefone cadastrado");
+      return;
+    }
+    const tId = toast.loading("Sincronizando histórico de mensagens da VPS...");
+    try {
+      const { data: res, error } = await supabase.functions.invoke("evolution-proxy", {
+        body: { action: "sync_history", payload: { patient_id: activeId, phone: conv.phone, org_id: org.id } },
+      });
+      if (error || res?.error) throw new Error(res?.error ?? error?.message ?? "Erro ao sincronizar");
+      const { data: refreshed } = await supabase
+        .from("messages")
+        .select("id,patient_id,channel_id,direction,content,created_at")
+        .eq("patient_id", activeId)
+        .order("created_at", { ascending: true })
+        .limit(1000);
+      if (refreshed) setMessages(refreshed as Message[]);
+      toast.success(`Histórico sincronizado (${res?.found ?? 0} mensagens encontradas na VPS)`, { id: tId });
+    } catch (e) {
+      toast.error("Não foi possível puxar o histórico", { id: tId, description: String((e as Error).message) });
     }
   }
 
@@ -467,11 +525,15 @@ export function InboxClient() {
                     </SelectContent>
                   </Select>
                 )}
+                <Button variant="outline" size="sm" onClick={syncPatientHistory} title="Puxar histórico completo da VPS">
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Histórico</span>
+                </Button>
                 <Button variant={aiPaused ? "default" : "outline"} size="sm" onClick={toggleAi}>
                   {aiPaused ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
                   {aiPaused ? "Você atendendo" : "IA ativa"}
                 </Button>
-                <Button variant="ghost" size="icon" title="Painel do paciente" onClick={() => { setShowPanel((v) => !v); setMobilePane("details"); }}>
+                <Button variant="outline" size="icon-sm" title="Painel do paciente" onClick={() => { setShowPanel((v) => !v); setMobilePane("details"); }}>
                   <PanelRight className="h-4 w-4" />
                 </Button>
               </div>

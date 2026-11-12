@@ -140,29 +140,41 @@ export function AutomacoesClient() {
       {rules.map((r) => {
         const a = (r.actions ?? [])[0];
         return (
-          <Card key={r.id} className="flex flex-row items-center gap-4 p-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+          <Card key={r.id} className="flex flex-row items-center gap-4 p-4 transition-all hover:border-white/15">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/15 text-primary shadow-xs">
               <Workflow className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="font-medium">{r.name}</div>
-              <div className="truncate text-xs text-muted-foreground">
-                Quando <strong>{label(TRIGGERS, r.trigger_type)}</strong>
+              <div className="font-semibold text-foreground">{r.name}</div>
+              <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                Quando <strong className="text-foreground/90">{label(TRIGGERS, r.trigger_type)}</strong>
                 {r.conditions?.raw ? <> · se <em>{r.conditions.raw}</em></> : null}
-                {a ? <> → {label(ACTIONS, a.type)}</> : null}
+                {a ? <> → <span className="text-primary">{label(ACTIONS, a.type)}</span></> : null}
                 {r.runs_count ? ` · ${r.runs_count} execuções` : ""}
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <span className="text-xs font-semibold" style={{ color: r.is_active ? "#10b981" : undefined }}>
+            <div className="flex shrink-0 items-center gap-2">
+              <span
+                className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                  r.is_active
+                    ? "border-emerald-500/35 bg-emerald-500/15 text-emerald-400"
+                    : "border-white/10 bg-white/[0.04] text-muted-foreground"
+                }`}
+              >
                 {r.is_active ? "Ativa" : "Inativa"}
               </span>
               <Switch checked={r.is_active} onCheckedChange={(v) => toggle(r, v)} />
-              <Button variant="ghost" size="icon" title="Editar" onClick={() => edit(r)}>
-                <Pencil className="h-4 w-4" />
+              <Button variant="outline" size="icon-xs" title="Editar automação" onClick={() => edit(r)}>
+                <Pencil className="h-3.5 w-3.5" />
               </Button>
-              <Button variant="ghost" size="icon" title="Excluir" onClick={() => remove(r)}>
-                <Trash2 className="h-4 w-4 text-muted-foreground" />
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                title="Excluir automação"
+                className="hover:border-red-500/30 hover:bg-red-500/15 hover:text-red-400"
+                onClick={() => remove(r)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
           </Card>

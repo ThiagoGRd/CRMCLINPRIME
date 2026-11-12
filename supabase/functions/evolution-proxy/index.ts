@@ -206,8 +206,12 @@ Deno.serve(async (req: Request) => {
           if (!msgErr) synced = msgRows.length;
         }
 
-        for (const [patId, u] of patientUpdates.entries()) {
-          await supabaseAdmin.from('crm_patients').update(u).eq('id', patId);
+        const updateEntries = Array.from(patientUpdates.entries());
+        for (let i = 0; i < updateEntries.length; i += 25) {
+          const chunk = updateEntries.slice(i, i + 25);
+          await Promise.all(
+            chunk.map(([patId, u]) => supabaseAdmin.from('crm_patients').update(u).eq('id', patId))
+          );
         }
 
         // 3. Buscar mensagens outbound em fila ('queued') para envio pela VPS
@@ -393,6 +397,34 @@ Deno.serve(async (req: Request) => {
         });
         if (!r.ok) return json({ error: 'falha no envio', detail: r.data }, 502);
         return json({ ok: true, result: r.data });
+      }
+      case 'sync_history': {
+        let phone = String(payload.phone || '').replace(/\D/g, '');
+        if (!phone && payload.patient_id) {
+          const { data: pat } = await supabaseAdmin
+            .from('crm_patients')
+            .select('phone')
+            .eq('id', payload.patient_id)
+            .maybeSingle();
+          phone = String(pat?.phone || '').replace(/\D/g, '');
+        }
+        if (!phone) return json({ error: 'Paciente sem telefone para sincronizar histórico' }, 400);
+
+        try {
+          const r = await fetch(`${VPS_BRIDGE}/history`, {
+            method: 'POST',
+            headers: { 'x-system-key': SYSTEM_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone }),
+            signal: AbortSignal.timeout(20000),
+          });
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok || !d.ok) {
+            return json({ error: d.error || 'Falha ao buscar histórico na VPS', detail: d }, 502);
+          }
+          return json({ ok: true, found: d.found ?? 0, synced: d.synced ?? 0 });
+        } catch (err) {
+          return json({ error: `Erro ao consultar histórico na VPS: ${String(err)}` }, 502);
+        }
       }
       default:
         return json({ error: `ação desconhecida: ${action}` }, 400);

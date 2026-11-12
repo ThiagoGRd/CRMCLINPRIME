@@ -39,8 +39,8 @@ ORG_ID = os.environ.get(
     "00000000-0000-0000-0000-000000000001",
 )
 GATEWAY_PORT = int(os.environ.get("CRM_GATEWAY_PORT", "3199"))
-SYNC_INSTANCES = ("recepcao", "layla", "diana")
-BATCH_SIZE = 120
+SYNC_INSTANCES = ("recepcao", "layla", "diana", "thiago")
+BATCH_SIZE = 200
 POLL_SECONDS = 3.0
 
 
@@ -267,6 +267,57 @@ def call_supabase_edge(action: str, payload: dict) -> dict | None:
         return None
 
 
+def sync_history_for_phone(target_phone: str) -> dict:
+    """Busca todo o histórico de um telefone em mensagens.db e sincroniza com o Supabase."""
+    target_canon = phone_canon(target_phone)
+    if not target_canon:
+        return {"ok": False, "error": "invalid_phone"}
+
+    numeros_cfg = load_numeros()
+    matched_items = []
+    with connect(readonly=True) as conn:
+        rows = conn.execute(
+            "SELECT id, numero, received_at, msg_ts, chat_id, is_group, sender_id, sender_name, "
+            "from_owner, message_id, kind, text, transcript, chat_label "
+            "FROM messages "
+            "WHERE is_group = 0 AND numero IN ('recepcao', 'layla', 'diana', 'thiago') "
+            "ORDER BY id ASC"
+        ).fetchall()
+        for r in rows:
+            numero = r["numero"]
+            own_phone = numeros_cfg.get(numero, {}).get("telefone", "")
+            ph = resolve_phone_for_chat(conn, numero, r["chat_id"], r["sender_id"], own_phone)
+            if not ph or phone_canon(ph) != target_canon:
+                continue
+            content, msg_type = format_message_content(r)
+            msg_id = r["message_id"] or f"local-{r['id']}"
+            ts = r["msg_ts"] or r["received_at"]
+            contact_name = r["chat_label"] if r["from_owner"] else (r["sender_name"] or r["chat_label"])
+            matched_items.append(
+                {
+                    "instance": numero,
+                    "phone": ph,
+                    "chat_id": r["chat_id"],
+                    "sender_name": contact_name,
+                    "chat_label": r["chat_label"],
+                    "from_owner": bool(r["from_owner"]),
+                    "wamid": f"{numero}:{msg_id}",
+                    "content": content,
+                    "message_type": msg_type,
+                    "timestamp": ts,
+                }
+            )
+
+    total_synced = 0
+    for i in range(0, len(matched_items), 200):
+        chunk = matched_items[i : i + 200]
+        res = call_supabase_edge("vps_sync", {"statuses": {}, "messages": chunk})
+        if res and res.get("ok"):
+            total_synced += int(res.get("synced") or 0)
+
+    return {"ok": True, "found": len(matched_items), "synced": total_synced}
+
+
 # ---------------------------------------------------------------- Gateway HTTP
 class GatewayHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args) -> None:
@@ -300,14 +351,15 @@ class GatewayHandler(BaseHTTPRequestHandler):
             self._reply(401, {"ok": False, "error": "unauthorized"})
             return
         parsed = urlparse(self.path)
+        length = int(self.headers.get("Content-Length") or "0")
+        raw = self.rfile.read(length) if length > 0 else b"{}"
+        try:
+            body = json.loads(raw.decode("utf-8"))
+        except Exception:
+            self._reply(400, {"ok": False, "error": "invalid_json"})
+            return
+
         if parsed.path in ("/send", "/crm-bridge/send"):
-            length = int(self.headers.get("Content-Length") or "0")
-            raw = self.rfile.read(length) if length > 0 else b"{}"
-            try:
-                body = json.loads(raw.decode("utf-8"))
-            except Exception:
-                self._reply(400, {"ok": False, "error": "invalid_json"})
-                return
             instance = str(body.get("instance") or "recepcao").strip()
             phone = str(body.get("phone") or "").strip()
             chat_id = body.get("chat_id")
@@ -318,6 +370,16 @@ class GatewayHandler(BaseHTTPRequestHandler):
             res = send_via_bridge(instance, phone, text, chat_id)
             self._reply(200 if res.get("ok") else 502, res)
             return
+
+        if parsed.path in ("/history", "/crm-bridge/history"):
+            phone = str(body.get("phone") or "").strip()
+            if not phone:
+                self._reply(400, {"ok": False, "error": "phone is required"})
+                return
+            res = sync_history_for_phone(phone)
+            self._reply(200 if res.get("ok") else 400, res)
+            return
+
         self._reply(404, {"ok": False, "error": "not_found"})
 
 
@@ -343,13 +405,9 @@ def sync_loop() -> None:
     log("Loop de sincronização CRM iniciado")
     pending_audio_ids: set[int] = set()
 
-    # Inicializa cursor nas últimas ~600 mensagens para entrar em tempo real imediatamente
+    # Inicializa cursor em 0 para sincronizar todo o histórico de mensagens.db
     with connect() as conn:
-        row = conn.execute(
-            "SELECT COALESCE(MAX(id), 0) AS max_id FROM messages",
-        ).fetchone()
-        initial_id = max(0, int(row["max_id"] or 0) - 600)
-        last_id = get_cursor(conn, "crm_sync_last_id", initial_id)
+        last_id = get_cursor(conn, "crm_sync_last_id", 0)
         log(f"Cursor inicial crm_sync_last_id = {last_id}")
 
     while True:
@@ -366,7 +424,7 @@ def sync_loop() -> None:
                     "SELECT id, numero, received_at, msg_ts, chat_id, is_group, sender_id, sender_name, "
                     "from_owner, message_id, kind, text, transcript, chat_label "
                     "FROM messages "
-                    "WHERE id > ? AND is_group = 0 AND numero IN ('recepcao', 'layla', 'diana') "
+                    "WHERE id > ? AND is_group = 0 AND numero IN ('recepcao', 'layla', 'diana', 'thiago') "
                     "ORDER BY id ASC LIMIT ?",
                     (last_id, BATCH_SIZE),
                 ).fetchall()

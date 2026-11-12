@@ -50,20 +50,24 @@ function Card({ lead, onOpen }: { lead: Lead; onOpen: (l: Lead) => void }) {
       {...attributes}
       {...listeners}
       onClick={() => onOpen(lead)}
-      className={`cursor-grab rounded-xl border border-border bg-bg-tertiary p-4 transition-colors hover:border-primary/30 ${
-        isDragging ? "opacity-40" : ""
+      className={`group/lead cursor-grab rounded-xl border border-white/[0.08] bg-bg-tertiary/90 p-3.5 shadow-[0_4px_14px_-4px_rgba(0,0,0,0.45)] transition-all duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-bg-tertiary hover:shadow-[0_8px_20px_-6px_rgba(0,0,0,0.6)] active:cursor-grabbing ${
+        isDragging ? "scale-95 opacity-40" : ""
       } ${lead.ccStatus === "APPROVED" ? "border-l-[3px] border-l-emerald-500" : ""}`}
     >
-      <div className="text-sm font-semibold leading-snug text-foreground">
-        {lead.name}
+      <div className="flex items-start justify-between gap-2">
+        <div className="text-sm font-semibold leading-snug text-foreground group-hover/lead:text-white">
+          {lead.name}
+        </div>
+        <span className="shrink-0 rounded-md border border-white/[0.08] bg-white/[0.05] px-2 py-[2px] text-[10px] font-semibold tracking-wide text-muted-foreground">
+          {lead.source || "Geral"}
+        </span>
       </div>
-      <span className="mt-1 inline-block rounded-md bg-white/[.06] px-2 py-[2px] text-[10px] font-semibold tracking-wide text-muted-foreground">
-        {lead.source}
-      </span>
       {ccBadge(lead)}
-      <div className="mt-3 flex items-center justify-between border-t border-white/5 pt-2.5 text-xs text-muted-foreground">
-        <span className="font-bold text-emerald-400">{val > 0 ? formatCurrency(val) : ""}</span>
-        <span>{formatPhoneDisplay(lead.phone)}</span>
+      <div className="mt-3 flex items-center justify-between border-t border-white/[0.06] pt-2.5 text-xs text-muted-foreground">
+        <span className="font-bold tabular-nums text-emerald-400">
+          {val > 0 ? formatCurrency(val) : "Sem orçamento"}
+        </span>
+        <span className="tabular-nums text-[11px]">{formatPhoneDisplay(lead.phone)}</span>
       </div>
     </div>
   );
@@ -78,26 +82,36 @@ function Column({
   return (
     <div
       ref={setNodeRef}
-      className={`flex max-h-[calc(100vh-220px)] w-[300px] shrink-0 flex-col rounded-xl border bg-card p-4 ${
-        isOver ? "border-primary/50" : "border-border"
+      className={`relative flex max-h-[calc(100vh-220px)] w-[308px] shrink-0 flex-col overflow-hidden rounded-xl border bg-card/95 p-4 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)] transition-colors ${
+        isOver ? "border-primary/60 bg-primary/[0.04]" : "border-white/[0.08]"
       }`}
     >
-      <div className="flex items-center justify-between">
-        <span className="flex items-center gap-2 font-heading text-sm font-semibold">
-          <span style={{ color }}>●</span> {stage.name}
+      <div className="absolute inset-x-0 top-0 h-1 opacity-80" style={{ background: color }} />
+      <div className="mt-0.5 flex items-center justify-between gap-2">
+        <span className="flex items-center gap-2 font-heading text-sm font-semibold text-foreground">
+          <span className="h-2.5 w-2.5 rounded-full" style={{ background: color, boxShadow: `0 0 8px ${color}` }} />
+          {stage.name}
         </span>
-        <span className="rounded-md bg-white/5 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+        <span className="rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[11px] font-semibold tabular-nums text-foreground/85">
           {leads.length}
         </span>
       </div>
-      <div className="mt-1 text-[11px] font-medium text-muted-foreground">
-        {total > 0 ? formatCurrency(total) : "—"}
+      <div className="mt-1.5 flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+        <span>Volume na etapa</span>
+        <span className="font-semibold tabular-nums text-emerald-400/90">
+          {total > 0 ? formatCurrency(total) : "R$ 0,00"}
+        </span>
       </div>
-      <div className="my-2 border-t border-white/5" />
-      <div className="flex flex-1 flex-col gap-3 overflow-y-auto pb-4">
+      <div className="my-3 border-t border-white/[0.07]" />
+      <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto pr-0.5 pb-3">
         {shown.map((l) => (
           <Card key={l.id} lead={l} onOpen={onOpen} />
         ))}
+        {shown.length === 0 && (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/[0.07] py-8 text-center text-xs text-muted-foreground/70">
+            Nenhum lead nesta etapa
+          </div>
+        )}
         {leads.length > RENDER_CAP && (
           <div className="py-2 text-center text-xs text-muted-foreground">
             +{leads.length - RENDER_CAP} lead(s) — use a busca em Pacientes

@@ -74,9 +74,9 @@ export function PatientFichaDialog({
             </div>
             <DialogFooter className="border-t border-border px-6 py-4">
               <Button variant="outline" onClick={() => router.push(`/pacientes?editar=${lead.id}`)}>
-                <Pencil className="h-4 w-4" /> Editar
+                <Pencil className="h-4 w-4" /> Editar cadastro
               </Button>
-              <Button onClick={() => onAtender(lead.id)}>
+              <Button variant="success" onClick={() => onAtender(lead.id)}>
                 <MessageSquare className="h-4 w-4" /> Atender no CRM
               </Button>
             </DialogFooter>

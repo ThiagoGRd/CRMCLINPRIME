@@ -132,14 +132,26 @@ export function MetasClient() {
 
       {/* Funil */}
       <div>
-        <div className="mb-3 font-heading text-[15px] font-bold">Funil do mês</div>
+        <div className="mb-3 flex items-center justify-between">
+          <div className="font-heading text-[15px] font-bold">Funil do mês</div>
+          <span className="text-xs text-muted-foreground">Clique em qualquer card para ver a lista nominal</span>
+        </div>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {funnel.map((f) => (
-            <Card key={f.key} className="cursor-pointer gap-0 p-5 transition-colors hover:border-primary/40"
-              onClick={() => setDetail({ metric: f.key, title: f.label })}>
-              <div className="text-sm text-muted-foreground">{f.label}</div>
-              <div className="mt-2 font-heading text-3xl font-extrabold">{f.value}</div>
-              {f.rate && <div className="mt-1 text-xs text-emerald-400">{f.rate} do anterior</div>}
+            <Card
+              key={f.key}
+              className="cursor-pointer gap-0 p-5 transition-all duration-150 hover:-translate-y-0.5 hover:border-primary/45 hover:bg-card"
+              onClick={() => setDetail({ metric: f.key, title: f.label })}
+            >
+              <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{f.label}</div>
+              <div className="mt-2 font-heading text-3xl font-extrabold tabular-nums">{f.value}</div>
+              {f.rate ? (
+                <div className="mt-1.5 inline-flex w-fit items-center rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400">
+                  ↗ {f.rate} do anterior
+                </div>
+              ) : (
+                <div className="mt-1.5 text-xs text-muted-foreground">Topo do funil</div>
+              )}
             </Card>
           ))}
         </div>
@@ -153,17 +165,20 @@ export function MetasClient() {
             const p = g.meta > 0 ? Math.min(100, Math.round((g.real / g.meta) * 100)) : 0;
             const color = p >= 100 ? "#10b981" : p >= 60 ? "#f59e0b" : "#6366f1";
             return (
-              <Card key={g.label} className="gap-0 p-5">
-                <div className="text-sm text-muted-foreground">{g.label}</div>
-                <div className="mt-1 flex items-baseline justify-between">
-                  <span className="font-heading text-xl font-extrabold">{g.fmt(g.real)}</span>
-                  <span className="text-xs text-muted-foreground">meta {g.meta > 0 ? g.fmt(g.meta) : "—"}</span>
+              <Card key={g.label} className="gap-0 p-5 transition-all hover:border-white/15">
+                <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{g.label}</div>
+                <div className="mt-2 flex items-baseline justify-between gap-2">
+                  <span className="font-heading text-xl font-extrabold tabular-nums">{g.fmt(g.real)}</span>
+                  <span className="text-xs tabular-nums text-muted-foreground">meta {g.meta > 0 ? g.fmt(g.meta) : "—"}</span>
                 </div>
-                <div className="mt-3 h-[7px] overflow-hidden rounded-full bg-bg-tertiary">
-                  <div className="h-full rounded-full" style={{ width: `${p}%`, background: color }} />
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.06]">
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{ width: `${p}%`, background: color, boxShadow: `0 0 10px ${color}60` }}
+                  />
                 </div>
-                <div className="mt-1.5 text-[11px]" style={{ color }}>
-                  {g.meta > 0 ? `${p}% da meta` : "defina a meta"}
+                <div className="mt-2 text-xs font-semibold" style={{ color }}>
+                  {g.meta > 0 ? `${p}% da meta atingida` : "Clique em Definir metas"}
                 </div>
               </Card>
             );

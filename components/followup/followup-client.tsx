@@ -66,9 +66,9 @@ export function FollowupClient() {
 
 function Stat({ label, value, color }: { label: string; value: React.ReactNode; color?: string }) {
   return (
-    <Card className="min-w-[150px] gap-0 p-4">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1.5 font-heading text-xl font-extrabold" style={{ color }}>{value}</div>
+    <Card className="min-w-[165px] gap-0 p-4 transition-all hover:border-white/15">
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="mt-1.5 font-heading text-2xl font-extrabold tabular-nums" style={{ color }}>{value}</div>
     </Card>
   );
 }
@@ -97,15 +97,15 @@ function OpenBudgets({ supabase, orgId, onAtender }: { supabase: ReturnType<type
         <Stat label="Valor total em jogo" value={formatCurrency(total)} color="#10b981" />
         <Stat label="Em follow-up" value={nFup} color="#f59e0b" />
       </div>
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      <div className="overflow-x-auto rounded-xl border border-white/[0.08] bg-card/95 shadow-[0_10px_28px_-10px_rgba(0,0,0,0.5)]">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border text-left text-muted-foreground">
-              <th className="px-4 py-3 font-semibold">Paciente</th>
-              <th className="px-4 py-3 font-semibold">Status</th>
-              <th className="px-4 py-3 font-semibold">Valor</th>
-              <th className="px-4 py-3 font-semibold">Data</th>
-              <th className="px-4 py-3 font-semibold text-right">Ação</th>
+            <tr className="border-b border-white/[0.08] bg-white/[0.02] text-left text-xs tracking-wider text-muted-foreground uppercase">
+              <th className="px-4 py-3.5 font-semibold">Paciente</th>
+              <th className="px-4 py-3.5 font-semibold">Status</th>
+              <th className="px-4 py-3.5 font-semibold">Valor</th>
+              <th className="px-4 py-3.5 font-semibold">Data</th>
+              <th className="px-4 py-3.5 font-semibold text-right">Ação</th>
             </tr>
           </thead>
           <tbody>
@@ -113,13 +113,24 @@ function OpenBudgets({ supabase, orgId, onAtender }: { supabase: ReturnType<type
             {rows.map((r) => {
               const st = r.clinicorp_status ? CC_SHORT[r.clinicorp_status] : null;
               return (
-                <tr key={r.id} className="border-b border-white/[.04] last:border-0 hover:bg-white/[.02]">
-                  <td className="px-4 py-3 font-medium">{r.name}</td>
-                  <td className="px-4 py-3"><span style={{ color: st?.color }} className="font-semibold">{st?.txt ?? "—"}</span></td>
-                  <td className="px-4 py-3 font-bold text-emerald-400">{formatCurrency(r.clinicorp_amount ?? 0)}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatDateBR(r.clinicorp_date)}</td>
+                <tr key={r.id} className="border-b border-white/[0.05] transition-colors last:border-0 hover:bg-white/[0.03]">
+                  <td className="px-4 py-3 font-medium text-foreground">{r.name}</td>
+                  <td className="px-4 py-3">
+                    {st ? (
+                      <span
+                        className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold"
+                        style={{ color: st.color, borderColor: `${st.color}40`, backgroundColor: `${st.color}15` }}
+                      >
+                        {st.txt}
+                      </span>
+                    ) : "—"}
+                  </td>
+                  <td className="px-4 py-3 font-bold tabular-nums text-emerald-400">{formatCurrency(r.clinicorp_amount ?? 0)}</td>
+                  <td className="px-4 py-3 tabular-nums text-muted-foreground">{formatDateBR(r.clinicorp_date)}</td>
                   <td className="px-4 py-3 text-right">
-                    <Button size="sm" onClick={() => onAtender(r.id)}><MessageSquare className="h-3.5 w-3.5" /> Atender</Button>
+                    <Button variant="success" size="xs" onClick={() => onAtender(r.id)}>
+                      <MessageSquare className="h-3.5 w-3.5" /> Atender
+                    </Button>
                   </td>
                 </tr>
               );

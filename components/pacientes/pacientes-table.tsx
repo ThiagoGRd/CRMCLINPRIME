@@ -188,16 +188,16 @@ export function PacientesTable() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      <div className="overflow-x-auto rounded-xl border border-white/[0.08] bg-card/95 shadow-[0_10px_28px_-10px_rgba(0,0,0,0.5)]">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border text-left text-muted-foreground">
-              <th className="px-4 py-3 font-semibold">Paciente</th>
-              <th className="px-4 py-3 font-semibold">Telefone</th>
-              <th className="px-4 py-3 font-semibold">Interesse</th>
-              <th className="px-4 py-3 font-semibold">Clinicorp</th>
-              <th className="px-4 py-3 font-semibold">Entrou em</th>
-              <th className="px-4 py-3 font-semibold"></th>
+            <tr className="border-b border-white/[0.08] bg-white/[0.02] text-left text-xs tracking-wider text-muted-foreground uppercase">
+              <th className="px-4 py-3.5 font-semibold">Paciente</th>
+              <th className="px-4 py-3.5 font-semibold">Telefone</th>
+              <th className="px-4 py-3.5 font-semibold">Interesse / Origem</th>
+              <th className="px-4 py-3.5 font-semibold">Clinicorp</th>
+              <th className="px-4 py-3.5 font-semibold">Entrou em</th>
+              <th className="px-4 py-3.5 text-right font-semibold">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -210,37 +210,57 @@ export function PacientesTable() {
             {rows.map((r) => {
               const cc = r.clinicorp_status ? CC_BADGE[r.clinicorp_status] : null;
               return (
-                <tr key={r.id} className="border-b border-white/[.04] last:border-0 hover:bg-white/[.02]">
-                  <td className="px-4 py-3 font-medium">{r.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatPhoneDisplay(r.phone)}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {r.treatment_interest || r.source || "—"}
+                <tr key={r.id} className="border-b border-white/[0.05] transition-colors last:border-0 hover:bg-white/[0.03]">
+                  <td className="px-4 py-3 font-medium text-foreground">{r.name}</td>
+                  <td className="px-4 py-3 tabular-nums text-muted-foreground">{formatPhoneDisplay(r.phone)}</td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center rounded-md border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-xs text-muted-foreground">
+                      {r.treatment_interest || r.source || "—"}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     {cc ? (
-                      <span style={{ color: cc.color }} className="text-xs font-semibold">{cc.label}</span>
+                      <span
+                        style={{ background: cc.bg, color: cc.color }}
+                        className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold"
+                      >
+                        {cc.label}
+                      </span>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatDateBR(r.created_at)}</td>
+                  <td className="px-4 py-3 tabular-nums text-muted-foreground">{formatDateBR(r.created_at)}</td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" title="Editar"
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Button
+                        variant="success"
+                        size="xs"
+                        title="Atender no Inbox"
+                        onClick={() => router.push(`/inbox?p=${r.id}`)}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" /> Atender
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon-xs"
+                        title="Editar paciente"
                         onClick={() => setForm({
                           id: r.id, name: r.name, phone: r.phone ?? "", email: r.email ?? "",
                           treatment_interest: r.treatment_interest ?? "",
                           treatment_value: r.treatment_value ? String(r.treatment_value) : "",
-                        })}>
-                        <Pencil className="h-4 w-4" />
+                        })}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" title="Atender"
-                        onClick={() => router.push(`/inbox?p=${r.id}`)}>
-                        <MessageSquare className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" title="Excluir"
-                        onClick={() => removePatient(r)}>
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        title="Excluir paciente"
+                        className="hover:border-red-500/30 hover:bg-red-500/15 hover:text-red-400"
+                        onClick={() => removePatient(r)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </td>
