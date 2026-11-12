@@ -1,5 +1,5 @@
-// Envio de texto pelo WhatsApp Cloud API, chamado pelo inbox (usuário logado).
-// Responde pelo mesmo número por onde o paciente falou por último.
+// Envio de texto pelo WhatsApp (suporta as pontes Baileys conectadas na VPS + WhatsApp Cloud API da Meta).
+// Responde pelo canal selecionado no Inbox ou pelo último canal usado na conversa com o paciente.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { localToWa } from '../_shared/wa.ts';
 
@@ -12,7 +12,6 @@ function json(b: unknown, s = 200) {
   return new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'Content-Type': 'application/json' } });
 }
 const GRAPH = 'https://graph.facebook.com/v25.0';
-// Token do System User: fallback para números sem token próprio (ex.: número de teste da Meta).
 const TOKEN = Deno.env.get('WA_ACCESS_TOKEN') ?? '';
 
 Deno.serve(async (req) => {
@@ -23,24 +22,120 @@ Deno.serve(async (req) => {
     const { data: { user } } = await admin.auth.getUser(jwt);
     if (!user) return json({ error: 'nao autenticado' }, 401);
 
-    const { patient_id, text } = await req.json();
+    const { patient_id, text, channel_id } = await req.json();
     const body = String(text ?? '').trim();
     if (!patient_id || !body) return json({ error: 'parametros invalidos' }, 400);
     if (body.length > 4096) return json({ error: 'mensagem acima de 4096 caracteres' }, 400);
 
-    const { data: patient } = await admin.from('crm_patients').select('id, org_id, phone').eq('id', patient_id).maybeSingle();
+    const { data: patient } = await admin
+      .from('crm_patients')
+      .select('id, org_id, phone, chat_session_id')
+      .eq('id', patient_id)
+      .maybeSingle();
     if (!patient?.phone) return json({ error: 'paciente sem telefone' }, 404);
-    const { data: mem } = await admin.from('org_members').select('org_id').eq('user_id', user.id).eq('org_id', patient.org_id).maybeSingle();
+
+    const { data: mem } = await admin
+      .from('org_members')
+      .select('org_id')
+      .eq('user_id', user.id)
+      .eq('org_id', patient.org_id)
+      .maybeSingle();
     if (!mem) return json({ error: 'sem acesso' }, 403);
 
-    const { data: last } = await admin.from('crm_messages').select('channel_id')
-      .eq('patient_id', patient.id).eq('direction', 'inbound').not('channel_id', 'is', null)
-      .order('created_at', { ascending: false }).limit(1).maybeSingle();
-    let q = admin.from('channels').select('id, phone_number_id').eq('org_id', patient.org_id).eq('type', 'whatsapp_cloud').not('phone_number_id', 'is', null);
-    q = last?.channel_id ? q.eq('id', last.channel_id) : q.order('created_at');
-    const { data: channel } = await q.limit(1).maybeSingle();
-    if (!channel) return json({ error: 'nenhum numero de WhatsApp conectado' }, 409);
-    // Número conectado pelo Embedded Signup tem token próprio (channel_secrets).
+    // Buscar todos os canais da organização
+    const { data: allChannels } = await admin
+      .from('channels')
+      .select('id, type, instance_name, display_name, status, phone_number_id, config')
+      .eq('org_id', patient.org_id)
+      .order('created_at', { ascending: true });
+
+    const channels = allChannels ?? [];
+    if (!channels.length) return json({ error: 'nenhum canal de WhatsApp cadastrado' }, 409);
+
+    // 1. Canal explícito enviado pelo Inbox
+    let channel = channel_id ? channels.find((c: any) => c.id === channel_id) : null;
+
+    // 2. Se não informado, usa o último canal da conversa do paciente
+    if (!channel) {
+      const { data: lastMsg } = await admin
+        .from('crm_messages')
+        .select('channel_id')
+        .eq('patient_id', patient.id)
+        .not('channel_id', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (lastMsg?.channel_id) {
+        channel = channels.find((c: any) => c.id === lastMsg.channel_id) ?? null;
+      }
+    }
+
+    // 3. Fallback: primeiro canal conectado (priorizando recepcao -> layla -> diana)
+    if (!channel) {
+      channel = channels.find((c: any) => c.status === 'connected') ?? channels[0];
+    }
+
+    // --- Caso A: Canal conectado na VPS (Esquadrão Baileys: recepcao, layla, diana) ---
+    if (channel.config?.provider === 'vps_esquadrao' || channel.type === 'whatsapp') {
+      const { data: settingsRows } = await admin.from('platform_settings').select('key, value');
+      const settings = Object.fromEntries((settingsRows ?? []).map((r: any) => [r.key, r.value]));
+      const vpsBridgeUrl = settings.vps_bridge_url || 'https://evolution.clinprime.shop/crm-bridge';
+      const systemKey = settings.cadence_secret;
+
+      let sentWamid: string | null = null;
+      let status: 'sent' | 'queued' = 'queued';
+
+      try {
+        const r = await fetch(`${vpsBridgeUrl}/send`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-system-key': systemKey,
+          },
+          body: JSON.stringify({
+            instance: channel.instance_name,
+            phone: localToWa(patient.phone),
+            chat_id: patient.chat_session_id,
+            text: body,
+          }),
+          signal: AbortSignal.timeout(7000),
+        });
+        const res = await r.json().catch(() => ({}));
+        if (r.ok && res?.ok) {
+          status = 'sent';
+          sentWamid = res.messageId ? `${channel.instance_name}:${res.messageId}` : `${channel.instance_name}:crm-${crypto.randomUUID()}`;
+        }
+      } catch {
+        // Se a chamada direta oscilar, fica como 'queued' e o crm_sync.py na VPS envia em até 2s!
+        status = 'queued';
+        sentWamid = `${channel.instance_name}:queued-${crypto.randomUUID()}`;
+      }
+
+      const now = new Date().toISOString();
+      const { data: inserted, error } = await admin
+        .from('crm_messages')
+        .insert({
+          org_id: patient.org_id,
+          patient_id: patient.id,
+          channel_id: channel.id,
+          direction: 'outbound',
+          content: body,
+          message_type: 'text',
+          status,
+          whatsapp_message_id: sentWamid,
+          sent_by: user.id,
+          created_at: now,
+        })
+        .select('id,patient_id,channel_id,direction,content,status,created_at')
+        .single();
+
+      if (error) return json({ error: error.message }, 500);
+      await admin.from('crm_patients').update({ last_message_at: now }).eq('id', patient.id);
+      return json({ message: inserted, channel: { id: channel.id, name: channel.display_name } });
+    }
+
+    // --- Caso B: WhatsApp Cloud API (Meta) ---
+    if (!channel.phone_number_id) return json({ error: 'canal sem phone_number_id configurado' }, 409);
     const { data: secret } = await admin.from('channel_secrets').select('access_token').eq('channel_id', channel.id).maybeSingle();
     const token = secret?.access_token ?? TOKEN;
     if (!token) return json({ error: 'numero sem token de acesso' }, 500);
@@ -52,17 +147,26 @@ Deno.serve(async (req) => {
     });
     const res = await r.json();
     if (!r.ok) {
-      // 131047 = fora da janela de 24h: só template aprovado pode ser enviado.
       const code = res?.error?.code;
       const msg = code === 131047 ? 'Mais de 24h sem mensagem do paciente: só é possível enviar um template aprovado.' : res?.error?.message ?? 'falha no envio';
       return json({ error: msg, code }, 502);
     }
 
+    const now = new Date().toISOString();
     const { data: inserted, error } = await admin.from('crm_messages').insert({
-      org_id: patient.org_id, patient_id: patient.id, channel_id: channel.id, direction: 'outbound',
-      content: body, message_type: 'text', status: 'sent', whatsapp_message_id: res.messages?.[0]?.id, sent_by: user.id,
-    }).select('id,patient_id,direction,content,created_at').single();
+      org_id: patient.org_id,
+      patient_id: patient.id,
+      channel_id: channel.id,
+      direction: 'outbound',
+      content: body,
+      message_type: 'text',
+      status: 'sent',
+      whatsapp_message_id: res.messages?.[0]?.id,
+      sent_by: user.id,
+      created_at: now,
+    }).select('id,patient_id,channel_id,direction,content,status,created_at').single();
     if (error) return json({ error: error.message }, 500);
+    await admin.from('crm_patients').update({ last_message_at: now }).eq('id', patient.id);
     return json({ message: inserted });
   } catch (e) {
     return json({ error: String((e as Error).message ?? e) }, 500);

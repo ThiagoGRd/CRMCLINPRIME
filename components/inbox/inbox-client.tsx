@@ -39,19 +39,37 @@ type Conversation = {
 type Message = {
   id: string;
   patient_id: string;
+  channel_id?: string | null;
   direction: string;
   content: string;
   created_at: string;
 };
+type ChannelItem = {
+  id: string;
+  instance_name: string;
+  display_name: string;
+  status: string;
+  config: { sector_label?: string; display_phone?: string } | null;
+};
 type Member = { user_id: string; role: string | null; display_name: string | null };
 type QuickReply = { id: string; shortcut: string; content: string };
+
+const SHORT_CHANNEL_LABEL: Record<string, string> = {
+  recepcao: "Recepção",
+  layla: "Layla (CRC)",
+  diana: "Diana (Comercial)",
+  thiago: "Dr. Thiago",
+};
 
 export function InboxClient() {
   const org = useOrg();
   const qc = useQueryClient();
   const searchParams = useSearchParams();
   const [convs, setConvs] = useState<Conversation[]>([]);
+  const [patientChannels, setPatientChannels] = useState<Record<string, string[]>>({});
   const [search, setSearch] = useState("");
+  const [channelFilter, setChannelFilter] = useState<string>("all");
+  const [sendChannelId, setSendChannelId] = useState<string>("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
@@ -68,6 +86,29 @@ export function InboxClient() {
   activeIdRef.current = activeId;
 
   const supabase = useMemo(() => createClient(), []);
+
+  // Canais WhatsApp conectados na VPS
+  const { data: channels } = useQuery({
+    queryKey: ["channels"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("channels")
+        .select("id,instance_name,display_name,status,config")
+        .order("created_at", { ascending: true });
+      return (data ?? []) as ChannelItem[];
+    },
+  });
+
+  const activeChannels = useMemo(
+    () => (channels ?? []).filter((c) => c.status === "connected" || c.instance_name !== "thiago"),
+    [channels]
+  );
+
+  const channelMap = useMemo(() => {
+    const m = new Map<string, ChannelItem>();
+    for (const c of channels ?? []) m.set(c.id, c);
+    return m;
+  }, [channels]);
 
   // Equipe (atribuição) e respostas rápidas
   const { data: members } = useQuery({
@@ -90,8 +131,28 @@ export function InboxClient() {
       .from("patients")
       .select("id,name,phone,tags,assigned_to,treatment_interest,source,clinicorp_status,clinicorp_amount,created_at,last_message_at")
       .order("last_message_at", { ascending: false, nullsFirst: false })
-      .limit(80);
-    setConvs((data ?? []) as Conversation[]);
+      .limit(120);
+    const list = (data ?? []) as Conversation[];
+    setConvs(list);
+
+    if (list.length > 0) {
+      const ids = list.slice(0, 80).map((c) => c.id);
+      const { data: msgChs } = await supabase
+        .from("messages")
+        .select("patient_id,channel_id")
+        .in("patient_id", ids)
+        .not("channel_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(500);
+      const map: Record<string, string[]> = {};
+      for (const row of msgChs ?? []) {
+        const pid = row.patient_id as string;
+        const cid = row.channel_id as string;
+        if (!map[pid]) map[pid] = [];
+        if (!map[pid].includes(cid)) map[pid].push(cid);
+      }
+      setPatientChannels(map);
+    }
   }, [supabase]);
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
@@ -108,10 +169,21 @@ export function InboxClient() {
     (async () => {
       const { data } = await supabase
         .from("messages")
-        .select("id,patient_id,direction,content,created_at")
+        .select("id,patient_id,channel_id,direction,content,created_at")
         .eq("patient_id", activeId)
         .order("created_at", { ascending: true });
-      if (!cancelled) setMessages((data ?? []) as Message[]);
+      if (!cancelled) {
+        const rows = (data ?? []) as Message[];
+        setMessages(rows);
+        const lastWithCh = [...rows].reverse().find((m) => m.channel_id);
+        if (lastWithCh?.channel_id) {
+          setSendChannelId(lastWithCh.channel_id);
+        } else if (channelFilter !== "all") {
+          setSendChannelId(channelFilter);
+        } else if (activeChannels[0]?.id) {
+          setSendChannelId(activeChannels[0].id);
+        }
+      }
 
       const { data: pat } = await supabase.from("patients").select("phone").eq("id", activeId).maybeSingle();
       const phone = String(pat?.phone ?? "").replace(/\D/g, "");
@@ -122,7 +194,7 @@ export function InboxClient() {
       }
     })();
     return () => { cancelled = true; };
-  }, [activeId, supabase]);
+  }, [activeId, supabase, channelFilter, activeChannels]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -136,13 +208,19 @@ export function InboxClient() {
         .channel("rt-inbox")
         .on(
           "postgres_changes",
-          { event: "INSERT", schema: "public", table: "crm_messages" },
+          { event: "*", schema: "public", table: "crm_messages" },
           (payload) => {
             const row = payload.new as Message;
-            if (row.patient_id === activeIdRef.current) {
-              setMessages((prev) =>
-                prev.some((m) => m.id === row.id) ? prev : [...prev, row]
-              );
+            if (row && row.patient_id === activeIdRef.current) {
+              setMessages((prev) => {
+                const idx = prev.findIndex((m) => m.id === row.id);
+                if (idx >= 0) {
+                  const copy = [...prev];
+                  copy[idx] = row;
+                  return copy;
+                }
+                return [...prev, row];
+              });
             }
             loadConversations();
           }
@@ -160,12 +238,14 @@ export function InboxClient() {
     setSending(true);
     setText("");
     try {
-      // A edge function envia pela Cloud API e já grava a mensagem (com o wamid).
       const { data: sendRes, error: fnErr } = await supabase.functions.invoke("whatsapp-send", {
-        body: { patient_id: activeId, text: content },
+        body: {
+          patient_id: activeId,
+          text: content,
+          channel_id: sendChannelId || undefined,
+        },
       });
       if (fnErr || sendRes?.error) {
-        // Em resposta != 2xx o corpo (com o motivo, ex.: janela de 24h) vem em fnErr.context.
         const detail = await (fnErr as { context?: Response } | null)?.context?.json?.().catch(() => null);
         throw new Error(sendRes?.error ?? detail?.error ?? fnErr?.message ?? "falha no envio");
       }
@@ -246,13 +326,31 @@ export function InboxClient() {
     qc.invalidateQueries({ queryKey: ["quick-replies"] });
   }
 
-  const filteredConvs = search.trim()
-    ? convs.filter((c) => c.name?.toLowerCase().includes(search.toLowerCase()) || (c.phone ?? "").includes(search))
-    : convs;
+  const filteredConvs = useMemo(() => {
+    return convs.filter((c) => {
+      if (channelFilter !== "all") {
+        const chIds = patientChannels[c.id] ?? [];
+        if (!chIds.includes(channelFilter)) return false;
+      }
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        return c.name?.toLowerCase().includes(q) || (c.phone ?? "").includes(search);
+      }
+      return true;
+    });
+  }, [convs, channelFilter, patientChannels, search]);
+
   const active = convs.find((c) => c.id === activeId);
   const cc = active?.clinicorp_status ? CC_BADGE[active.clinicorp_status] : null;
   const memberName = (uid: string | null) =>
     (members ?? []).find((m) => m.user_id === uid)?.display_name ?? "Sem atendente";
+
+  const shortChannelName = (channelId?: string | null) => {
+    if (!channelId) return null;
+    const ch = channelMap.get(channelId);
+    if (!ch) return null;
+    return SHORT_CHANNEL_LABEL[ch.instance_name] ?? ch.display_name;
+  };
 
   return (
     <div className="flex h-[calc(100dvh-160px)] min-h-0 min-w-0 flex-col gap-2">
@@ -261,33 +359,79 @@ export function InboxClient() {
       <div className="flex min-h-0 min-w-0 flex-1 gap-4">
       {/* Lista de conversas */}
       <div className={`${inboxPaneClass("list", mobilePane)} min-h-0 w-full shrink-0 flex-col rounded-xl border border-border bg-card lg:w-80`}>
-        <div className="relative p-3">
-          <Search className="pointer-events-none absolute left-6 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar conversa..." className="pl-9" />
+        <div className="space-y-2 border-b border-border p-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar conversa..." className="pl-9" />
+          </div>
+          {activeChannels.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              <button
+                type="button"
+                onClick={() => setChannelFilter("all")}
+                className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+                  channelFilter === "all"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-bg-tertiary text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Todos
+              </button>
+              {activeChannels.map((ch) => (
+                <button
+                  key={ch.id}
+                  type="button"
+                  onClick={() => setChannelFilter(ch.id)}
+                  className={`flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
+                    channelFilter === ch.id
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-bg-tertiary text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ background: ch.status === "connected" ? "#10b981" : "#ef4444" }}
+                  />
+                  {SHORT_CHANNEL_LABEL[ch.instance_name] ?? ch.display_name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex-1 overflow-y-auto">
-          {filteredConvs.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => { setActiveId(c.id); setMobilePane("chat"); }}
-              className={`flex w-full items-center gap-3 border-b border-white/[.04] px-3 py-3 text-left transition-colors hover:bg-white/[.03] ${
-                activeId === c.id ? "bg-primary/10" : ""
-              }`}
-            >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-emerald-500 text-xs font-bold text-white">
-                {(c.name ?? "?").slice(0, 2).toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">{c.name}</div>
-                <div className="flex items-center gap-1.5">
-                  <span className="truncate text-xs text-muted-foreground">{formatPhoneDisplay(c.phone)}</span>
-                  {(c.tags ?? []).slice(0, 1).map((t) => (
-                    <span key={t} className="shrink-0 rounded bg-primary/15 px-1 text-[10px] text-primary">{t}</span>
-                  ))}
+          {filteredConvs.map((c) => {
+            const chIds = patientChannels[c.id] ?? [];
+            const primaryCh = chIds[0] ? shortChannelName(chIds[0]) : null;
+            return (
+              <button
+                key={c.id}
+                onClick={() => { setActiveId(c.id); setMobilePane("chat"); }}
+                className={`flex w-full items-center gap-3 border-b border-white/[.04] px-3 py-3 text-left transition-colors hover:bg-white/[.03] ${
+                  activeId === c.id ? "bg-primary/10" : ""
+                }`}
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-emerald-500 text-xs font-bold text-white">
+                  {(c.name ?? "?").slice(0, 2).toUpperCase()}
                 </div>
-              </div>
-            </button>
-          ))}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="truncate text-sm font-medium">{c.name}</div>
+                    {primaryCh && (
+                      <span className="shrink-0 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
+                        {primaryCh}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate text-xs text-muted-foreground">{formatPhoneDisplay(c.phone)}</span>
+                    {(c.tags ?? []).slice(0, 1).map((t) => (
+                      <span key={t} className="shrink-0 rounded bg-primary/15 px-1 text-[10px] text-primary">{t}</span>
+                    ))}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -307,6 +451,22 @@ export function InboxClient() {
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-2">
+                {activeChannels.length > 0 && (
+                  <Select value={sendChannelId} onValueChange={(v) => setSendChannelId(v ?? "")}>
+                    <SelectTrigger className="h-8 w-[165px] text-xs">
+                      <SelectValue placeholder="Canal de envio">
+                        {shortChannelName(sendChannelId) ?? "Canal de envio"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeChannels.map((ch) => (
+                        <SelectItem key={ch.id} value={ch.id}>
+                          {SHORT_CHANNEL_LABEL[ch.instance_name] ?? ch.display_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 <Button variant={aiPaused ? "default" : "outline"} size="sm" onClick={toggleAi}>
                   {aiPaused ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
                   {aiPaused ? "Você atendendo" : "IA ativa"}
@@ -325,6 +485,10 @@ export function InboxClient() {
               )}
               {messages.map((m) => {
                 const out = m.direction === "outbound";
+                const chName = shortChannelName(m.channel_id);
+                const timeStr = m.created_at
+                  ? new Date(m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+                  : "";
                 return (
                   <div key={m.id} className={`flex ${out ? "justify-end" : "justify-start"}`}>
                     <div
@@ -332,7 +496,13 @@ export function InboxClient() {
                         out ? "bg-primary text-primary-foreground" : "bg-bg-tertiary text-foreground"
                       }`}
                     >
-                      {m.content}
+                      <div>{m.content}</div>
+                      {(chName || timeStr) && (
+                        <div className={`mt-1 flex items-center justify-end gap-1.5 text-[10px] ${out ? "text-primary-foreground/75" : "text-muted-foreground"}`}>
+                          {chName && <span>{chName}</span>}
+                          {timeStr && <span>{timeStr}</span>}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

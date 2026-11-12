@@ -6,14 +6,33 @@ import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/components/org-context";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Smartphone, RefreshCw, Plus, Unplug, Trash2, QrCode } from "lucide-react";
+import { Smartphone, RefreshCw, Plus, Unplug, Trash2, QrCode, Server } from "lucide-react";
 import { toast } from "sonner";
 import { launchWhatsAppSignup } from "@/lib/whatsapp-signup";
 
-type Channel = { id: string; type: string; instance_name: string; display_name: string; status: string; config: { display_phone?: string } | null };
+type ChannelConfig = {
+  provider?: string;
+  display_phone?: string;
+  phone?: string;
+  port?: number;
+  sector?: string;
+  sector_label?: string;
+  supervisor?: string;
+};
+
+type Channel = {
+  id: string;
+  type: string;
+  instance_name: string;
+  display_name: string;
+  status: string;
+  updated_at?: string | null;
+  config: ChannelConfig | null;
+};
 
 const STATUS: Record<string, { txt: string; color: string }> = {
   connected: { txt: "Conectado", color: "#10b981" },
@@ -32,7 +51,10 @@ export function ConexoesClient() {
   const { data } = useQuery({
     queryKey: ["channels"],
     queryFn: async () => {
-      const { data } = await supabase.from("channels").select("id,type,instance_name,display_name,status,config").order("created_at", { ascending: true });
+      const { data } = await supabase
+        .from("channels")
+        .select("id,type,instance_name,display_name,status,updated_at,config")
+        .order("created_at", { ascending: true });
       return (data ?? []) as Channel[];
     },
   });
@@ -99,8 +121,12 @@ export function ConexoesClient() {
   async function showQr(ch: Channel) {
     try {
       const r = await invoke("get_qr", { channel_id: ch.id });
+      if (r?.message && !r?.qr) {
+        toast.info(r.message);
+        return;
+      }
       setQr({ img: r?.qr ?? null, channelId: ch.id });
-      if (!r?.qr) toast.message("QR ainda não disponível — aguardando a Evolution gerar...");
+      if (!r?.qr) toast.message("QR ainda não disponível — aguardando gerar...");
     } catch (e) {
       toast.error("Erro ao buscar QR", { description: String((e as Error).message) });
     }
@@ -109,9 +135,24 @@ export function ConexoesClient() {
   async function refreshStatus(ch: Channel) {
     try {
       const data = await invoke("status", { channel_id: ch.id });
-      toast.success(`Status: ${STATUS[data?.status]?.txt ?? data?.status}`);
+      toast.success(`${ch.display_name}: ${STATUS[data?.status]?.txt ?? data?.status}`);
       refresh();
     } catch { toast.error("Erro ao consultar status"); }
+  }
+
+  async function refreshAllVps() {
+    setBusy(true);
+    try {
+      for (const ch of channels) {
+        if (ch.config?.provider === "vps_esquadrao") {
+          await invoke("status", { channel_id: ch.id }).catch(() => null);
+        }
+      }
+      refresh();
+      toast.success("Status das pontes da VPS atualizado!");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function disconnect(ch: Channel) {
@@ -120,25 +161,36 @@ export function ConexoesClient() {
       await invoke("disconnect", { channel_id: ch.id });
       toast.success("Canal desconectado");
       refresh();
-    } catch { toast.error("Erro ao desconectar"); }
+    } catch (e) {
+      toast.error("Erro ao desconectar", { description: String((e as Error).message) });
+    }
   }
 
   async function removeChannel(ch: Channel) {
-    if (!confirm(`Remover a instância "${ch.display_name}" definitivamente? Essa ação apaga o canal da Evolution.`)) return;
+    if (!confirm(`Remover a instância "${ch.display_name}" definitivamente?`)) return;
     try {
       await invoke("delete_instance", { channel_id: ch.id });
       toast.success("Instância removida");
       refresh();
-    } catch { toast.error("Erro ao remover"); }
+    } catch (e) {
+      toast.error("Erro ao remover", { description: String((e as Error).message) });
+    }
   }
 
   return (
     <div className="max-w-3xl space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm text-muted-foreground">
-          Conecte cada número do WhatsApp Business da clínica pela Meta. O app no celular continua funcionando.
+          Números de WhatsApp conectados na VPS (Esquadrão Baileys) e API oficial da Meta sincronizados em tempo real com o Multiatendimento.
         </div>
-        <Button onClick={connect} disabled={busy}><Plus className="h-4 w-4" /> Conectar WhatsApp</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={refreshAllVps} disabled={busy}>
+            <RefreshCw className="h-4 w-4" /> Sincronizar VPS
+          </Button>
+          <Button onClick={connect} disabled={busy}>
+            <Plus className="h-4 w-4" /> Conectar Meta Cloud
+          </Button>
+        </div>
       </div>
 
       {channels.length === 0 && (
@@ -149,37 +201,59 @@ export function ConexoesClient() {
 
       {channels.map((ch) => {
         const st = STATUS[ch.status] ?? { txt: ch.status, color: "#9ca3af" };
+        const isVps = ch.config?.provider === "vps_esquadrao";
+        const displayPhone = ch.config?.display_phone ?? ch.config?.phone ?? "";
+        const sectorLabel = ch.config?.sector_label;
+        const port = ch.config?.port;
+
         return (
           <Card key={ch.id} className="flex flex-row items-center gap-4 p-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
-              <Smartphone className="h-5 w-5" />
+              {isVps ? <Server className="h-5 w-5" /> : <Smartphone className="h-5 w-5" />}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="font-medium">{ch.display_name}</div>
-              <div className="truncate text-xs text-muted-foreground">
-                {ch.type === "whatsapp_cloud" ? `API oficial · ${ch.config?.display_phone ?? ""}` : ch.instance_name}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium">{ch.display_name}</span>
+                {sectorLabel && (
+                  <Badge variant="secondary" className="text-[11px]">
+                    {sectorLabel}
+                  </Badge>
+                )}
+                {isVps && (
+                  <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/30">
+                    VPS · Porta {port}
+                  </Badge>
+                )}
+              </div>
+              <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                {displayPhone ? `${displayPhone} · instância: ${ch.instance_name}` : ch.instance_name}
               </div>
             </div>
             <span className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: st.color }}>
               <span className="h-2 w-2 rounded-full" style={{ background: st.color }} /> {st.txt}
             </span>
-            {/* Ações de QR/desconectar são da Evolution; número da API oficial é gerenciado na Meta. */}
-            {ch.type !== "whatsapp_cloud" && <div className="flex shrink-0 gap-0.5">
-              {ch.status !== "connected" && (
-                <Button variant="ghost" size="icon" title="Mostrar QR Code" onClick={() => showQr(ch)}>
-                  <QrCode className="h-4 w-4" />
+            {ch.type !== "whatsapp_cloud" && (
+              <div className="flex shrink-0 gap-0.5">
+                {ch.status !== "connected" && !isVps && (
+                  <Button variant="ghost" size="icon" title="Mostrar QR Code" onClick={() => showQr(ch)}>
+                    <QrCode className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button variant="ghost" size="icon" title="Atualizar status ao vivo" onClick={() => refreshStatus(ch)}>
+                  <RefreshCw className="h-4 w-4" />
                 </Button>
-              )}
-              <Button variant="ghost" size="icon" title="Atualizar status" onClick={() => refreshStatus(ch)}>
-                <RefreshCw className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" title="Desconectar" onClick={() => disconnect(ch)}>
-                <Unplug className="h-4 w-4 text-amber-400" />
-              </Button>
-              <Button variant="ghost" size="icon" title="Remover instância" onClick={() => removeChannel(ch)}>
-                <Trash2 className="h-4 w-4 text-muted-foreground" />
-              </Button>
-            </div>}
+                {!isVps && (
+                  <>
+                    <Button variant="ghost" size="icon" title="Desconectar" onClick={() => disconnect(ch)}>
+                      <Unplug className="h-4 w-4 text-amber-400" />
+                    </Button>
+                    <Button variant="ghost" size="icon" title="Remover instância" onClick={() => removeChannel(ch)}>
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
           </Card>
         );
       })}
