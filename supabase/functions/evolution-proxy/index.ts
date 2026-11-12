@@ -254,15 +254,20 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // --- Rotas autenticadas por usuário logado no CRM ---
-    const authHeader = req.headers.get('Authorization') ?? '';
-    const jwt = authHeader.replace('Bearer ', '');
-    const { data: { user } } = await supabaseAdmin.auth.getUser(jwt);
-    if (!user) return json({ error: 'não autenticado' }, 401);
+    // --- Rotas autenticadas por usuário logado no CRM (ou x-system-key) ---
+    let orgIds: string[] = [];
+    if (reqSystemKey && SYSTEM_KEY && reqSystemKey === SYSTEM_KEY) {
+      orgIds = ['00000000-0000-0000-0000-000000000001'];
+    } else {
+      const authHeader = req.headers.get('Authorization') ?? '';
+      const jwt = authHeader.replace('Bearer ', '');
+      const { data: { user } } = await supabaseAdmin.auth.getUser(jwt);
+      if (!user) return json({ error: 'não autenticado' }, 401);
 
-    const { data: memberships } = await supabaseAdmin.from('org_members').select('org_id, role').eq('user_id', user.id);
-    const orgIds = (memberships ?? []).map((m: any) => m.org_id);
-    if (!orgIds.length) return json({ error: 'usuário sem organização' }, 403);
+      const { data: memberships } = await supabaseAdmin.from('org_members').select('org_id, role').eq('user_id', user.id);
+      orgIds = (memberships ?? []).map((m: any) => m.org_id);
+      if (!orgIds.length) return json({ error: 'usuário sem organização' }, 403);
+    }
     const orgId = payload.org_id && orgIds.includes(payload.org_id) ? payload.org_id : orgIds[0];
 
     const evoFetch = async (path: string, init: RequestInit = {}) => {

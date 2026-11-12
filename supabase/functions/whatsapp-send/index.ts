@@ -5,7 +5,7 @@ import { localToWa } from '../_shared/wa.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-system-key',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 function json(b: unknown, s = 200) {
@@ -18,11 +18,20 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
     const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-    const jwt = (req.headers.get('Authorization') ?? '').replace('Bearer ', '');
-    const { data: { user } } = await admin.auth.getUser(jwt);
-    if (!user) return json({ error: 'nao autenticado' }, 401);
+    const { data: settingsRows } = await admin.from('platform_settings').select('key, value');
+    const settings = Object.fromEntries((settingsRows ?? []).map((r: any) => [r.key, r.value]));
+    const sysKey = req.headers.get('x-system-key') ?? '';
+    const isSystem = Boolean(sysKey && settings.cadence_secret && sysKey === settings.cadence_secret);
 
-    const { patient_id, text, channel_id } = await req.json();
+    let userId: string | null = null;
+    if (!isSystem) {
+      const jwt = (req.headers.get('Authorization') ?? '').replace('Bearer ', '');
+      const { data: { user } } = await admin.auth.getUser(jwt);
+      if (!user) return json({ error: 'nao autenticado' }, 401);
+      userId = user.id;
+    }
+
+    const { patient_id, text, channel_id, dry_run } = await req.json();
     const body = String(text ?? '').trim();
     if (!patient_id || !body) return json({ error: 'parametros invalidos' }, 400);
     if (body.length > 4096) return json({ error: 'mensagem acima de 4096 caracteres' }, 400);
@@ -34,13 +43,15 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!patient?.phone) return json({ error: 'paciente sem telefone' }, 404);
 
-    const { data: mem } = await admin
-      .from('org_members')
-      .select('org_id')
-      .eq('user_id', user.id)
-      .eq('org_id', patient.org_id)
-      .maybeSingle();
-    if (!mem) return json({ error: 'sem acesso' }, 403);
+    if (!isSystem) {
+      const { data: mem } = await admin
+        .from('org_members')
+        .select('org_id')
+        .eq('user_id', userId)
+        .eq('org_id', patient.org_id)
+        .maybeSingle();
+      if (!mem) return json({ error: 'sem acesso' }, 403);
+    }
 
     // Buscar todos os canais da organização
     const { data: allChannels } = await admin
@@ -77,10 +88,17 @@ Deno.serve(async (req) => {
 
     // --- Caso A: Canal conectado na VPS (Esquadrão Baileys: recepcao, layla, diana) ---
     if (channel.config?.provider === 'vps_esquadrao' || channel.type === 'whatsapp') {
-      const { data: settingsRows } = await admin.from('platform_settings').select('key, value');
-      const settings = Object.fromEntries((settingsRows ?? []).map((r: any) => [r.key, r.value]));
       const vpsBridgeUrl = settings.vps_bridge_url || 'https://evolution.clinprime.shop/crm-bridge';
       const systemKey = settings.cadence_secret;
+
+      if (dry_run) {
+        return json({
+          ok: true,
+          dry_run: true,
+          channel: { id: channel.id, instance_name: channel.instance_name, display_name: channel.display_name, status: channel.status },
+          destination: { phone: localToWa(patient.phone), chat_id: patient.chat_session_id },
+        });
+      }
 
       let sentWamid: string | null = null;
       let status: 'sent' | 'queued' = 'queued';
@@ -123,7 +141,7 @@ Deno.serve(async (req) => {
           message_type: 'text',
           status,
           whatsapp_message_id: sentWamid,
-          sent_by: user.id,
+          sent_by: userId,
           created_at: now,
         })
         .select('id,patient_id,channel_id,direction,content,status,created_at')
@@ -162,7 +180,7 @@ Deno.serve(async (req) => {
       message_type: 'text',
       status: 'sent',
       whatsapp_message_id: res.messages?.[0]?.id,
-      sent_by: user.id,
+      sent_by: userId,
       created_at: now,
     }).select('id,patient_id,channel_id,direction,content,status,created_at').single();
     if (error) return json({ error: error.message }, 500);

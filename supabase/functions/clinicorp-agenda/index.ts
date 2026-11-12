@@ -2,7 +2,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-system-key',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 function json(b, s = 200) {
@@ -25,15 +25,24 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
     const admin = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
-    const jwt = (req.headers.get('Authorization') ?? '').replace('Bearer ', '');
-    const { data: { user } } = await admin.auth.getUser(jwt);
-    if (!user) return json({ error: 'nao autenticado' }, 401);
-    const body = await req.json();
+    const { data: rows } = await admin.from('platform_settings').select('key, value');
+    const cfg = Object.fromEntries((rows ?? []).map((r) => [r.key, r.value]));
+    const sysKey = req.headers.get('x-system-key') ?? '';
+    const isSystem = Boolean(sysKey && cfg.cadence_secret && sysKey === cfg.cadence_secret);
+
+    const body = await req.json().catch(() => ({}));
     const { from, to, org_id, action } = body;
-    const { data: mem } = await admin.from('org_members').select('org_id').eq('user_id', user.id);
-    const orgIds = (mem ?? []).map((m) => m.org_id);
-    const oid = org_id && orgIds.includes(org_id) ? org_id : orgIds[0];
-    if (!oid) return json({ error: 'usuario sem organizacao' }, 403);
+    let oid = org_id || '00000000-0000-0000-0000-000000000001';
+
+    if (!isSystem) {
+      const jwt = (req.headers.get('Authorization') ?? '').replace('Bearer ', '');
+      const { data: { user } } = await admin.auth.getUser(jwt);
+      if (!user) return json({ error: 'nao autenticado' }, 401);
+      const { data: mem } = await admin.from('org_members').select('org_id').eq('user_id', user.id);
+      const orgIds = (mem ?? []).map((m) => m.org_id);
+      oid = org_id && orgIds.includes(org_id) ? org_id : orgIds[0];
+      if (!oid) return json({ error: 'usuario sem organizacao' }, 403);
+    }
 
     if (action === 'mark') {
       const { attendance_id, status } = body;
@@ -54,8 +63,6 @@ Deno.serve(async (req) => {
       const catOk = !cats.length || cats.includes(String(a.CategoryDescription ?? ''));
       return !!(creatorOk && catOk);
     }
-    const { data: rows } = await admin.from('platform_settings').select('key, value');
-    const cfg = Object.fromEntries((rows ?? []).map((r) => [r.key, r.value]));
     const URL = cfg.clinicorp_url, SUB = cfg.clinicorp_subscriber, AUTH = cfg.clinicorp_auth;
     const CODE = cfg.clinicorp_code_link, BIZ = cfg.clinicorp_business_id;
     if (!URL || !SUB || !AUTH) return json({ error: 'Clinicorp nao configurado' }, 500);
