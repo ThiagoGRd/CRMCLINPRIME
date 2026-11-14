@@ -20,9 +20,14 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  UPDATE public.crm_patients
-    SET care_status = 'ativo', care_closed_reason = NULL
-    WHERE id = NEW.patient_id AND care_status = 'encerrado';
+  -- Nunca derrubar a entrada de uma mensagem: qualquer erro aqui (deadlock, lock) é engolido.
+  BEGIN
+    UPDATE public.crm_patients
+      SET care_status = 'ativo', care_closed_reason = NULL
+      WHERE id = NEW.patient_id AND care_status = 'encerrado';
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
   RETURN NEW;
 END;
 $$;
@@ -37,7 +42,8 @@ BEGIN
   ) THEN
     CREATE TRIGGER crm_messages_reopen_patient
       AFTER INSERT ON public.crm_messages
-      FOR EACH ROW WHEN (NEW.direction = 'inbound')
+      -- Só mensagem recente: importação de histórico antigo não reabre paciente encerrado de propósito.
+      FOR EACH ROW WHEN (NEW.direction = 'inbound' AND NEW.created_at > now() - interval '1 day')
       EXECUTE FUNCTION public.reopen_patient_on_inbound();
   END IF;
 END
