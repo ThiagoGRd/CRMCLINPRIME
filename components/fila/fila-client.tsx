@@ -85,8 +85,8 @@ export function FilaClient() {
     return () => clearInterval(t);
   }, []);
 
-  const { data: tasks } = useQuery({ queryKey: ["tasks", org.id], queryFn: () => listOpenTasks(supabase, org.id) });
-  const { data: forgotten } = useQuery({ queryKey: ["forgotten", org.id], queryFn: () => listForgotten(supabase, org.id) });
+  const { data: tasks, isError: tasksError, refetch: refetchTasks } = useQuery({ queryKey: ["tasks", org.id], queryFn: () => listOpenTasks(supabase, org.id) });
+  const { data: forgotten, isError: forgottenError, refetch: refetchForgotten } = useQuery({ queryKey: ["forgotten", org.id], queryFn: () => listForgotten(supabase, org.id) });
   const { data: memberIds } = useQuery({
     queryKey: ["org-member-ids", org.id],
     queryFn: async () => {
@@ -103,15 +103,17 @@ export function FilaClient() {
   // Realtime: setAuth ANTES de subscrever (senão falha em silêncio sob RLS)
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
       if (session) supabase.realtime.setAuth(session.access_token);
       channel = supabase
         .channel("rt-tasks")
         .on("postgres_changes", { event: "*", schema: "public", table: "crm_tasks" }, refresh)
         .subscribe();
     })();
-    return () => { if (channel) supabase.removeChannel(channel); };
+    return () => { cancelled = true; if (channel) supabase.removeChannel(channel); };
   }, [supabase, refresh]);
 
   const me = useMemo(() => ({ userId: org.userId, isManager: org.isManager }), [org.userId, org.isManager]);
@@ -177,6 +179,8 @@ export function FilaClient() {
         )}
       </div>
       <FilaList
+        state={tasksError ? "error" : tasks ? "ready" : "loading"} forgottenError={forgottenError}
+        onRetry={() => { void refetchTasks(); void refetchForgotten(); }}
         tasks={shown} now={now} me={me} memberIds={members} forgotten={shownForgotten}
         selectedId={selected?.id ?? null}
         onOpen={open} onDone={setCompleting} onSnooze={setSnoozing}

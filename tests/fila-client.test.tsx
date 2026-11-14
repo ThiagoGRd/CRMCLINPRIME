@@ -4,9 +4,9 @@ import type {Task} from '../lib/tasks';
 const now=new Date('2026-06-10T15:00:00Z');
 const base:Task={id:'t',patientId:'p',patientName:'Paciente',patientPhone:'1',front:'recepcao',kind:'demanda',title:'x',ownerId:null,dueAt:'2026-06-10T18:00:00Z',status:'aberta',draft:null};
 const noop=()=>{};
-const cb={selectedId:null,onOpen:noop,onDone:noop,onSnooze:noop,onDefineNext:noop};
-const render=(tasks:Task[],me:{userId:string;isManager:boolean},forgotten:React.ComponentProps<typeof FilaList>['forgotten']=[])=>
- renderToStaticMarkup(<FilaList tasks={tasks} now={now} me={me} memberIds={['me','other']} forgotten={forgotten} {...cb}/>);
+const cb={state:'ready' as const,forgottenError:false,onRetry:noop,selectedId:null,onOpen:noop,onDone:noop,onSnooze:noop,onDefineNext:noop};
+const render=(tasks:Task[],me:{userId:string;isManager:boolean},forgotten:React.ComponentProps<typeof FilaList>['forgotten']=[],extra:Partial<React.ComponentProps<typeof FilaList>>={})=>
+ renderToStaticMarkup(<FilaList tasks={tasks} now={now} me={me} memberIds={['me','other']} forgotten={forgotten} {...cb} {...extra}/>);
 test('non manager sees only own tasks',()=>{
  const html=render([{...base,id:'1',title:'Tarefa alheia vencida',ownerId:'other',dueAt:'2026-06-09T12:00:00Z'},{...base,id:'2',title:'Minha tarefa de hoje',ownerId:'me'}],{userId:'me',isManager:false});
  assert.match(html,/Minha tarefa de hoje/);assert.doesNotMatch(html,/Tarefa alheia vencida/);
@@ -26,4 +26,16 @@ test('forgotten patients: own for member, all for manager',()=>{
  const m=render([],{userId:'me',isManager:false},f);
  assert.match(m,/Sem próxima ação \(1\)/);assert.match(m,/Esquecida Minha/);assert.doesNotMatch(m,/Esquecida Alheia/);
  assert.match(render([],{userId:'me',isManager:true},f),/Sem próxima ação \(2\)/);
+});
+test('loading never claims the queue is empty',()=>{
+ const html=render([],{userId:'me',isManager:false},[],{state:'loading'});
+ assert.match(html,/Carregando a fila/);assert.doesNotMatch(html,/Nada pendente/);
+});
+test('error shows retry and never claims the queue is empty',()=>{
+ const html=render([],{userId:'me',isManager:false},[],{state:'error'});
+ assert.match(html,/Não foi possível carregar a fila/);assert.match(html,/Tentar de novo/);assert.doesNotMatch(html,/Nada pendente/);
+});
+test('forgotten query error is reported in its section',()=>{
+ const html=render([],{userId:'me',isManager:false},[],{forgottenError:true});
+ assert.match(html,/Não foi possível carregar os pacientes sem próxima ação/);
 });

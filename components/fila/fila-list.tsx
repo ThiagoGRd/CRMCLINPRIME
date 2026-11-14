@@ -8,7 +8,10 @@ type Props = {
   now: Date;
   me: { userId: string; isManager: boolean };
   memberIds: string[];
+  state: "loading" | "error" | "ready";
   forgotten: ForgottenPatient[];
+  forgottenError: boolean;
+  onRetry: () => void;
   selectedId: string | null;
   onOpen: (t: Task) => void;
   onDone: (t: Task) => void;
@@ -79,6 +82,17 @@ export function FilaList(p: Props) {
   const visible = [...owned, ...unowned];
   const forgotten = p.forgotten.filter((f) => p.me.isManager || f.assignedTo === p.me.userId);
 
+  // Vazio só vale quando a consulta terminou com sucesso.
+  if (p.state === "loading") return <p className="p-6 text-center text-sm text-muted-foreground">Carregando a fila...</p>;
+  if (p.state === "error") {
+    return (
+      <div role="alert" className="space-y-2 rounded-lg border border-red-500/30 p-6 text-center text-sm">
+        <p>Não foi possível carregar a fila.</p>
+        <button type="button" className={btn} onClick={p.onRetry}>Tentar de novo</button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {visible.length === 0 && (
@@ -93,7 +107,10 @@ export function FilaList(p: Props) {
           <Group items={unowned} p={p} />
         </section>
       )}
-      {forgotten.length > 0 && (
+      {p.forgottenError && (
+        <p role="alert" className="text-sm text-red-400">Não foi possível carregar os pacientes sem próxima ação.</p>
+      )}
+      {!p.forgottenError && forgotten.length > 0 && (
         <section aria-label="Sem próxima ação" className="space-y-2">
           <h2 className="text-sm font-semibold">Sem próxima ação ({forgotten.length})</h2>
           <ul className="space-y-2">
