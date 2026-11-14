@@ -1,3 +1,5 @@
+set local lock_timeout = '5s';
+
 -- Fase 1 "paciente nunca esquecido": fila de tarefas (crm_tasks), frentes e conclusão atômica.
 -- Aditiva: sem drop nem alter type.
 
@@ -50,7 +52,13 @@ BEGIN
     CREATE POLICY tasks_all ON public.crm_tasks
       FOR ALL
       USING (is_org_member(org_id))
-      WITH CHECK (is_org_member(org_id));
+      WITH CHECK (
+        is_org_member(org_id)
+        AND EXISTS (
+          SELECT 1 FROM public.crm_patients p
+          WHERE p.id = crm_tasks.patient_id AND p.org_id = crm_tasks.org_id
+        )
+      );
   END IF;
 
   IF NOT EXISTS (
@@ -118,6 +126,7 @@ CREATE OR REPLACE FUNCTION public.complete_task(
 ) RETURNS uuid
 LANGUAGE plpgsql
 SECURITY INVOKER
+SET search_path = public
 AS $$
 DECLARE
   v_patient uuid;
@@ -134,21 +143,27 @@ BEGIN
     RAISE EXCEPTION 'tarefa_ja_concluida';
   END IF;
 
-  IF p_next_title IS NOT NULL THEN
+  IF nullif(trim(p_next_title), '') IS NOT NULL THEN
     IF p_next_due IS NULL OR p_next_due <= now() THEN
       RAISE EXCEPTION 'prazo_invalido';
     END IF;
     INSERT INTO public.crm_tasks (org_id, patient_id, front, kind, title, owner_id, due_at, origin)
-    VALUES (v_org, v_patient, coalesce(p_next_front, v_front), 'proxima_acao', p_next_title, auth.uid(), p_next_due, 'manual')
+    VALUES (v_org, v_patient, coalesce(p_next_front, v_front), 'proxima_acao', trim(p_next_title), auth.uid(), p_next_due, 'manual')
     RETURNING id INTO v_next;
     RETURN v_next;
   ELSIF nullif(trim(p_close_reason), '') IS NOT NULL THEN
     UPDATE public.crm_patients
-    SET care_status = 'encerrado', care_closed_reason = p_close_reason
+    SET care_status = 'encerrado', care_closed_reason = trim(p_close_reason)
     WHERE id = v_patient;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'paciente_nao_encerrado';
+    END IF;
     RETURN NULL;
   ELSE
     RAISE EXCEPTION 'proximo_passo_obrigatorio';
   END IF;
 END;
 $$;
+
+REVOKE EXECUTE ON FUNCTION public.complete_task(uuid, text, text, timestamptz, text, text) FROM public, anon;
+GRANT EXECUTE ON FUNCTION public.complete_task(uuid, text, text, timestamptz, text, text) TO authenticated;
