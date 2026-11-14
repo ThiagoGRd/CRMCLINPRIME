@@ -5,27 +5,25 @@ import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/components/org-context";
-import { CC_BADGE } from "@/lib/funil";
-import { formatPhoneDisplay, formatCurrency, formatDateBR } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Send, Search, Zap, X, PanelRight, Plus, Trash2, RefreshCw, ClipboardList } from "lucide-react";
+import { ClipboardList, MessagesSquare, Search } from "lucide-react";
 import { toast } from "sonner";
-import { createTask } from "@/lib/tasks-data";
+import { createTask, listOpenTasks } from "@/lib/tasks-data";
 import { invalidateTaskCaches } from "@/lib/task-cache";
 import { demandDueAt, demandTitle } from "@/lib/tasks";
+import { lastByPatient, MESSAGE_COLUMNS, type InboxMessage, type LastMessage } from "@/lib/inbox";
 import { PatientPanel } from "@/components/pacientes/patient-panel";
+import { NewTaskDialog } from "@/components/fila/new-task-dialog";
 import { ReceptionPilotPanel } from "./reception-pilot-panel";
 import { InboxMobileNavigation, inboxPaneClass, type InboxPane } from "./inbox-mobile-navigation";
+import { ConversationList } from "./conversation-list";
+import { MessageThread } from "./message-bubble";
+import { ChatHeader } from "./chat-header";
+import { ChatComposer } from "./chat-composer";
+import { ContactDetails } from "./contact-details";
+import { QuickRepliesDialog } from "./quick-replies-dialog";
+import { PanelSelector, TeamBoard, buildPanels, channelLabel, countAwaiting } from "./team-board";
 
 type Conversation = {
   id: string;
@@ -40,14 +38,7 @@ type Conversation = {
   created_at: string | null;
   last_message_at: string | null;
 };
-type Message = {
-  id: string;
-  patient_id: string;
-  channel_id?: string | null;
-  direction: string;
-  content: string;
-  created_at: string;
-};
+type Message = InboxMessage;
 type ChannelItem = {
   id: string;
   instance_name: string;
@@ -57,13 +48,6 @@ type ChannelItem = {
 };
 type Member = { user_id: string; role: string | null; display_name: string | null };
 type QuickReply = { id: string; shortcut: string; content: string };
-
-const SHORT_CHANNEL_LABEL: Record<string, string> = {
-  recepcao: "Recepção",
-  layla: "Layla (CRC)",
-  diana: "Diana (Comercial)",
-  thiago: "Dr. Thiago",
-};
 
 export function InboxClient() {
   const org = useOrg();
@@ -85,7 +69,10 @@ export function InboxClient() {
   const [tagInput, setTagInput] = useState("");
   const [qrOpen, setQrOpen] = useState(false);
   const [qrForm, setQrForm] = useState({ shortcut: "", content: "" });
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [board, setBoard] = useState(false);
+  const [newTaskOpen, setNewTaskOpen] = useState(false);
+  // null até montar: rótulos de hora dependem do relógio e não podem divergir do HTML do servidor
+  const [now, setNow] = useState<Date | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const activeIdRef = useRef<string | null>(null);
   activeIdRef.current = activeId;
@@ -130,6 +117,28 @@ export function InboxClient() {
       return (data ?? []) as QuickReply[];
     },
   });
+  // Última mensagem de cada conversa (prévia, hora e "aguardando resposta"); o RLS limita à organização.
+  const { data: lastRows } = useQuery({
+    queryKey: ["inbox-last", org.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("messages")
+        .select("patient_id,direction,content,message_type,created_at")
+        .order("created_at", { ascending: false })
+        .limit(1500);
+      return (data ?? []) as LastMessage[];
+    },
+  });
+  const lastBy = useMemo(() => lastByPatient(lastRows ?? []), [lastRows]);
+  // mesma chave do resto do app: o cache de tarefas é compartilhado
+  const { data: tasks } = useQuery({ queryKey: ["tasks", org.id], queryFn: () => listOpenTasks(supabase, org.id) });
+
+  useEffect(() => {
+    const tick = () => setNow(new Date());
+    const first = setTimeout(tick, 0);
+    const t = setInterval(tick, 60_000);
+    return () => { clearTimeout(first); clearInterval(t); };
+  }, []);
 
   const loadConversations = useCallback(async () => {
     const { data } = await supabase
@@ -190,7 +199,7 @@ export function InboxClient() {
 
       const { data } = await supabase
         .from("messages")
-        .select("id,patient_id,channel_id,direction,content,created_at")
+        .select(MESSAGE_COLUMNS)
         .eq("patient_id", activeId)
         .order("created_at", { ascending: true })
         .limit(1000);
@@ -214,7 +223,7 @@ export function InboxClient() {
           if (!cancelled && (syncRes?.synced ?? 0) > 0) {
             const { data: refreshed } = await supabase
               .from("messages")
-              .select("id,patient_id,channel_id,direction,content,created_at")
+              .select(MESSAGE_COLUMNS)
               .eq("patient_id", activeId)
               .order("created_at", { ascending: true })
               .limit(1000);
@@ -225,8 +234,6 @@ export function InboxClient() {
     })();
     return () => { cancelled = true; };
   }, [activeId, supabase, channelFilter, activeChannels, org.id]);
-
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   // Realtime: setAuth ANTES de subscrever (senão falha em silêncio sob RLS)
   useEffect(() => {
@@ -253,12 +260,13 @@ export function InboxClient() {
               });
             }
             loadConversations();
+            void qc.invalidateQueries({ queryKey: ["inbox-last", org.id] });
           }
         )
         .subscribe();
     })();
     return () => { if (channel) supabase.removeChannel(channel); };
-  }, [supabase, loadConversations]);
+  }, [supabase, loadConversations, qc, org.id]);
 
   async function send() {
     if (!text.trim() || !activeId || sending) return;
@@ -307,7 +315,7 @@ export function InboxClient() {
       if (error || res?.error) throw new Error(res?.error ?? error?.message ?? "Erro ao sincronizar");
       const { data: refreshed } = await supabase
         .from("messages")
-        .select("id,patient_id,channel_id,direction,content,created_at")
+        .select(MESSAGE_COLUMNS)
         .eq("patient_id", activeId)
         .order("created_at", { ascending: true })
         .limit(1000);
@@ -397,355 +405,129 @@ export function InboxClient() {
     qc.invalidateQueries({ queryKey: ["quick-replies"] });
   }
 
+  // Painéis da equipe (um por canal) com a contagem de "aguardando resposta"; a busca só filtra a lista.
+  const panels = useMemo(() => buildPanels(activeChannels, convs, patientChannels, lastBy), [activeChannels, convs, patientChannels, lastBy]);
+  const allAwaiting = useMemo(() => countAwaiting(convs, lastBy), [convs, lastBy]);
   const filteredConvs = useMemo(() => {
-    return convs.filter((c) => {
-      if (channelFilter !== "all") {
-        const chIds = patientChannels[c.id] ?? [];
-        if (!chIds.includes(channelFilter)) return false;
-      }
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        return c.name?.toLowerCase().includes(q) || (c.phone ?? "").includes(search);
-      }
-      return true;
-    });
-  }, [convs, channelFilter, patientChannels, search]);
+    const base = channelFilter === "all" ? convs : panels.find((p) => p.id === channelFilter)?.convs ?? [];
+    const q = search.trim().toLowerCase();
+    return q ? base.filter((c) => c.name?.toLowerCase().includes(q) || (c.phone ?? "").includes(search.trim())) : base;
+  }, [convs, panels, channelFilter, search]);
 
   const active = convs.find((c) => c.id === activeId);
-  const cc = active?.clinicorp_status ? CC_BADGE[active.clinicorp_status] : null;
   const memberName = (uid: string | null) =>
     (members ?? []).find((m) => m.user_id === uid)?.display_name ?? "Sem atendente";
+  const nextTask = useMemo(
+    () => (tasks ?? []).filter((t) => t.patientId === activeId)
+      .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime())[0] ?? null,
+    [tasks, activeId],
+  );
 
-  const shortChannelName = (channelId?: string | null) => {
+  const panelOf = (channelId?: string | null) => {
     if (!channelId) return null;
+    const p = panels.find((x) => x.id === channelId);
+    if (p) return { label: p.label, color: p.color };
     const ch = channelMap.get(channelId);
-    if (!ch) return null;
-    return SHORT_CHANNEL_LABEL[ch.instance_name] ?? ch.display_name;
+    return ch ? { label: channelLabel(ch), color: "#a5b4fc" } : null;
   };
+  const openConversation = (id: string) => { setActiveId(id); setMobilePane("chat"); };
 
   return (
-    <div className="flex h-[calc(100dvh-160px)] min-h-0 min-w-0 flex-col gap-2">
+    <div className="flex h-[calc(100dvh-160px)] min-h-0 min-w-0 flex-col gap-3">
       <ReceptionPilotPanel key={org.id} orgId={org.id} />
       <InboxMobileNavigation view={mobilePane} hasPatient={Boolean(active)} onChange={setMobilePane} />
-      <div className="flex min-h-0 min-w-0 flex-1 gap-4">
-      {/* Lista de conversas */}
-      <div className={`${inboxPaneClass("list", mobilePane)} min-h-0 w-full shrink-0 flex-col rounded-xl border border-border bg-card lg:w-80`}>
-        <div className="space-y-2 border-b border-border p-3">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar conversa..." className="pl-9" />
-          </div>
-          {activeChannels.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              <button
-                type="button"
-                onClick={() => setChannelFilter("all")}
-                className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
-                  channelFilter === "all"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-bg-tertiary text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Todos
-              </button>
-              {activeChannels.map((ch) => (
-                <button
-                  key={ch.id}
-                  type="button"
-                  onClick={() => setChannelFilter(ch.id)}
-                  className={`flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
-                    channelFilter === ch.id
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-bg-tertiary text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <span
-                    className="h-1.5 w-1.5 rounded-full"
-                    style={{ background: ch.status === "connected" ? "#10b981" : "#ef4444" }}
-                  />
-                  {SHORT_CHANNEL_LABEL[ch.instance_name] ?? ch.display_name}
-                </button>
-              ))}
-            </div>
-          )}
+      {activeChannels.length > 0 && (
+        <div className={`${mobilePane === "list" ? "block" : "hidden"} min-w-0 lg:block`}>
+          <PanelSelector
+            panels={panels} allAwaiting={allAwaiting} value={channelFilter} onChange={setChannelFilter}
+            board={board} onBoardChange={setBoard}
+          />
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {filteredConvs.map((c) => {
-            const chIds = patientChannels[c.id] ?? [];
-            const primaryCh = chIds[0] ? shortChannelName(chIds[0]) : null;
-            return (
-              <button
-                key={c.id}
-                onClick={() => { setActiveId(c.id); setMobilePane("chat"); }}
-                className={`flex w-full items-center gap-3 border-b border-white/[.04] px-3 py-3 text-left transition-colors hover:bg-white/[.03] ${
-                  activeId === c.id ? "bg-primary/10" : ""
-                }`}
-              >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-emerald-500 text-xs font-bold text-white">
-                  {(c.name ?? "?").slice(0, 2).toUpperCase()}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <div className="truncate text-sm font-medium">{c.name}</div>
-                    {primaryCh && (
-                      <span className="shrink-0 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
-                        {primaryCh}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="truncate text-xs text-muted-foreground">{formatPhoneDisplay(c.phone)}</span>
-                    {(c.tags ?? []).slice(0, 1).map((t) => (
-                      <span key={t} className="shrink-0 rounded bg-primary/15 px-1 text-[10px] text-primary">{t}</span>
-                    ))}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
+      )}
+      {board && (
+        <TeamBoard
+          panels={panels} lastBy={lastBy} now={now}
+          onOpen={(id, panelId) => { setChannelFilter(panelId); setBoard(false); openConversation(id); }}
+        />
+      )}
+      <div className={`flex min-h-0 min-w-0 flex-1 gap-3 ${board ? "lg:hidden" : ""}`}>
+      {/* Lista de conversas */}
+      <div className={`${inboxPaneClass("list", mobilePane)} min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-card lg:w-[360px]`}>
+        <div className="border-b border-white/[0.06] p-2.5">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar conversa..." aria-label="Buscar conversa"
+              className="h-9 rounded-full border-transparent bg-[#1f2236] pl-10"
+            />
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <ConversationList
+            items={filteredConvs} lastBy={lastBy} now={now} activeId={activeId} onSelect={openConversation}
+            panelOf={channelFilter === "all" ? (id) => panelOf(patientChannels[id]?.[0]) : undefined}
+            empty={search.trim() ? "Nenhuma conversa encontrada." : "Nenhuma conversa neste painel."}
+          />
         </div>
       </div>
 
       {/* Conversa ativa */}
-      <div className={`${inboxPaneClass("chat", mobilePane)} min-h-0 min-w-0 flex-1 flex-col rounded-xl border border-border bg-card`}>
+      <div className={`${inboxPaneClass("chat", mobilePane)} min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-card`}>
         {!active ? (
-          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-            Selecione uma conversa
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center" style={{ background: "radial-gradient(60% 50% at 50% 45%, rgba(99,102,241,0.08), transparent 70%)" }}>
+            <span className="grid size-16 place-items-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+              <MessagesSquare className="size-7" />
+            </span>
+            <p className="font-heading text-base font-semibold">Conversas da equipe</p>
+            <p className="max-w-xs text-sm text-muted-foreground">Escolha uma conversa para ver as mensagens, fotos, áudios e documentos.</p>
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-3.5 sm:px-5">
-              <div className="min-w-0">
-                <button type="button" className="block max-w-full truncate text-left font-heading font-semibold hover:underline" onClick={() => setPanelPatientId(active.id)}>{active.name}</button>
-                <div className="text-xs text-muted-foreground">
-                  {formatPhoneDisplay(active.phone)} · {memberName(active.assigned_to)}
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                {activeChannels.length > 0 && (
-                  <Select value={sendChannelId} onValueChange={(v) => setSendChannelId(v ?? "")}>
-                    <SelectTrigger className="h-8 w-[165px] text-xs">
-                      <SelectValue placeholder="Canal de envio">
-                        {shortChannelName(sendChannelId) ?? "Canal de envio"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activeChannels.map((ch) => (
-                        <SelectItem key={ch.id} value={ch.id}>
-                          {SHORT_CHANNEL_LABEL[ch.instance_name] ?? ch.display_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                <Button variant="outline" size="sm" onClick={syncPatientHistory} title="Puxar histórico completo da VPS">
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Histórico</span>
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => turnIntoDemand()} disabled={creatingDemand}>
-                  <ClipboardList className="h-4 w-4" />
-                  <span className="hidden sm:inline">Virar demanda</span>
-                  <span className="sr-only sm:hidden">Virar demanda</span>
-                </Button>
-                <Button variant="outline" size="icon-sm" title="Painel do paciente" onClick={() => { setShowPanel((v) => !v); setMobilePane("details"); }}>
-                  <PanelRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex-1 space-y-2 overflow-y-auto px-5 py-4">
-              {messages.length === 0 && (
-                <div className="py-8 text-center text-sm text-muted-foreground">
-                  Nenhuma mensagem ainda.
-                </div>
-              )}
-              {messages.map((m) => {
-                const out = m.direction === "outbound";
-                const chName = shortChannelName(m.channel_id);
-                const timeStr = m.created_at
-                  ? new Date(m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
-                  : "";
-                return (
-                  <div key={m.id} className={`group flex items-center gap-1 ${out ? "justify-end" : "justify-start"}`}>
-                    <div
-                      className={`max-w-[70%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm ${
-                        out ? "bg-primary text-primary-foreground" : "bg-bg-tertiary text-foreground"
-                      }`}
-                    >
-                      <div>{m.content}</div>
-                      {(chName || timeStr) && (
-                        <div className={`mt-1 flex items-center justify-end gap-1.5 text-[10px] ${out ? "text-primary-foreground/75" : "text-muted-foreground"}`}>
-                          {chName && <span>{chName}</span>}
-                          {timeStr && <span>{timeStr}</span>}
-                        </div>
-                      )}
-                    </div>
-                    {!out && (
-                      <Button
-                        variant="ghost" size="icon-sm" aria-label="Virar demanda" title="Virar demanda"
-                        disabled={creatingDemand} onClick={() => turnIntoDemand(m.id)}
-                        className="md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100"
-                      >
-                        <ClipboardList className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
-              <div ref={bottomRef} />
-            </div>
-
-            {/* Popup de respostas rápidas ao digitar "/" */}
-            {qrFiltered.length > 0 && (
-              <div className="mx-3 mb-1 overflow-hidden rounded-lg border border-border bg-popover">
-                {qrFiltered.map((r) => (
-                  <button
-                    key={r.id}
-                    className="flex w-full items-start gap-2 border-b border-white/[.04] px-3 py-2 text-left text-sm last:border-0 hover:bg-white/[.04]"
-                    onClick={() => { setText(r.content); inputRef.current?.focus(); }}
-                  >
-                    <Zap className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
-                    <span><strong>/{r.shortcut}</strong> — <span className="text-muted-foreground">{r.content.slice(0, 70)}{r.content.length > 70 ? "…" : ""}</span></span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="flex items-center gap-2 border-t border-border p-3">
-              <Button variant="ghost" size="icon" title="Respostas rápidas" onClick={() => setQrOpen(true)}>
-                <Zap className="h-4 w-4 text-amber-400" />
+            <ChatHeader
+              patient={active} attendant={memberName(active.assigned_to)} nextTask={nextTask} now={now}
+              onBack={() => setMobilePane("list")} onOpenPatient={() => setPanelPatientId(active.id)}
+              onDefineNext={() => setNewTaskOpen(true)} onSync={syncPatientHistory}
+              onToggleDetails={() => { setShowPanel((v) => !v); setMobilePane("details"); }}
+            >
+              <Button variant="outline" size="sm" onClick={() => turnIntoDemand()} disabled={creatingDemand}>
+                <ClipboardList className="h-4 w-4" />
+                <span className="hidden sm:inline">Virar demanda</span>
+                <span className="sr-only sm:hidden">Virar demanda</span>
               </Button>
-              <Input
-                ref={inputRef}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && qrFiltered.length === 0) { e.preventDefault(); send(); } }}
-                placeholder="Digite uma mensagem... ( / para respostas rápidas)"
-              />
-              <Button onClick={send} disabled={sending || !text.trim()} size="icon">
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
+            </ChatHeader>
+            <MessageThread
+              patientId={active.id} messages={messages} now={now} contactName={active.name}
+              senderOf={panelOf} onDemand={(id) => turnIntoDemand(id)} demandDisabled={creatingDemand}
+            />
+            <ChatComposer
+              inputRef={inputRef} text={text} setText={setText} onSend={send} sending={sending}
+              suggestions={qrFiltered} onOpenQuickReplies={() => setQrOpen(true)}
+              channels={activeChannels.map((ch) => ({ id: ch.id, label: channelLabel(ch), color: panelOf(ch.id)?.color ?? "#9ca3af" }))}
+              channelId={sendChannelId} onChannel={setSendChannelId}
+            />
           </>
         )}
       </div>
 
       {/* Painel lateral do paciente */}
       {active && (showPanel || mobilePane === "details") && (
-        <div className={`${inboxPaneClass("details", mobilePane, showPanel)} min-h-0 w-full min-w-0 shrink-0 flex-col gap-5 overflow-y-auto rounded-xl border border-border bg-card p-4 lg:w-72`}>
-          <div>
-            <div className="font-heading text-sm font-bold">Paciente</div>
-            <div className="mt-2.5 space-y-2">
-              <Row label="WhatsApp" value={formatPhoneDisplay(active.phone)} />
-              <Row label="Interesse" value={active.treatment_interest || active.source || "—"} />
-              <Row
-                label="Orçamento"
-                value={
-                  cc ? (
-                    <span style={{ color: cc.color }} className="font-semibold">
-                      {cc.label.replace(/^[✓↻•✕] /u, "")}{active.clinicorp_amount ? ` · ${formatCurrency(active.clinicorp_amount)}` : ""}
-                    </span>
-                  ) : "—"
-                }
-              />
-              <Row label="Entrou em" value={formatDateBR(active.created_at)} />
-            </div>
-          </div>
-
-          <div>
-            <div className="mb-2 font-heading text-sm font-bold">Atendente responsável</div>
-            <Select value={active.assigned_to ?? "none"} onValueChange={(v) => assign(v ?? "none")}>
-              <SelectTrigger className="w-full">
-                <SelectValue>{memberName(active.assigned_to)}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sem atendente</SelectItem>
-                {(members ?? []).map((m) => (
-                  <SelectItem key={m.user_id} value={m.user_id}>
-                    {m.display_name ?? m.user_id.slice(0, 8)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <div className="mb-2 font-heading text-sm font-bold">Tags</div>
-            <div className="flex flex-wrap gap-1.5">
-              {(active.tags ?? []).map((t) => (
-                <Badge key={t} variant="secondary" className="gap-1">
-                  {t}
-                  <button onClick={() => removeTag(t)} className="text-muted-foreground hover:text-foreground">
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-              {(active.tags ?? []).length === 0 && (
-                <span className="text-xs text-muted-foreground">Nenhuma tag</span>
-              )}
-            </div>
-            <Input
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
-              placeholder="+ tag e Enter"
-              className="mt-2 h-8 text-sm"
-            />
-          </div>
-        </div>
+        <ContactDetails
+          className={inboxPaneClass("details", mobilePane, showPanel)}
+          patient={active} members={members ?? []} memberName={memberName}
+          tagInput={tagInput} setTagInput={setTagInput} onAddTag={addTag} onRemoveTag={removeTag} onAssign={assign}
+        />
       )}
-
       </div>
 
-      {/* Dialog gerenciar respostas rápidas */}
-      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
-        <DialogContent className="gap-0 p-0">
-          <DialogHeader className="border-b border-border px-6 py-4">
-            <DialogTitle className="font-heading">Respostas rápidas</DialogTitle>
-          </DialogHeader>
-          <div className="max-h-[42vh] space-y-2 overflow-y-auto px-6 py-4">
-            {(quickReplies ?? []).length === 0 && (
-              <div className="text-sm text-muted-foreground">Nenhuma resposta rápida ainda. Crie a primeira abaixo — depois use digitando "/" no chat.</div>
-            )}
-            {(quickReplies ?? []).map((r) => (
-              <div key={r.id} className="flex items-start justify-between gap-3 rounded-lg bg-bg-tertiary p-3">
-                <div className="min-w-0 text-sm">
-                  <div className="font-semibold">/{r.shortcut}</div>
-                  <div className="text-muted-foreground">{r.content}</div>
-                </div>
-                <button onClick={() => deleteQuickReply(r.id)} className="shrink-0 text-muted-foreground hover:text-red-400">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-          <div className="space-y-3 border-t border-border px-6 py-4">
-            <div className="grid grid-cols-[130px_1fr] gap-3">
-              <div className="space-y-1.5">
-                <Label>Atalho</Label>
-                <Input value={qrForm.shortcut} onChange={(e) => setQrForm({ ...qrForm, shortcut: e.target.value })} placeholder="ola" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Mensagem</Label>
-                <Textarea rows={2} value={qrForm.content} onChange={(e) => setQrForm({ ...qrForm, content: e.target.value })} placeholder="Olá! Como posso ajudar? 😊" />
-              </div>
-            </div>
-          </div>
-          <DialogFooter className="border-t border-border px-6 py-4">
-            <Button onClick={saveQuickReply}><Plus className="h-4 w-4" /> Adicionar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <QuickRepliesDialog
+        open={qrOpen} onOpenChange={setQrOpen} replies={quickReplies ?? []}
+        form={qrForm} setForm={setQrForm} onSave={saveQuickReply} onDelete={deleteQuickReply}
+      />
       <PatientPanel patientId={panelPatientId} onClose={() => setPanelPatientId(null)} />
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-right text-xs">{value}</span>
+      <NewTaskDialog
+        open={newTaskOpen} patientId={active?.id} patientName={active?.name}
+        onClose={() => setNewTaskOpen(false)} onCreated={() => { setNewTaskOpen(false); invalidateTaskCaches(qc, org.id); }}
+      />
     </div>
   );
 }
