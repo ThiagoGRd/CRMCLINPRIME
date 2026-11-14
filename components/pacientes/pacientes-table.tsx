@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { MessageSquare, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { PatientPanel } from "./patient-panel";
 
 const PAGE_SIZE = 40;
 
@@ -51,6 +52,7 @@ export function PacientesTable() {
   const router = useRouter();
   const qc = useQueryClient();
   const searchParams = useSearchParams();
+  const [panelId, setPanelId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [origem, setOrigem] = useState("all");
@@ -211,7 +213,9 @@ export function PacientesTable() {
               const cc = r.clinicorp_status ? CC_BADGE[r.clinicorp_status] : null;
               return (
                 <tr key={r.id} className="border-b border-white/[0.05] transition-colors last:border-0 hover:bg-white/[0.03]">
-                  <td className="px-4 py-3 font-medium text-foreground">{r.name}</td>
+                  <td className="px-4 py-3 font-medium text-foreground">
+                    <button type="button" className="text-left underline-offset-4 hover:underline" onClick={() => setPanelId(r.id)}>{r.name}</button>
+                  </td>
                   <td className="px-4 py-3 tabular-nums text-muted-foreground">{formatPhoneDisplay(r.phone)}</td>
                   <td className="px-4 py-3">
                     <span className="inline-flex items-center rounded-md border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-xs text-muted-foreground">
@@ -319,6 +323,7 @@ export function PacientesTable() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <PatientPanel patientId={panelId} onClose={() => setPanelId(null)} />
     </div>
   );
 }

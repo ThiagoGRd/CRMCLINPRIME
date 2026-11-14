@@ -16,14 +16,19 @@ async function withShell(run) {
   global.fetch = () => { calls.push('fetch'); throw new Error('Unexpected network access'); };
   Module._load = function (name, ...rest) {
     if (name === 'next/navigation') return {
-      usePathname: () => '/dashboard',
+      usePathname: () => '/fila',
       useRouter: () => ({ push: url => calls.push(['push', url]), refresh: () => calls.push('refresh') }),
     };
+    if (name === '@tanstack/react-query') return { useQuery: () => ({ data: undefined }) };
     if (name === '@/components/org-context') return { useOrg: () => org };
     if (name === '@/lib/supabase/client') return { createClient: () => {
       calls.push('createClient');
       return { auth: { signOut: () => { calls.push('signOut'); return signedOut; } } };
     } };
+    // o shell é chamado como função (sem renderizador): hooks de estado viram stubs
+    if (name === 'react' && rest[0]?.filename?.endsWith(path.join('components', 'app-shell.tsx'))) {
+      return { ...originalLoad.call(this, name, ...rest), useState: init => [init, () => {}], useRef: () => ({ current: null }), useEffect: () => {} };
+    }
     return originalLoad.call(this, name.startsWith('@/') ? path.join(__dirname, '..', name.slice(2)) : name, ...rest);
   };
   const modulePath = require.resolve('../components/app-shell');
@@ -100,4 +105,17 @@ test('existing logout still awaits sign-out before navigating to login and refre
   finishSignOut();
   await pending;
   assert.deepEqual(calls, ['createClient', 'signOut', ['push', '/login'], 'refresh']);
+}));
+
+test('mobile menu button controls the single sidebar and every nav item is rendered once', () => withShell(({ tree }) => {
+  const html = renderToStaticMarkup(tree('operator.one@example.test'));
+  const button = html.match(/<button\b[^>]*aria-label="Abrir menu"[^>]*>/);
+  assert.ok(button, 'menu button must be rendered');
+  const controls = button[0].match(/aria-controls="([^"]+)"/)[1];
+  assert.equal(html.split('<aside').length - 1, 1);
+  assert.match(html, new RegExp(`<aside\\b[^>]*id="${controls}"`));
+  const labels = [...html.matchAll(/<a\b[^>]*>(.*?)<\/a>/g)].map(m => m[1].replace(/<[^>]*>/g, ''));
+  for (const label of ['Minha fila', 'Conversas', 'Pacientes', 'Agenda', 'Funil', 'Cadências', 'Gestão', 'Configurações']) {
+    assert.equal(labels.filter(l => l === label).length, 1, label);
+  }
 }));

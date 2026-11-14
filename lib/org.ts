@@ -1,4 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Front } from "./tasks";
+
+// Cópia de FRONTS: org.test.mjs carrega este arquivo no Node ESM, que não resolve "./tasks" sem extensão.
+const FRONT_KEYS: readonly Front[] = ["recepcao", "crc_leads", "comercial", "pos_venda"];
 
 export type Org = {
   id: string;
@@ -8,6 +12,9 @@ export type Org = {
   contactLabel: string | null;
   logoUrl: string | null;
   settings: Record<string, unknown> | null;
+  front: Front | null;
+  isManager: boolean;
+  userId: string;
 };
 
 // RLS pode permitir ver colegas. O vínculo/role deve ser do usuário validado,
@@ -19,7 +26,7 @@ export async function getMyOrg(supabase: SupabaseClient): Promise<Org | null> {
   const { data, error } = await supabase
     .from("org_members")
     .select(
-      "role, display_name, org_id, organizations(id, name, contact_label, logo_url, settings)"
+      "role, display_name, front, is_manager, org_id, organizations(id, name, contact_label, logo_url, settings)"
     )
     .eq("user_id", auth.user.id)
     .order("org_id", { ascending: true })
@@ -38,5 +45,8 @@ export async function getMyOrg(supabase: SupabaseClient): Promise<Org | null> {
     contactLabel: (o.contact_label as string) ?? null,
     logoUrl: (o.logo_url as string) ?? null,
     settings: (o.settings as Record<string, unknown>) ?? null,
+    front: FRONT_KEYS.find((k) => k === data.front) ?? null,
+    isManager: data.is_manager === true || data.role === "admin",
+    userId: auth.user.id,
   };
 }

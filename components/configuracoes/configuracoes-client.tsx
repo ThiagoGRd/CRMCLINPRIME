@@ -11,12 +11,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { FRONTS, type Front } from "@/lib/tasks";
+import { inviteMember, updateMember } from "@/lib/team";
 import { STAGE_FALLBACK_COLORS } from "@/lib/funil";
 import { Plus, Trash2, ArrowUp, ArrowDown, Save } from "lucide-react";
 import { toast } from "sonner";
 
 type Stage = { id: string; name: string; position: number; color: string | null };
-type Member = { user_id: string; role: string | null; display_name: string | null };
+type Member = { id: string; user_id: string; role: string | null; display_name: string | null; front: Front | null; is_manager: boolean };
+const NO_FRONT = "none";
+const frontLabel = (f: Front | null) => FRONTS.find((x) => x.key === f)?.label ?? "Sem frente";
 type FunnelFilter = { creator_ids?: string[]; include_api?: boolean; categories?: string[] };
 
 export function ConfiguracoesClient() {
@@ -118,7 +124,7 @@ export function ConfiguracoesClient() {
   const { data: members } = useQuery({
     queryKey: ["cfg-members"],
     queryFn: async () => {
-      const { data } = await supabase.from("org_members").select("user_id,role,display_name").order("created_at");
+      const { data } = await supabase.from("org_members").select("id,user_id,role,display_name,front,is_manager").order("created_at");
       return (data ?? []) as Member[];
     },
   });
@@ -128,6 +134,38 @@ export function ConfiguracoesClient() {
     const { error } = await supabase.from("org_members").update({ display_name: name.trim() }).eq("user_id", m.user_id).eq("org_id", org.id);
     if (error) toast.error("Erro ao renomear (só admins)");
     else { toast.success("Membro atualizado"); qc.invalidateQueries({ queryKey: ["cfg-members"] }); }
+  }
+
+  const [savingId, setSavingId] = useState<string | null>(null);
+  async function saveMember(m: Member, patch: { front?: Front | null; isManager?: boolean }) {
+    setSavingId(m.id);
+    try {
+      await updateMember(supabase, {
+        memberId: m.id, orgId: org.id,
+        front: patch.front !== undefined ? patch.front : m.front,
+        isManager: patch.isManager ?? m.is_manager,
+      });
+      toast.success("Membro atualizado");
+      await qc.invalidateQueries({ queryKey: ["cfg-members"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível atualizar o membro. Tente de novo.");
+    } finally { setSavingId(null); }
+  }
+
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviting, setInviting] = useState(false);
+  const [invite, setInvite] = useState<{ email: string; displayName: string; front: Front; isManager: boolean }>({ email: "", displayName: "", front: "recepcao", isManager: false });
+  async function submitInvite() {
+    setInviting(true);
+    try {
+      const { invited } = await inviteMember(supabase, invite);
+      toast.success(invited ? "Convite enviado por e-mail." : "Membro adicionado. Nenhum e-mail foi enviado, a conta já existia.");
+      setInviteOpen(false);
+      setInvite({ email: "", displayName: "", front: "recepcao", isManager: false });
+      await qc.invalidateQueries({ queryKey: ["cfg-members"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível adicionar o membro. Tente de novo.");
+    } finally { setInviting(false); }
   }
 
   return (
@@ -238,15 +276,22 @@ export function ConfiguracoesClient() {
 
       {/* Equipe */}
       <Card className="gap-4 p-6">
-        <div>
-          <div className="font-heading text-base font-bold">Equipe</div>
-          <div className="text-sm text-muted-foreground">
-            Membros da organização. Para convidar novos membros, crie o login no Supabase Auth (em breve: convite por e-mail).
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="font-heading text-base font-bold">Equipe</div>
+            <div className="text-sm text-muted-foreground">
+              Membros da organização. A fila de cada pessoa segue a frente em que ela atua.
+            </div>
           </div>
+          {isAdmin && (
+            <Button size="sm" onClick={() => setInviteOpen(true)} className="shrink-0">
+              <Plus className="h-4 w-4" /> Adicionar membro
+            </Button>
+          )}
         </div>
         <div className="space-y-2">
           {(members ?? []).map((m) => (
-            <div key={m.user_id} className="flex items-center gap-3 rounded-lg bg-bg-tertiary p-2.5">
+            <div key={m.user_id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-bg-tertiary p-2.5">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-emerald-500 text-[11px] font-bold text-white">
                 {(m.display_name ?? "?").slice(0, 2).toUpperCase()}
               </div>
@@ -254,14 +299,72 @@ export function ConfiguracoesClient() {
                 defaultValue={m.display_name ?? ""}
                 onBlur={(e) => renameMember(m, e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                className="h-8"
+                className="h-8 min-w-0 flex-1 basis-40"
                 disabled={!isAdmin}
               />
               <Badge variant={m.role === "admin" ? "default" : "secondary"}>{m.role ?? "membro"}</Badge>
+              {isAdmin ? (
+                <>
+                  <Select
+                    value={m.front ?? NO_FRONT}
+                    onValueChange={(v) => saveMember(m, { front: v === NO_FRONT ? null : (v as Front) })}
+                    disabled={savingId === m.id}
+                  >
+                    <SelectTrigger className="h-8 w-[130px]" aria-label={`Frente de ${m.display_name ?? "membro"}`}>
+                      <SelectValue>{frontLabel(m.front)}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_FRONT}>Sem frente</SelectItem>
+                      {FRONTS.map((f) => <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Switch checked={m.is_manager} onCheckedChange={(v) => saveMember(m, { isManager: v })} disabled={savingId === m.id} />
+                    Gestor
+                  </label>
+                </>
+              ) : (
+                <span className="text-sm text-muted-foreground">{frontLabel(m.front)}{m.is_manager ? " · Gestor" : ""}</span>
+              )}
             </div>
           ))}
         </div>
       </Card>
+
+      {isAdmin && (
+        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle className="font-heading">Adicionar membro</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="inv-email">E-mail</Label>
+                <Input id="inv-email" type="email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="inv-name">Nome</Label>
+                <Input id="inv-name" value={invite.displayName} maxLength={80} onChange={(e) => setInvite({ ...invite, displayName: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Frente</Label>
+                <Select value={invite.front} onValueChange={(v) => setInvite({ ...invite, front: (v ?? "recepcao") as Front })}>
+                  <SelectTrigger className="w-full"><SelectValue>{frontLabel(invite.front)}</SelectValue></SelectTrigger>
+                  <SelectContent>
+                    {FRONTS.map((f) => <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <Switch checked={invite.isManager} onCheckedChange={(v) => setInvite({ ...invite, isManager: v })} />
+                Gestor
+              </label>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setInviteOpen(false)} disabled={inviting}>Cancelar</Button>
+              <Button onClick={submitInvite} disabled={inviting}>{inviting ? "Enviando..." : "Enviar convite"}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
