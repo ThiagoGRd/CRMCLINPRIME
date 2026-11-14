@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { slaMinutes, demandDueAt, urgency, sortQueue, demandTitle, validateCompletion, visibleTo, countOverdue } from "../lib/tasks.ts";
+import { slaMinutes, demandDueAt, urgency, sortQueue, demandTitle, validateCompletion, visibleTo, countOverdue, newlyOverdue, warningsFor } from "../lib/tasks.ts";
 
 const now = new Date("2026-11-14T15:00:00-03:00");
 const t = (id: string, dueAt: string, ownerId: string | null = "u1") =>
@@ -52,4 +52,14 @@ test("contador de vencidas conta só as visíveis ao usuário", () => {
   assert.equal(countOverdue(tasks, me, now), 1);
   assert.equal(countOverdue(tasks, boss, now), 3);
   assert.equal(countOverdue([], me, now), 0);
+});
+test("avisa só o que acabou de vencer e ainda não foi avisado", () => {
+  const a = t("a", "2026-11-14T14:00:00-03:00"), b = t("b", "2026-11-14T14:30:00-03:00"), c = t("c", "2026-11-14T16:00:00-03:00");
+  assert.deepEqual(newlyOverdue([a, b, c], new Set(["a"]), now).map((x) => x.id), ["b"]);
+  assert.deepEqual(newlyOverdue([t("d", now.toISOString())], new Set(), now).map((x) => x.id), ["d"]);
+});
+test("a primeira avaliação não avisa o atraso acumulado, só o que vence depois", () => {
+  const old = t("old", "2026-11-14T10:00:00-03:00"), fresh = t("fresh", "2026-11-14T15:00:00-03:00");
+  assert.deepEqual(warningsFor([old], new Set(), now, false), []);
+  assert.deepEqual(warningsFor([old, fresh], new Set(["old"]), now, true).map((x) => x.id), ["fresh"]);
 });

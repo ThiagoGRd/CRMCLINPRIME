@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ShieldCheck, LogOut, Plus, Menu, X } from "lucide-react";
 import { OverdueBadge } from "@/components/fila/overdue-badge";
+import { OverdueWatcher } from "@/components/fila/overdue-watcher";
 import { Copilot } from "@/components/copilot/copilot";
 
 export function AppShell({
@@ -187,6 +188,7 @@ export function AppShell({
         </header>
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">{children}</main>
       </div>
+      <OverdueWatcher />
       <Copilot />
     </div>
   );

@@ -64,3 +64,12 @@ export function visibleTo(task: Task, me: { userId: string; isManager: boolean }
 export function countOverdue(tasks: Task[], me: { userId: string; isManager: boolean }, now: Date): number {
   return tasks.filter((t) => visibleTo(t, me, []) && urgency(t.dueAt, now) === "vencida").length;
 }
+
+export function newlyOverdue(tasks: Task[], alreadyWarned: Set<string>, now: Date): Task[] {
+  return tasks.filter((t) => !alreadyWarned.has(t.id) && new Date(t.dueAt) <= now);
+}
+
+// A primeira avaliação (seeded=false) só registra o atraso acumulado: o contador do menu já o mostra.
+export function warningsFor(tasks: Task[], alreadyWarned: Set<string>, now: Date, seeded: boolean): Task[] {
+  return seeded ? newlyOverdue(tasks, alreadyWarned, now) : [];
+}
