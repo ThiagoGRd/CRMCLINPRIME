@@ -19,6 +19,7 @@ test("validateInvite devolve a mensagem do primeiro campo inválido", () => {
   assert.equal(validateInvite({ ...ok, email: "x" }), "E-mail inválido.");
   assert.equal(validateInvite({ ...ok, displayName: "   " }), "Informe o nome.");
   assert.equal(validateInvite({ ...ok, front: "financeiro" }), "Frente inválida.");
+  assert.equal(validateInvite({ ...ok, displayName: "a".repeat(81) }), "O nome pode ter até 80 caracteres.");
   assert.equal(validateInvite(ok), null);
 });
 
@@ -39,6 +40,7 @@ test("inviteMember traduz o status HTTP em mensagem", async () => {
     [401, {}, "Sua sessão expirou. Entre de novo."],
     [403, { error: "x" }, "Só o administrador pode adicionar membros."],
     [409, {}, "Esta pessoa já faz parte da equipe."],
+    [409, { error: "Este e-mail já pertence a outra organização." }, "Este e-mail já pertence a outra organização."],
     [400, { error: "E-mail inválido." }, "E-mail inválido."],
     [400, {}, "Dados inválidos."],
     [500, { error: "interno" }, "Não foi possível adicionar o membro. Tente de novo."],
@@ -47,6 +49,13 @@ test("inviteMember traduz o status HTTP em mensagem", async () => {
     const client = clientWith(async () => res(body, status));
     await assert.rejects(inviteMember(client, input), { message: msg });
   }
+});
+
+test("inviteMember devolve invited conforme a resposta da função", async () => {
+  const sent = clientWith(async () => res({ ok: true, user_id: "u", invited: true }, 200));
+  assert.deepEqual(await inviteMember(sent, input), { invited: true });
+  const attached = clientWith(async () => res({ ok: true, user_id: "u", invited: false }, 200));
+  assert.deepEqual(await inviteMember(attached, input), { invited: false });
 });
 
 test("inviteMember não chama a função com dados inválidos", async () => {

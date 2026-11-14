@@ -158,8 +158,8 @@ export function ConfiguracoesClient() {
   async function submitInvite() {
     setInviting(true);
     try {
-      await inviteMember(supabase, invite);
-      toast.success("Convite enviado");
+      const { invited } = await inviteMember(supabase, invite);
+      toast.success(invited ? "Convite enviado por e-mail." : "Membro adicionado. Nenhum e-mail foi enviado, a conta já existia.");
       setInviteOpen(false);
       setInvite({ email: "", displayName: "", front: "recepcao", isManager: false });
       await qc.invalidateQueries({ queryKey: ["cfg-members"] });

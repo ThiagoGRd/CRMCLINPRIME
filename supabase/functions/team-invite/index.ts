@@ -55,12 +55,13 @@ Deno.serve(async (req: Request) => {
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
   if (email.length > 254 || !EMAIL_RE.test(email)) return json({ error: 'E-mail inválido.' }, 400);
   const displayName = typeof body.display_name === 'string' ? body.display_name.trim() : '';
-  if (displayName.length < 1 || displayName.length > 80) return json({ error: 'Informe o nome.' }, 400);
+  if (displayName.length < 1) return json({ error: 'Informe o nome.' }, 400);
+  if (displayName.length > 80) return json({ error: 'O nome pode ter até 80 caracteres.' }, 400);
   if (typeof body.front !== 'string' || !FRONTS.includes(body.front)) return json({ error: 'Frente inválida.' }, 400);
   if (body.is_manager !== undefined && typeof body.is_manager !== 'boolean') return json({ error: 'Gestor inválido.' }, 400);
   const isManager = body.is_manager === true;
 
-  // 4) Convite; se o e-mail já tem conta, reaproveita o usuário.
+  // 4) Convite. "Conta já existe" é detectado pelo código do erro; qualquer outra falha é 502.
   let userId: string | null = null;
   let invited = false;
   const { data: inv, error: invError } = await admin.auth.admin.inviteUserByEmail(email);
@@ -68,6 +69,10 @@ Deno.serve(async (req: Request) => {
     userId = inv.user.id;
     invited = true;
   } else {
+    const e = invError as { code?: string; status?: number } | null;
+    if (!e || (e.code !== 'email_exists' && e.status !== 422)) {
+      return json({ error: 'Não foi possível enviar o convite.' }, 502);
+    }
     // shortcut: varre listUsers (sem filtro por e-mail na API), até 20 páginas de 1000; subir se passar disso.
     for (let page = 1; page <= 20 && !userId; page++) {
       const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
@@ -76,11 +81,14 @@ Deno.serve(async (req: Request) => {
       if (data.users.length < 1000) break;
     }
     if (!userId) return json({ error: 'Não foi possível enviar o convite.' }, 502);
-    const { data: existing, error: existingError } = await admin
-      .from('org_members').select('id').eq('org_id', orgId).eq('user_id', userId).maybeSingle();
-    if (existingError) return json({ error: 'Não foi possível verificar a equipe.' }, 500);
-    if (existing) return json({ error: 'Esta pessoa já faz parte da equipe.' }, 409);
   }
+
+  // 5) Vínculos do usuário, nos dois caminhos: esta organização -> 409; outra -> 409; nenhum (órfão) -> segue.
+  const { data: rows, error: rowsError } = await admin
+    .from('org_members').select('org_id').eq('user_id', userId);
+  if (rowsError) return json({ error: 'Não foi possível verificar a equipe.' }, 500);
+  if (rows?.some((r) => r.org_id === orgId)) return json({ error: 'Esta pessoa já faz parte da equipe.' }, 409);
+  if (rows && rows.length > 0) return json({ error: 'Este e-mail já pertence a outra organização.' }, 409);
 
   const { error: insError } = await admin.from('org_members').insert({
     org_id: orgId, user_id: userId, role: 'member', display_name: displayName, front: body.front, is_manager: isManager,
@@ -93,5 +101,5 @@ Deno.serve(async (req: Request) => {
         : 'Não foi possível registrar o membro na equipe.',
     }, 500);
   }
-  return json({ ok: true, user_id: userId });
+  return json({ ok: true, user_id: userId, invited });
 });
