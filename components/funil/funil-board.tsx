@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -21,7 +20,7 @@ import { moveLeadStage } from "@/lib/funil-move";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { PatientFichaDialog } from "@/components/funil/patient-ficha-dialog";
+import { PatientPanel } from "@/components/pacientes/patient-panel";
 import { toast } from "sonner";
 
 const RENDER_CAP = 250;
@@ -126,11 +125,10 @@ export function FunilBoard({
   stages, initialLeads,
 }: { stages: Stage[]; initialLeads: Lead[] }) {
   const org = useOrg();
-  const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [month, setMonth] = useState("all");
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [ficha, setFicha] = useState<Lead | null>(null);
+  const [panelId, setPanelId] = useState<string | null>(null);
   const pendingMoves = useRef(new Set<string>());
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -226,7 +224,7 @@ export function FunilBoard({
               stage={s}
               leads={byStage.get(s.id) ?? []}
               color={s.color || STAGE_FALLBACK_COLORS[Math.min(i, STAGE_FALLBACK_COLORS.length - 1)]}
-              onOpen={setFicha}
+              onOpen={(l) => setPanelId(l.id)}
             />
           ))}
         </div>
@@ -239,12 +237,7 @@ export function FunilBoard({
         </DragOverlay>
       </DndContext>
 
-      <PatientFichaDialog
-        lead={ficha}
-        stages={stages}
-        onClose={() => setFicha(null)}
-        onAtender={(id) => router.push(`/inbox?p=${id}`)}
-      />
+      <PatientPanel patientId={panelId} onClose={() => setPanelId(null)} />
     </div>
   );
 }

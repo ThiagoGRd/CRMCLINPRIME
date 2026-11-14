@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { FilaList, splitQueue, type ForgottenPatient } from "./fila-list";
 import { CompleteTaskDialog } from "./complete-task-dialog";
 import { NewTaskDialog } from "./new-task-dialog";
+import { PatientPanel } from "@/components/pacientes/patient-panel";
 import { localToIso } from "./datetime";
 
 const ALL = "todas";
@@ -78,6 +79,7 @@ export function FilaClient() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [completing, setCompleting] = useState<Task | null>(null);
   const [snoozing, setSnoozing] = useState<Task | null>(null);
+  const [panelId, setPanelId] = useState<string | null>(null);
   const [newFor, setNewFor] = useState<{ id?: string; name?: string } | null>(null);
 
   useEffect(() => {
@@ -184,8 +186,9 @@ export function FilaClient() {
         tasks={shown} now={now} me={me} memberIds={members} forgotten={shownForgotten}
         selectedId={selected?.id ?? null}
         onOpen={open} onDone={setCompleting} onSnooze={setSnoozing}
-        onDefineNext={(p) => setNewFor({ id: p.id, name: p.name })}
+        onDefineNext={(p) => setNewFor({ id: p.id, name: p.name })} onPatient={setPanelId}
       />
+      <PatientPanel patientId={panelId} onClose={() => setPanelId(null)} />
       <CompleteTaskDialog task={completing} onClose={() => setCompleting(null)} onDone={() => { setCompleting(null); refresh(); }} />
       <SnoozeDialog task={snoozing} onClose={() => setSnoozing(null)} onDone={() => { setSnoozing(null); refresh(); }} />
       <NewTaskDialog

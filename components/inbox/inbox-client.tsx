@@ -22,6 +22,7 @@ import { Send, Search, Zap, X, PanelRight, Plus, Trash2, RefreshCw, ClipboardLis
 import { toast } from "sonner";
 import { createTask } from "@/lib/tasks-data";
 import { demandDueAt, demandTitle } from "@/lib/tasks";
+import { PatientPanel } from "@/components/pacientes/patient-panel";
 import { ReceptionPilotPanel } from "./reception-pilot-panel";
 import { InboxMobileNavigation, inboxPaneClass, type InboxPane } from "./inbox-mobile-navigation";
 
@@ -78,6 +79,7 @@ export function InboxClient() {
   const [sending, setSending] = useState(false);
   const [creatingDemand, setCreatingDemand] = useState(false);
   const [showPanel, setShowPanel] = useState(true);
+  const [panelPatientId, setPanelPatientId] = useState<string | null>(null);
   const [mobilePane, setMobilePane] = useState<InboxPane>("list");
   const [tagInput, setTagInput] = useState("");
   const [qrOpen, setQrOpen] = useState(false);
@@ -514,7 +516,7 @@ export function InboxClient() {
           <>
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-3.5 sm:px-5">
               <div className="min-w-0">
-                <div className="truncate font-heading font-semibold">{active.name}</div>
+                <button type="button" className="block max-w-full truncate text-left font-heading font-semibold hover:underline" onClick={() => setPanelPatientId(active.id)}>{active.name}</button>
                 <div className="text-xs text-muted-foreground">
                   {formatPhoneDisplay(active.phone)} · {memberName(active.assigned_to)}
                 </div>
@@ -734,6 +736,7 @@ export function InboxClient() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <PatientPanel patientId={panelPatientId} onClose={() => setPanelPatientId(null)} />
     </div>
   );
 }

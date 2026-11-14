@@ -17,6 +17,7 @@ type Props = {
   onDone: (t: Task) => void;
   onSnooze: (t: Task) => void;
   onDefineNext: (p: ForgottenPatient) => void;
+  onPatient?: (patientId: string) => void;
 };
 
 const BADGE: Record<Urgency, { label: string; cls: string }> = {
@@ -47,7 +48,11 @@ function Row({ t, now, selected, p }: { t: Task; now: Date; selected: boolean; p
       className={`rounded-lg border p-3 ${selected ? "border-primary/60 bg-primary/5" : "border-white/8"}`}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-medium">{t.patientName || "Paciente sem nome"}</span>
+        {p.onPatient ? (
+          <button type="button" className="font-medium underline-offset-4 hover:underline" onClick={() => p.onPatient?.(t.patientId)}>
+            {t.patientName || "Paciente sem nome"}
+          </button>
+        ) : <span className="font-medium">{t.patientName || "Paciente sem nome"}</span>}
         <span className={`inline-flex h-5.5 items-center rounded-full border px-2.5 text-[11px] font-semibold ${BADGE[u].cls}`}>
           {BADGE[u].label}
         </span>
@@ -116,7 +121,9 @@ export function FilaList(p: Props) {
           <ul className="space-y-2">
             {forgotten.map((f) => (
               <li key={f.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/8 p-3">
-                <span className="text-sm font-medium">{f.name}</span>
+                {p.onPatient ? (
+                  <button type="button" className="text-sm font-medium underline-offset-4 hover:underline" onClick={() => p.onPatient?.(f.id)}>{f.name}</button>
+                ) : <span className="text-sm font-medium">{f.name}</span>}
                 <button type="button" className={btn} onClick={() => p.onDefineNext(f)}>Definir próxima ação</button>
               </li>
             ))}
