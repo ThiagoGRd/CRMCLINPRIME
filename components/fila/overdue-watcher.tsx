@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/components/org-context";
-import { newlyOverdue, visibleTo, warningsFor } from "@/lib/tasks";
+import { newlyOverdue, visibleTo, warnKey, warningsFor } from "@/lib/tasks";
 import { listOpenTasks } from "@/lib/tasks-data";
 
 const MAX_INDIVIDUAL = 3;
@@ -32,7 +32,7 @@ export function OverdueWatcher() {
     if (!data) return;
     const mine = data.filter((t) => visibleTo(t, { userId: org.userId, isManager: org.isManager }, []));
     const toWarn = warningsFor(mine, warned.current, now, seeded.current);
-    for (const t of newlyOverdue(mine, warned.current, now)) warned.current.add(t.id);
+    for (const t of newlyOverdue(mine, warned.current, now)) warned.current.add(warnKey(t));
     seeded.current = true;
     const action = { label: "Abrir fila", onClick: () => router.push("/fila") };
     if (toWarn.length > MAX_INDIVIDUAL) toast.warning(`${toWarn.length} prazos estouraram agora.`, { action });

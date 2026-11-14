@@ -65,8 +65,11 @@ export function countOverdue(tasks: Task[], me: { userId: string; isManager: boo
   return tasks.filter((t) => visibleTo(t, me, []) && urgency(t.dueAt, now) === "vencida").length;
 }
 
+// chave por prazo: adiar a tarefa (mesmo id, novo due_at) permite avisar de novo
+export const warnKey = (t: Task) => `${t.id}:${t.dueAt}`;
+
 export function newlyOverdue(tasks: Task[], alreadyWarned: Set<string>, now: Date): Task[] {
-  return tasks.filter((t) => !alreadyWarned.has(t.id) && new Date(t.dueAt) <= now);
+  return tasks.filter((t) => !alreadyWarned.has(warnKey(t)) && new Date(t.dueAt) <= now);
 }
 
 // A primeira avaliação (seeded=false) só registra o atraso acumulado: o contador do menu já o mostra.
