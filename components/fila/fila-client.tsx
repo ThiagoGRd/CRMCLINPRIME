@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -71,6 +71,9 @@ function SnoozeDialog({ task, onClose, onDone }: { task: Task | null; onClose: (
 
 export function FilaClient() {
   const org = useOrg();
+  // O servidor sempre renderiza "carregando"; a 1ª renderização no cliente precisa ser igual,
+  // mesmo que o contador do menu já tenha preenchido o cache de tarefas.
+  const hydrated = useSyncExternalStore(() => () => {}, () => true, () => false);
   const router = useRouter();
   const qc = useQueryClient();
   const supabase = useMemo(() => createClient(), []);
@@ -181,7 +184,7 @@ export function FilaClient() {
         )}
       </div>
       <FilaList
-        state={tasks ? "ready" : tasksError ? "error" : "loading"} stale={!!tasks && tasksError}
+        state={!hydrated ? "loading" : tasks ? "ready" : tasksError ? "error" : "loading"} stale={!!tasks && tasksError}
         forgottenError={forgottenError} forgottenTotal={forgotten && forgotten.total > forgotten.rows.length ? forgotten.total : undefined}
         onRetry={() => { void refetchTasks(); void refetchForgotten(); }}
         tasks={shown} now={now} me={me} memberIds={members} forgotten={shownForgotten}
