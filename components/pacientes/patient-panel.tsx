@@ -11,7 +11,7 @@ import { CC_BADGE } from "@/lib/funil";
 import { formatCurrency, formatPhoneDisplay, formatDateBR } from "@/lib/format";
 import { FRONTS, urgency } from "@/lib/tasks";
 import { listPatientTasks } from "@/lib/tasks-data";
-import { buildTimeline } from "@/lib/timeline";
+import { buildTimeline, matchByPhone } from "@/lib/timeline";
 import { NewTaskDialog } from "@/components/fila/new-task-dialog";
 import { PatientTimeline } from "./patient-timeline";
 import { phoneCanon } from "../../supabase/functions/_shared/wa";
@@ -49,13 +49,13 @@ export function PatientPanel({ patientId, onClose }: { patientId: string | null;
   return (
     <Dialog open={!!patientId} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="top-0 left-0 h-dvh max-w-none translate-x-0 translate-y-0 grid-rows-[auto_1fr_auto] gap-0 overflow-hidden rounded-none p-0 sm:top-0 sm:right-0 sm:left-auto sm:max-w-[480px] sm:rounded-none">
-        {patientId && <PanelBody patientId={patientId} />}
+        {patientId && <PanelBody patientId={patientId} onClose={onClose} />}
       </DialogContent>
     </Dialog>
   );
 }
 
-function PanelBody({ patientId }: { patientId: string }) {
+function PanelBody({ patientId, onClose }: { patientId: string; onClose: () => void }) {
   const org = useOrg();
   const router = useRouter();
   const qc = useQueryClient();
@@ -105,18 +105,18 @@ function PanelBody({ patientId }: { patientId: string }) {
     enabled: !!p,
     queryFn: async () => {
       const canon = phoneCanon(phone);
-      const last8 = phone.replace(/\D/g, "").slice(-8);
+      const last4 = phone.replace(/\D/g, "").slice(-4);
       const [msgs, est, att] = await Promise.all([
         supabase.from("messages").select("created_at,direction,content,message_type").eq("patient_id", patientId).order("created_at", { ascending: false }).limit(200),
         canon ? supabase.from("crm_estimates").select("est_date,status,amount").eq("org_id", org.id).eq("phone_canon", canon) : null,
-        canon ? supabase.from("crm_attendances").select("phone,appt_date,from_time,status,category").eq("org_id", org.id).ilike("phone", `%${last8}`) : null,
+        canon ? supabase.from("crm_attendances").select("phone,appt_date,from_time,status,category").eq("org_id", org.id).ilike("phone", `%${last4}`) : null,
       ]);
       const err = msgs.error ?? est?.error ?? att?.error;
       if (err) throw err;
       return {
         messages: msgs.data ?? [],
         estimates: est?.data ?? [],
-        attendances: (att?.data ?? []).filter((r: { phone: string }) => phoneCanon(r.phone) === canon),
+        attendances: matchByPhone((att?.data ?? []) as { phone: string | null; appt_date: string; from_time: string | null; status: string; category: string | null }[], canon, phoneCanon),
       };
     },
   });
@@ -213,13 +213,13 @@ function PanelBody({ patientId }: { patientId: string }) {
       </div>
 
       <footer className="flex flex-col-reverse gap-2 border-t border-border bg-muted/50 p-4 sm:flex-row sm:justify-end sm:px-6">
-        <Button variant="outline" onClick={() => router.push(`/pacientes?editar=${p.id}`)}>
+        <Button variant="outline" onClick={() => { onClose(); router.push(`/pacientes?editar=${p.id}`); }}>
           <Pencil className="h-4 w-4" /> Editar cadastro
         </Button>
         <Button variant="outline" onClick={() => setNewTask(true)}>
           <Plus className="h-4 w-4" /> Nova tarefa
         </Button>
-        <Button variant="success" onClick={() => router.push(`/inbox?p=${p.id}`)}>
+        <Button variant="success" onClick={() => { onClose(); router.push(`/inbox?p=${p.id}`); }}>
           <MessageSquare className="h-4 w-4" /> Abrir conversa
         </Button>
       </footer>

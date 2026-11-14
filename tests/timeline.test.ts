@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildTimeline } from "../lib/timeline.ts";
+import { buildTimeline, matchByPhone } from "../lib/timeline.ts";
 
 test("mistura as quatro fontes, mais recente primeiro", () => {
   const out = buildTimeline({
@@ -33,4 +33,23 @@ test("data sem hora conta como 12h de Brasília; consulta usa a hora marcada", (
   assert.equal(out[1].title, "Consulta: Consulta");
   assert.equal(out[1].detail, "Compareceu");
   assert.equal(out[1].tone, "bom");
+});
+test("datas ruins não derrubam: item some, hora ilegível vira 12h", () => {
+  const out = buildTimeline({
+    messages: [{ created_at: "", direction: "inbound", content: "x", message_type: "text" }],
+    attendances: [
+      { appt_date: null as unknown as string, from_time: null, status: "agendado", category: "Nula" },
+      { appt_date: "2026-11-12", from_time: "xx", status: "agendado", category: "Hora ruim" },
+    ],
+    estimates: [{ est_date: "abc", status: "OPEN", amount: 1 }],
+    tasks: [],
+  });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].title, "Consulta: Hora ruim");
+  assert.equal(out[0].at, "2026-11-12T15:00:00.000Z");
+});
+test("matchByPhone casa formatado, com 55 e sem; rejeita outro número", () => {
+  const canon = (p: string) => { let d = p.replace(/\D/g, ""); if (d.startsWith("55") && d.length >= 12) d = d.slice(2); return d.length < 10 ? null : d.slice(0, 2) + d.slice(-8); };
+  const rows = ["(82) 99121-2108", "5582991212108", "82991212108", "(82) 98888-2108"].map((phone) => ({ phone }));
+  assert.deepEqual(matchByPhone(rows, canon("82991212108"), canon).map((r) => r.phone), rows.slice(0, 3).map((r) => r.phone));
 });
