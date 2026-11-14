@@ -6,11 +6,13 @@ export type ForgottenPatient = { id: string; name: string; phone: string; front:
 type Props = {
   tasks: Task[];
   now: Date;
-  me: { userId: string; isManager: boolean };
+  me: { userId: string; isManager: boolean; front: Front | null };
   memberIds: string[];
   state: "loading" | "error" | "ready";
   forgotten: ForgottenPatient[];
   forgottenError: boolean;
+  forgottenTotal?: number;
+  stale?: boolean;
   onRetry: () => void;
   selectedId: string | null;
   onOpen: (t: Task) => void;
@@ -79,13 +81,15 @@ function Group({ items, p }: { items: Task[]; p: Props }) {
 // Ordem em que as linhas aparecem: com responsável primeiro, depois o bloco "Sem responsável".
 export function splitQueue(p: Pick<Props, "tasks" | "now" | "me" | "memberIds">) {
   const visible = sortQueue(p.tasks.filter((t) => visibleTo(t, p.me, p.memberIds)), p.now);
-  return { owned: visible.filter((t) => t.ownerId !== null), unowned: visible.filter((t) => t.ownerId === null) };
+  // dono que saiu da organização conta como sem responsável
+  const unowned = (t: Task) => t.ownerId === null || (p.memberIds.length > 0 && !p.memberIds.includes(t.ownerId));
+  return { owned: visible.filter((t) => !unowned(t)), unowned: visible.filter(unowned) };
 }
 
 export function FilaList(p: Props) {
   const { owned, unowned } = splitQueue(p);
   const visible = [...owned, ...unowned];
-  const forgotten = p.forgotten.filter((f) => p.me.isManager || f.assignedTo === p.me.userId);
+  const forgotten = p.forgotten.filter((f) => p.me.isManager || f.assignedTo === p.me.userId || (f.assignedTo === null && f.front === p.me.front));
 
   // Vazio só vale quando a consulta terminou com sucesso.
   if (p.state === "loading") return <p className="p-6 text-center text-sm text-muted-foreground">Carregando a fila...</p>;
@@ -100,6 +104,9 @@ export function FilaList(p: Props) {
 
   return (
     <div className="space-y-6">
+      {p.stale && (
+        <p role="status" className="text-xs text-muted-foreground">Não foi possível atualizar agora. Mostrando a última versão.</p>
+      )}
       {visible.length === 0 && (
         <p className="rounded-lg border border-white/8 p-6 text-center text-sm text-muted-foreground">
           Nada pendente. Nenhum paciente esperando por você.
@@ -118,6 +125,9 @@ export function FilaList(p: Props) {
       {!p.forgottenError && forgotten.length > 0 && (
         <section aria-label="Sem próxima ação" className="space-y-2">
           <h2 className="text-sm font-semibold">Sem próxima ação ({forgotten.length})</h2>
+          {p.forgottenTotal !== undefined && (
+            <p className="text-xs text-muted-foreground">Mostrando {p.forgotten.length} de {p.forgottenTotal}</p>
+          )}
           <ul className="space-y-2">
             {forgotten.map((f) => (
               <li key={f.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/8 p-3">

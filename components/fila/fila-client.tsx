@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/components/org-context";
-import { FRONTS, type Task } from "@/lib/tasks";
+import { FRONTS, type Front, type Task } from "@/lib/tasks";
 import { listForgotten, listOpenTasks, snoozeTask } from "@/lib/tasks-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ import { CompleteTaskDialog } from "./complete-task-dialog";
 import { NewTaskDialog } from "./new-task-dialog";
 import { PatientPanel } from "@/components/pacientes/patient-panel";
 import { localToIso } from "./datetime";
+import { invalidateTaskCaches } from "@/lib/task-cache";
 
 const ALL = "todas";
 
@@ -80,7 +81,7 @@ export function FilaClient() {
   const [completing, setCompleting] = useState<Task | null>(null);
   const [snoozing, setSnoozing] = useState<Task | null>(null);
   const [panelId, setPanelId] = useState<string | null>(null);
-  const [newFor, setNewFor] = useState<{ id?: string; name?: string } | null>(null);
+  const [newFor, setNewFor] = useState<{ id?: string; name?: string; front?: Front } | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60_000);
@@ -98,8 +99,7 @@ export function FilaClient() {
   });
 
   const refresh = useCallback(() => {
-    void qc.invalidateQueries({ queryKey: ["tasks", org.id] });
-    void qc.invalidateQueries({ queryKey: ["forgotten", org.id] });
+    invalidateTaskCaches(qc, org.id);
   }, [qc, org.id]);
 
   // Realtime: setAuth ANTES de subscrever (senão falha em silêncio sob RLS)
@@ -118,13 +118,13 @@ export function FilaClient() {
     return () => { cancelled = true; if (channel) supabase.removeChannel(channel); };
   }, [supabase, refresh]);
 
-  const me = useMemo(() => ({ userId: org.userId, isManager: org.isManager }), [org.userId, org.isManager]);
+  const me = useMemo(() => ({ userId: org.userId, isManager: org.isManager, front: org.front }), [org.userId, org.isManager, org.front]);
   const shown = useMemo(
     () => (tasks ?? []).filter((t) => (tab === ALL || t.front === tab) && (!onlyMine || t.ownerId === org.userId)),
     [tasks, tab, onlyMine, org.userId],
   );
   const shownForgotten = useMemo<ForgottenPatient[]>(
-    () => (forgotten ?? []).filter((f) => tab === ALL || f.front === tab),
+    () => (forgotten?.rows ?? []).filter((f) => tab === ALL || f.front === tab),
     [forgotten, tab],
   );
   const members = useMemo(() => memberIds ?? [], [memberIds]);
@@ -135,7 +135,7 @@ export function FilaClient() {
   const selected = order.find((t) => t.id === selectedId) ?? order[0] ?? null;
 
   const open = useCallback((t: Task) => router.push(`/inbox?p=${t.patientId}`), [router]);
-  const dialogOpen = !!completing || !!snoozing || !!newFor;
+  const dialogOpen = !!completing || !!snoozing || !!newFor || !!panelId;
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -181,18 +181,19 @@ export function FilaClient() {
         )}
       </div>
       <FilaList
-        state={tasksError ? "error" : tasks ? "ready" : "loading"} forgottenError={forgottenError}
+        state={tasks ? "ready" : tasksError ? "error" : "loading"} stale={!!tasks && tasksError}
+        forgottenError={forgottenError} forgottenTotal={forgotten && forgotten.total > forgotten.rows.length ? forgotten.total : undefined}
         onRetry={() => { void refetchTasks(); void refetchForgotten(); }}
         tasks={shown} now={now} me={me} memberIds={members} forgotten={shownForgotten}
         selectedId={selected?.id ?? null}
         onOpen={open} onDone={setCompleting} onSnooze={setSnoozing}
-        onDefineNext={(p) => setNewFor({ id: p.id, name: p.name })} onPatient={setPanelId}
+        onDefineNext={(p) => setNewFor({ id: p.id, name: p.name, front: p.front })} onPatient={setPanelId}
       />
       <PatientPanel patientId={panelId} onClose={() => setPanelId(null)} />
       <CompleteTaskDialog task={completing} onClose={() => setCompleting(null)} onDone={() => { setCompleting(null); refresh(); }} />
       <SnoozeDialog task={snoozing} onClose={() => setSnoozing(null)} onDone={() => { setSnoozing(null); refresh(); }} />
       <NewTaskDialog
-        open={!!newFor} patientId={newFor?.id} patientName={newFor?.name}
+        open={!!newFor} patientId={newFor?.id} patientName={newFor?.name} patientFront={newFor?.front}
         onClose={() => setNewFor(null)} onCreated={() => { setNewFor(null); refresh(); }}
       />
     </div>

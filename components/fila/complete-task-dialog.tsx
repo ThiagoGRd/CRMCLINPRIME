@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { FRONTS, validateCompletion, type Front, type Task } from "@/lib/tasks";
+import { validateCompletion, type Task } from "@/lib/tasks";
 import { completeTask } from "@/lib/tasks-data";
 import { localToIso } from "./datetime";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
@@ -35,7 +34,6 @@ function CompleteForm({ task, onClose, onDone }: { task: Task; onClose: () => vo
   const [mode, setMode] = useState<"proxima" | "encerrar">("proxima");
   const [nextTitle, setNextTitle] = useState("");
   const [nextDue, setNextDue] = useState("");
-  const [nextFront, setNextFront] = useState<Front>(task.front);
   const [closeReason, setCloseReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -53,7 +51,7 @@ function CompleteForm({ task, onClose, onDone }: { task: Task; onClose: () => vo
     setSaving(true);
     try {
       await completeTask(createClient(), {
-        taskId: task.id, outcome, ...input, nextFront: proxima ? nextFront : null,
+        taskId: task.id, outcome, ...input, nextFront: null, // passagem entre frentes fica para uma fase seguinte
       });
       onDone();
     } catch (e) {
@@ -83,15 +81,6 @@ function CompleteForm({ task, onClose, onDone }: { task: Task; onClose: () => vo
           <div className="grid gap-2">
             <Label htmlFor="next-due">Data e hora</Label>
             <Input id="next-due" type="datetime-local" value={nextDue} onChange={(e) => setNextDue(e.target.value)} />
-          </div>
-          <div className="grid gap-2">
-            <Label>Frente</Label>
-            <Select value={nextFront} onValueChange={(v) => v && setNextFront(v as Front)}>
-              <SelectTrigger><SelectValue>{FRONTS.find((f) => f.key === nextFront)?.label}</SelectValue></SelectTrigger>
-              <SelectContent>
-                {FRONTS.map((f) => <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
           </div>
         </TabsContent>
         <TabsContent value="encerrar" className="grid gap-2 pt-2">

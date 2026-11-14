@@ -11,6 +11,7 @@ import { CC_BADGE } from "@/lib/funil";
 import { formatCurrency, formatPhoneDisplay, formatDateBR } from "@/lib/format";
 import { FRONTS, urgency } from "@/lib/tasks";
 import { listPatientTasks } from "@/lib/tasks-data";
+import { invalidateTaskCaches } from "@/lib/task-cache";
 import { buildTimeline, matchByPhone } from "@/lib/timeline";
 import { NewTaskDialog } from "@/components/fila/new-task-dialog";
 import { PatientTimeline } from "./patient-timeline";
@@ -132,9 +133,7 @@ function PanelBody({ patientId, onClose }: { patientId: string; onClose: () => v
 
   function created() {
     setNewTask(false);
-    void qc.invalidateQueries({ queryKey: ["patient-tasks", patientId] });
-    void qc.invalidateQueries({ queryKey: ["tasks", org.id] });
-    void qc.invalidateQueries({ queryKey: ["forgotten", org.id] });
+    invalidateTaskCaches(qc, org.id);
   }
 
   if (patient.isError || (patient.isSuccess && !p)) {
@@ -223,7 +222,7 @@ function PanelBody({ patientId, onClose }: { patientId: string; onClose: () => v
           <MessageSquare className="h-4 w-4" /> Abrir conversa
         </Button>
       </footer>
-      <NewTaskDialog open={newTask} patientId={p.id} patientName={p.name} onClose={() => setNewTask(false)} onCreated={created} />
+      <NewTaskDialog open={newTask} patientId={p.id} patientName={p.name} patientFront={p.front} onClose={() => setNewTask(false)} onCreated={created} />
     </>
   );
 }

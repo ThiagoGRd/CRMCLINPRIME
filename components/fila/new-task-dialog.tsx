@@ -14,27 +14,27 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
-type Props = { open: boolean; patientId?: string; patientName?: string; onClose: () => void; onCreated: () => void };
+type Props = { open: boolean; patientId?: string; patientName?: string; patientFront?: string | null; onClose: () => void; onCreated: () => void };
 
-export function NewTaskDialog({ open, patientId, patientName, onClose, onCreated }: Props) {
+export function NewTaskDialog({ open, patientId, patientName, patientFront, onClose, onCreated }: Props) {
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="font-heading">Nova tarefa</DialogTitle>
         </DialogHeader>
-        {open && <NewTaskForm patientId={patientId} patientName={patientName} onClose={onClose} onCreated={onCreated} />}
+        {open && <NewTaskForm patientId={patientId} patientName={patientName} patientFront={patientFront} onClose={onClose} onCreated={onCreated} />}
       </DialogContent>
     </Dialog>
   );
 }
 
-function NewTaskForm({ patientId, patientName, onClose, onCreated }: Omit<Props, "open">) {
+function NewTaskForm({ patientId, patientName, patientFront, onClose, onCreated }: Omit<Props, "open">) {
   const org = useOrg();
   const [search, setSearch] = useState("");
   const [picked, setPicked] = useState<{ id: string; name: string } | null>(null);
   const [title, setTitle] = useState("");
-  const [front, setFront] = useState<Front>(org.front ?? "recepcao");
+  const [front, setFront] = useState<Front>((patientId ? FRONTS.find((f) => f.key === patientFront)?.key : undefined) ?? org.front ?? "recepcao");
   const [due, setDue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);

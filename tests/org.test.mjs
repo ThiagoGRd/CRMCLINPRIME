@@ -119,3 +119,7 @@ test('front outside the known list becomes null', async () => {
     assert.equal(result?.front, null);
     assert.equal(result?.isManager, false);
 });
+test('admin is manager even when is_manager is false', async () => {
+    const result = await getMyOrg(boundary([{ ...member(), role: 'admin', is_manager: false }]).client);
+    assert.equal(result?.isManager, true);
+});

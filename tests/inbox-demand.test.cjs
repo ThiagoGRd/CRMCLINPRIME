@@ -17,6 +17,7 @@ test('Inbox can turn a conversation or message into a demand', () => {
   assert.match(src, /Virar demanda/);
   assert.match(src, /sourceMessageId/);
   assert.match(src, /kind: "demanda"/);
-  assert.match(src, /queryKey: \["tasks", org\.id\]/);
-  assert.match(src, /queryKey: \["forgotten", org\.id\]/);
+  // a invalidação de tasks/forgotten/patient-tasks agora passa por lib/task-cache.ts (coberto em task-cache.test.ts)
+  assert.match(src, /invalidateTaskCaches\(qc, org\.id\)/);
+  assert.match(src, /hourCycle: "h23"/);
 });

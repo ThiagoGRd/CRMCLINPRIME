@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Send, Search, Zap, X, PanelRight, Plus, Trash2, RefreshCw, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { createTask } from "@/lib/tasks-data";
+import { invalidateTaskCaches } from "@/lib/task-cache";
 import { demandDueAt, demandTitle } from "@/lib/tasks";
 import { PatientPanel } from "@/components/pacientes/patient-panel";
 import { ReceptionPilotPanel } from "./reception-pilot-panel";
@@ -333,9 +334,8 @@ export function InboxClient() {
         title: demandTitle(source?.content ?? null, patient?.name ?? ""),
         dueAt, sourceMessageId: messageId,
       });
-      void qc.invalidateQueries({ queryKey: ["tasks", org.id] });
-      void qc.invalidateQueries({ queryKey: ["forgotten", org.id] });
-      const hora = dueAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Sao_Paulo" });
+      invalidateTaskCaches(qc, org.id);
+      const hora = dueAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Sao_Paulo" });
       toast.success(`Demanda criada. Prazo: ${hora}.`);
     } catch (e) {
       toast.error((e as Error).message);

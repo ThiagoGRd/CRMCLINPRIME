@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createClient } from '@supabase/supabase-js';
-import { listOpenTasks, completeTask, snoozeTask } from '../lib/tasks-data.ts';
+import { listOpenTasks, listForgotten, completeTask, snoozeTask } from '../lib/tasks-data.ts';
 
 function response(data, status = 200) {
     return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
@@ -57,12 +57,33 @@ test('completeTask traduz tarefa_ja_concluida', async () => {
     );
 });
 
-test('snoozeTask grava novo prazo e soma o contador', async () => {
-    const { client, requests } = setup(() => new Response(null, { status: 204 }));
+test('snoozeTask grava novo prazo, só em tarefa aberta, e soma o contador', async () => {
+    const { client, requests } = setup(() => response([{ id: 't1' }]));
     await snoozeTask(client, { taskId: 't1', orgId: 'org-a', dueAt: new Date('2026-11-15T12:00:00Z'), snoozeCount: 2 });
     const { url, init } = requests[0];
     assert.equal(init.method, 'PATCH');
     assert.equal(url.searchParams.get('id'), 'eq.t1');
     assert.equal(url.searchParams.get('org_id'), 'eq.org-a');
+    assert.equal(url.searchParams.get('status'), 'eq.aberta');
     assert.deepEqual(JSON.parse(String(init.body)), { due_at: '2026-11-15T12:00:00.000Z', snooze_count: 3 });
+});
+
+test('snoozeTask sem linhas afetadas vira tarefa já concluída', async () => {
+    const { client } = setup(() => response([]));
+    await assert.rejects(
+        snoozeTask(client, { taskId: 't1', orgId: 'org-a', dueAt: new Date('2026-11-15T12:00:00Z'), snoozeCount: 0 }),
+        { message: 'Outra pessoa já concluiu esta tarefa.' },
+    );
+});
+
+test('listForgotten devolve as 100 mais recentes e o total exato', async () => {
+    const { client, requests } = setup(() => new Response(JSON.stringify([{ id: 'p1', name: 'Ana', phone: '5511', front: 'recepcao', assigned_to: null }]),
+        { status: 200, headers: { 'Content-Type': 'application/json', 'Content-Range': '0-0/1100' } }));
+    const out = await listForgotten(client, 'org-a');
+    const { url, init } = requests[0];
+    assert.equal(url.searchParams.get('org_id'), 'eq.org-a');
+    assert.equal(url.searchParams.get('order'), 'last_message_at.desc.nullslast');
+    assert.equal(url.searchParams.get('limit'), '100');
+    assert.match(String(new Headers(init.headers).get('Prefer')), /count=exact/);
+    assert.deepEqual(out, { rows: [{ id: 'p1', name: 'Ana', phone: '5511', front: 'recepcao', assignedTo: null }], total: 1100 });
 });

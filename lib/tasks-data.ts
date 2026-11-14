@@ -39,12 +39,17 @@ export async function listPatientTasks(client: SupabaseClient, patientId: string
   return ((data ?? []) as unknown as TaskRow[]).map(toTask);
 }
 
+export const FORGOTTEN_LIMIT = 100;
+
 export async function listForgotten(
   client: SupabaseClient, orgId: string,
-): Promise<{ id: string; name: string; phone: string; front: Front; assignedTo: string | null }[]> {
-  const { data, error } = await client.from('crm_forgotten_patients').select('id, name, phone, front, assigned_to').eq('org_id', orgId);
+): Promise<{ rows: { id: string; name: string; phone: string; front: Front; assignedTo: string | null }[]; total: number }> {
+  const { data, error, count } = await client.from('crm_forgotten_patients')
+    .select('id, name, phone, front, assigned_to', { count: 'exact' }).eq('org_id', orgId)
+    .order('last_message_at', { ascending: false, nullsFirst: false }).limit(FORGOTTEN_LIMIT);
   fail(error);
-  return (data ?? []).map((r) => ({ id: r.id, name: r.name, phone: r.phone, front: r.front, assignedTo: r.assigned_to }));
+  const rows = (data ?? []).map((r) => ({ id: r.id, name: r.name, phone: r.phone, front: r.front, assignedTo: r.assigned_to }));
+  return { rows, total: count ?? rows.length };
 }
 
 export async function createTask(client: SupabaseClient, i: {
@@ -71,8 +76,10 @@ export async function completeTask(client: SupabaseClient, i: {
 export async function snoozeTask(client: SupabaseClient, i: {
   taskId: string; orgId: string; dueAt: Date; snoozeCount: number;
 }): Promise<void> {
-  const { error } = await client.from('tasks')
+  const { data, error } = await client.from('tasks')
     .update({ due_at: i.dueAt.toISOString(), snooze_count: i.snoozeCount + 1 })
-    .eq('id', i.taskId).eq('org_id', i.orgId);
+    .eq('id', i.taskId).eq('org_id', i.orgId).eq('status', 'aberta')
+    .select('id');
   fail(error);
+  if (!data?.length) throw new Error(TASK_ERRORS.tarefa_ja_concluida);
 }

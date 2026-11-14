@@ -46,7 +46,7 @@ export async function getMyOrg(supabase: SupabaseClient): Promise<Org | null> {
     logoUrl: (o.logo_url as string) ?? null,
     settings: (o.settings as Record<string, unknown>) ?? null,
     front: FRONT_KEYS.find((k) => k === data.front) ?? null,
-    isManager: data.is_manager === true,
+    isManager: data.is_manager === true || data.role === "admin",
     userId: auth.user.id,
   };
 }
