@@ -18,8 +18,10 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Search, Bot, User, Zap, X, PanelRight, Plus, Trash2, RefreshCw } from "lucide-react";
+import { Send, Search, Zap, X, PanelRight, Plus, Trash2, RefreshCw, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
+import { createTask } from "@/lib/tasks-data";
+import { demandDueAt, demandTitle } from "@/lib/tasks";
 import { ReceptionPilotPanel } from "./reception-pilot-panel";
 import { InboxMobileNavigation, inboxPaneClass, type InboxPane } from "./inbox-mobile-navigation";
 
@@ -74,7 +76,7 @@ export function InboxClient() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const [aiPaused, setAiPaused] = useState(false);
+  const [creatingDemand, setCreatingDemand] = useState(false);
   const [showPanel, setShowPanel] = useState(true);
   const [mobilePane, setMobilePane] = useState<InboxPane>("list");
   const [tagInput, setTagInput] = useState("");
@@ -168,7 +170,7 @@ export function InboxClient() {
     if (p) { setActiveId(p); setMobilePane("chat"); }
   }, [searchParams]);
 
-  // Histórico + status IA da conversa ativa
+  // Histórico da conversa ativa
   useEffect(() => {
     if (!activeId) { setMessages([]); return; }
     let cancelled = false;
@@ -216,13 +218,6 @@ export function InboxClient() {
             if (!cancelled && refreshed) setMessages(refreshed as Message[]);
           }
         }
-      }
-
-      const phone = String(pat?.phone ?? "").replace(/\D/g, "");
-      if (phone) {
-        const { data: chat } = await supabase
-          .from("chats").select("ai_service").ilike("phone", `${phone}%`).limit(1).maybeSingle();
-        if (!cancelled) setAiPaused(String(chat?.ai_service ?? "").startsWith("pause"));
       }
     })();
     return () => { cancelled = true; };
@@ -320,15 +315,31 @@ export function InboxClient() {
     }
   }
 
-  async function toggleAi() {
-    const conv = convs.find((c) => c.id === activeId);
-    const phone = (conv?.phone ?? "").replace(/\D/g, "");
-    if (!phone) return;
-    const next = aiPaused ? "ativo" : "pause";
-    setAiPaused(!aiPaused);
-    const { error } = await supabase.from("chats").update({ ai_service: next }).ilike("phone", `${phone}%`);
-    if (error) { setAiPaused(aiPaused); toast.error("Erro ao alterar IA"); }
-    else toast.success(next === "pause" ? "Você assumiu o atendimento" : "IA reativada");
+  // Vira tarefa "demanda"; sem messageId usa a última mensagem recebida da conversa.
+  async function turnIntoDemand(messageId?: string) {
+    if (!activeId || creatingDemand) return;
+    const patient = convs.find((c) => c.id === activeId);
+    const source = messageId
+      ? messages.find((m) => m.id === messageId)
+      : [...messages].reverse().find((m) => m.direction !== "outbound");
+    const front = org.front ?? "recepcao";
+    const dueAt = demandDueAt(new Date(), front, org.settings);
+    setCreatingDemand(true);
+    try {
+      await createTask(supabase, {
+        orgId: org.id, patientId: activeId, front, kind: "demanda", ownerId: org.userId,
+        title: demandTitle(source?.content ?? null, patient?.name ?? ""),
+        dueAt, sourceMessageId: messageId,
+      });
+      void qc.invalidateQueries({ queryKey: ["tasks", org.id] });
+      void qc.invalidateQueries({ queryKey: ["forgotten", org.id] });
+      const hora = dueAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Sao_Paulo" });
+      toast.success(`Demanda criada. Prazo: ${hora}.`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setCreatingDemand(false);
+    }
   }
 
   // --- Tags / atribuição ---
@@ -529,9 +540,10 @@ export function InboxClient() {
                   <RefreshCw className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Histórico</span>
                 </Button>
-                <Button variant={aiPaused ? "default" : "outline"} size="sm" onClick={toggleAi}>
-                  {aiPaused ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
-                  {aiPaused ? "Você atendendo" : "IA ativa"}
+                <Button variant="outline" size="sm" onClick={() => turnIntoDemand()} disabled={creatingDemand}>
+                  <ClipboardList className="h-4 w-4" />
+                  <span className="hidden sm:inline">Virar demanda</span>
+                  <span className="sr-only sm:hidden">Virar demanda</span>
                 </Button>
                 <Button variant="outline" size="icon-sm" title="Painel do paciente" onClick={() => { setShowPanel((v) => !v); setMobilePane("details"); }}>
                   <PanelRight className="h-4 w-4" />
@@ -552,7 +564,7 @@ export function InboxClient() {
                   ? new Date(m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
                   : "";
                 return (
-                  <div key={m.id} className={`flex ${out ? "justify-end" : "justify-start"}`}>
+                  <div key={m.id} className={`group flex items-center gap-1 ${out ? "justify-end" : "justify-start"}`}>
                     <div
                       className={`max-w-[70%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm ${
                         out ? "bg-primary text-primary-foreground" : "bg-bg-tertiary text-foreground"
@@ -566,6 +578,15 @@ export function InboxClient() {
                         </div>
                       )}
                     </div>
+                    {!out && (
+                      <Button
+                        variant="ghost" size="icon-sm" aria-label="Virar demanda" title="Virar demanda"
+                        disabled={creatingDemand} onClick={() => turnIntoDemand(m.id)}
+                        className="md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100"
+                      >
+                        <ClipboardList className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 );
               })}
