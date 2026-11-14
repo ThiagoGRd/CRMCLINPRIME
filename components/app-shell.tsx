@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { NAV, navByHref } from "@/lib/nav";
+import { NAV, navByHref, nextMenuOpenAt } from "@/lib/nav";
 import { useOrg } from "@/components/org-context";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -23,9 +23,10 @@ export function AppShell({
   const router = useRouter();
   const org = useOrg();
   const active = navByHref(pathname);
-  // guarda a rota em que abriu: navegar fecha o menu sem precisar de efeito
   const [openAt, setOpenAt] = useState<string | null>(null);
-  const open = openAt === pathname;
+  const open = openAt !== null;
+  // navegar zera o estado (setState durante a render), senão voltar à rota original reabriria o menu
+  if (nextMenuOpenAt(openAt, pathname) !== openAt) setOpenAt(null);
   const menuButton = useRef<HTMLButtonElement>(null);
   const navRef = useRef<HTMLElement>(null);
   const wasOpen = useRef(false);
@@ -107,6 +108,7 @@ export function AppShell({
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={() => setOpenAt(null)}
                       className={cn(
                         "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
                         isActive

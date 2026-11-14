@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { NAV, navByHref } from "../lib/nav.ts";
+import { NAV, navByHref, nextMenuOpenAt } from "../lib/nav.ts";
 
 test("menu tem os 8 itens na ordem do design", () => {
   assert.deepEqual(NAV.map((n) => n.href), ["/fila", "/inbox", "/pacientes", "/agenda", "/funil", "/automacoes", "/gestao", "/configuracoes"]);
@@ -11,4 +11,10 @@ test("só a fila tem contador", () => {
 });
 test("navByHref acha a fila", () => {
   assert.equal(navByHref("/fila")?.label, "Minha fila");
+});
+test("menu móvel fecha ao navegar e não reabre ao voltar à rota original", () => {
+  let st: string | null = "/fila";
+  assert.equal((st = nextMenuOpenAt(st, "/fila")), "/fila");
+  assert.equal((st = nextMenuOpenAt(st, "/inbox")), null);
+  assert.equal((st = nextMenuOpenAt(st, "/fila")), null);
 });

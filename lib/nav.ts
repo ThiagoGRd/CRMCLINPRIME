@@ -34,3 +34,8 @@ export const NAV: NavItem[] = [
 export function navByHref(pathname: string): NavItem | undefined {
   return NAV.find((n) => pathname === n.href || pathname.startsWith(n.href + "/"));
 }
+
+// Estado do menu móvel: guarda a rota em que abriu e zera ao navegar, para que voltar à rota original não o reabra.
+export function nextMenuOpenAt(openAt: string | null, pathname: string): string | null {
+  return openAt !== null && openAt !== pathname ? null : openAt;
+}
