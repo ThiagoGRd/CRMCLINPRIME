@@ -16,7 +16,7 @@ export function OverdueBadge() {
   const n = data ? countOverdue(data, { userId: org.userId, isManager: org.isManager }, new Date()) : 0;
   if (n === 0) return null;
   return (
-    <span aria-label={`${n} tarefas vencidas`} className="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white tabular-nums">
+    <span role="status" aria-label={`${n} ${n === 1 ? "tarefa vencida" : "tarefas vencidas"}`} className="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white tabular-nums">
       {n > 99 ? "99+" : n}
     </span>
   );
