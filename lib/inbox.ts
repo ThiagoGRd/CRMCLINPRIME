@@ -1,6 +1,6 @@
 // Regras puras da tela Conversas. Sem alias @/ nem dependências: os testes importam direto no Node.
 
-export type MediaKind = "text" | "image" | "audio" | "document" | "video";
+export type MediaKind = "text" | "image" | "audio" | "document" | "video" | "sticker";
 
 export type InboxMessage = {
   id: string;
@@ -24,6 +24,8 @@ const PREFIXES: [RegExp, MediaKind][] = [
   [/^(?:🎤️?\s*)?\[Áudio\]:?\s*/u, "audio"],
   [/^(?:📄️?\s*)?\[Documento\]\s*/u, "document"],
   [/^(?:🎥️?\s*)?\[Vídeo\]\s*/u, "video"],
+  [/^(?:🏷️?\s*)?\[Figurinha\]\s*/u, "sticker"],
+  [/^\[sticker\]\s*/iu, "sticker"],
 ];
 
 const MEDIA_KINDS: MediaKind[] = ["image", "audio", "document", "video"];

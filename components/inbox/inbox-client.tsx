@@ -63,7 +63,7 @@ export function InboxClient() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [creatingDemand, setCreatingDemand] = useState(false);
-  const [showPanel, setShowPanel] = useState(true);
+  const [showPanel, setShowPanel] = useState(false);
   const [panelPatientId, setPanelPatientId] = useState<string | null>(null);
   const [mobilePane, setMobilePane] = useState<InboxPane>("list");
   const [tagInput, setTagInput] = useState("");
@@ -450,9 +450,9 @@ export function InboxClient() {
           onOpen={(id, panelId) => { setChannelFilter(panelId); setBoard(false); openConversation(id); }}
         />
       )}
-      <div className={`flex min-h-0 min-w-0 flex-1 gap-3 ${board ? "lg:hidden" : ""}`}>
+      <div className={`relative flex min-h-0 min-w-0 flex-1 gap-3 ${board ? "lg:hidden" : ""}`}>
       {/* Lista de conversas */}
-      <div className={`${inboxPaneClass("list", mobilePane)} min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-card lg:w-[360px]`}>
+      <div className={`${inboxPaneClass("list", mobilePane)} min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-card lg:w-[340px]`}>
         <div className="border-b border-white/[0.06] p-2.5">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -484,15 +484,15 @@ export function InboxClient() {
         ) : (
           <>
             <ChatHeader
-              patient={active} attendant={memberName(active.assigned_to)} nextTask={nextTask} now={now}
+              patient={active} nextTask={nextTask} now={now}
               onBack={() => setMobilePane("list")} onOpenPatient={() => setPanelPatientId(active.id)}
               onDefineNext={() => setNewTaskOpen(true)} onSync={syncPatientHistory}
               onToggleDetails={() => { setShowPanel((v) => !v); setMobilePane("details"); }}
             >
               <Button variant="outline" size="sm" onClick={() => turnIntoDemand()} disabled={creatingDemand}>
                 <ClipboardList className="h-4 w-4" />
-                <span className="hidden sm:inline">Virar demanda</span>
-                <span className="sr-only sm:hidden">Virar demanda</span>
+                <span className="hidden lg:inline">Virar demanda</span>
+                <span className="sr-only lg:hidden">Virar demanda</span>
               </Button>
             </ChatHeader>
             <MessageThread
@@ -513,6 +513,7 @@ export function InboxClient() {
       {active && (showPanel || mobilePane === "details") && (
         <ContactDetails
           className={inboxPaneClass("details", mobilePane, showPanel)}
+          onClose={() => { setShowPanel(false); if (mobilePane === "details") setMobilePane("chat"); }}
           patient={active} members={members ?? []} memberName={memberName}
           tagInput={tagInput} setTagInput={setTagInput} onAddTag={addTag} onRemoveTag={removeTag} onAssign={assign}
         />

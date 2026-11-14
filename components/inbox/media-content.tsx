@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { hasFetchableMedia, type InboxMessage, type MediaKind } from "@/lib/inbox";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Camera, Download, FileText, Mic, Pause, Play, Video } from "lucide-react";
+import { Camera, Download, FileText, Mic, Pause, Play, Sticker, Video } from "lucide-react";
 
 // supabase.functions.invoke lê image/* e audio/* como texto (só octet-stream/pdf viram Blob), o que corrompe
 // os bytes; por isso a chamada vai direto à função, com o mesmo token da sessão.
@@ -75,10 +75,20 @@ const KIND_META: Record<Exclude<MediaKind, "text">, { label: string; Icon: typeo
   audio: { label: "Áudio", Icon: Mic },
   document: { label: "Documento", Icon: FileText },
   video: { label: "Vídeo", Icon: Video },
+  sticker: { label: "Figurinha", Icon: Sticker },
 };
 
 function Placeholder({ kind, text }: { kind: Exclude<MediaKind, "text">; text: string }) {
   const { label, Icon } = KIND_META[kind];
+  // figurinha: arquivo ainda não disponível, só um marcador discreto
+  if (kind === "sticker") {
+    return (
+      <div className="flex items-center gap-2 pr-12 pb-3 text-[13px] text-foreground/70">
+        <span className="grid size-7 place-items-center rounded-md bg-white/[0.06]"><Icon aria-hidden className="size-4" /></span>
+        {label}
+      </div>
+    );
+  }
   return (
     <div className="space-y-1.5">
       <div className="flex w-[240px] max-w-full items-center gap-3 rounded-lg bg-black/20 p-2.5 ring-1 ring-white/[0.06]">
@@ -107,6 +117,8 @@ const extOf = (type: string) => (type.split("/")[1] ?? "").split(";")[0].replace
 
 function ImageMedia({ url, blob, caption, alt }: { url: string | null; blob?: Blob; caption: string; alt: string }) {
   const [open, setOpen] = useState(false);
+  // altura pela proporção real da foto, entre 140 e 320px; o lightbox mostra a foto inteira
+  const [ratio, setRatio] = useState(0.75);
   return (
     <div className="space-y-1.5">
       <button
@@ -114,11 +126,15 @@ function ImageMedia({ url, blob, caption, alt }: { url: string | null; blob?: Bl
         onClick={() => setOpen(true)}
         disabled={!url}
         aria-label="Ampliar foto"
-        className="group/img relative block aspect-[4/3] w-[260px] max-w-full overflow-hidden rounded-lg bg-black/30 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="group/img relative block w-[280px] max-w-full overflow-hidden rounded-lg bg-black/30 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        style={{ height: Math.round(Math.min(320, Math.max(140, 280 * ratio))) }}
       >
         {url ? (
           // eslint-disable-next-line @next/next/no-img-element -- blob em memória, next/image não se aplica
-          <img src={url} alt={alt} className="size-full object-cover transition-transform duration-300 group-hover/img:scale-[1.03] motion-reduce:transition-none" />
+          <img
+            src={url} alt={alt}
+            onLoad={(e) => { const i = e.currentTarget; if (i.naturalWidth) setRatio(i.naturalHeight / i.naturalWidth); }}
+            className="block h-full max-h-[320px] w-full max-w-[280px] object-cover transition-transform duration-300 group-hover/img:scale-[1.03] motion-reduce:transition-none" />
         ) : (
           <span className="flex size-full items-center justify-center motion-safe:animate-pulse">
             <Camera className="size-7 text-white/20" />
@@ -285,7 +301,7 @@ function DocumentMedia({ url, blob, name }: { url: string | null; blob?: Blob; n
 export function MediaContent({ message, kind, text, alt, outbound }: {
   message: InboxMessage; kind: Exclude<MediaKind, "text">; text: string; alt: string; outbound: boolean;
 }) {
-  const fetchable = hasFetchableMedia(message) && kind !== "video";
+  const fetchable = hasFetchableMedia(message) && kind !== "video" && kind !== "sticker";
   const [ref, near] = useNearViewport<HTMLDivElement>();
   const q = useQuery({
     queryKey: ["wa-media", message.id],

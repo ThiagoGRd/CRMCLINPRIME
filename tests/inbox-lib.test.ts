@@ -15,6 +15,13 @@ test("parseMediaContent reconhece os prefixos do sincronizador", () => {
   assert.deepEqual(parseMediaContent("🎥 [Vídeo] antes e depois", "video"), { kind: "video", text: "antes e depois" });
 });
 
+test("parseMediaContent reconhece figurinhas", () => {
+  assert.deepEqual(parseMediaContent("[Sticker]", "image"), { kind: "sticker", text: "" });
+  assert.deepEqual(parseMediaContent("[sticker]", null), { kind: "sticker", text: "" });
+  assert.deepEqual(parseMediaContent("🏷️ [Figurinha]", "image"), { kind: "sticker", text: "" });
+  assert.deepEqual(parseMediaContent("🏷 [Figurinha]", null), { kind: "sticker", text: "" });
+});
+
 test("parseMediaContent deixa texto comum como está", () => {
   assert.deepEqual(parseMediaContent("Bom dia! [Foto] depois", "text"), { kind: "text", text: "Bom dia! [Foto] depois" });
   assert.deepEqual(parseMediaContent("oi", null), { kind: "text", text: "oi" });

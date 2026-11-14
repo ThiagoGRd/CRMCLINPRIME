@@ -5,6 +5,7 @@ import { CC_BADGE } from "@/lib/funil";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { ContactAvatar } from "./contact-avatar";
 
@@ -24,13 +25,16 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function ContactDetails({ className, patient, members, memberName, tagInput, setTagInput, onAddTag, onRemoveTag, onAssign }: {
-  className: string; patient: Patient; members: Member[]; memberName: (uid: string | null) => string;
+export function ContactDetails({ className, onClose, patient, members, memberName, tagInput, setTagInput, onAddTag, onRemoveTag, onAssign }: {
+  className: string; onClose: () => void; patient: Patient; members: Member[]; memberName: (uid: string | null) => string;
   tagInput: string; setTagInput: (v: string) => void; onAddTag: () => void; onRemoveTag: (t: string) => void; onAssign: (uid: string) => void;
 }) {
   const cc = patient.clinicorp_status ? CC_BADGE[patient.clinicorp_status] : null;
   return (
-    <aside aria-label="Detalhes do paciente" className={`${className} min-h-0 w-full min-w-0 shrink-0 flex-col gap-5 overflow-y-auto rounded-2xl border border-white/[0.07] bg-card p-4 lg:w-72`}>
+    <aside aria-label="Detalhes do paciente" className={`${className} relative min-h-0 w-full min-w-0 shrink-0 flex-col gap-5 overflow-y-auto rounded-2xl border border-white/[0.07] bg-card p-4 lg:absolute lg:inset-y-0 lg:right-0 lg:z-20 lg:w-[340px] lg:shadow-[-24px_0_60px_-20px_rgba(0,0,0,0.85)] xl:static xl:z-auto xl:w-[320px] xl:shadow-none motion-safe:lg:animate-in motion-safe:lg:slide-in-from-right-4 motion-safe:lg:fade-in-0 xl:animate-none`}>
+      <Button variant="ghost" size="icon-sm" aria-label="Fechar detalhes" onClick={onClose} className="absolute top-2 right-2 xl:hidden">
+        <X className="h-4 w-4" />
+      </Button>
       <div className="flex flex-col items-center gap-2 border-b border-white/[0.06] pb-4 text-center">
         <ContactAvatar name={patient.name} seed={patient.id} size={72} />
         <div className="min-w-0 max-w-full">

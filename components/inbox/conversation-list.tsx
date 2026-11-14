@@ -2,14 +2,14 @@
 
 import { awaitingReply, listTime, parseMediaContent, type LastMessage, type MediaKind } from "@/lib/inbox";
 import { formatPhoneDisplay } from "@/lib/format";
-import { Camera, FileText, Mic, Video } from "lucide-react";
+import { Camera, FileText, Mic, Sticker, Video } from "lucide-react";
 import { ContactAvatar } from "./contact-avatar";
 
 export type ConversationSummary = { id: string; name: string; phone: string | null; tags: string[] | null };
 export type PanelTag = { label: string; color: string } | null;
 
-const KIND_ICON: Partial<Record<MediaKind, typeof Camera>> = { image: Camera, audio: Mic, document: FileText, video: Video };
-const KIND_LABEL: Partial<Record<MediaKind, string>> = { image: "Foto", audio: "Áudio", document: "Documento", video: "Vídeo" };
+const KIND_ICON: Partial<Record<MediaKind, typeof Camera>> = { image: Camera, audio: Mic, document: FileText, video: Video, sticker: Sticker };
+const KIND_LABEL: Partial<Record<MediaKind, string>> = { image: "Foto", audio: "Áudio", document: "Documento", video: "Vídeo", sticker: "Figurinha" };
 
 export function ConversationRow({ conv, last, now, selected, panel, compact, onSelect }: {
   conv: ConversationSummary; last?: LastMessage; now: Date | null; selected: boolean;
