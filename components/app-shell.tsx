@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ShieldCheck, LogOut, Plus } from "lucide-react";
+import { OverdueBadge } from "@/components/fila/overdue-badge";
 import { Copilot } from "@/components/copilot/copilot";
 
 export function AppShell({
@@ -29,9 +30,9 @@ export function AppShell({
   }
 
   const groups: { key: string; label: string; items: typeof NAV }[] = [
-    { key: "main", label: "Comercial & Atendimento", items: NAV.filter((n) => n.group === "main") },
-    { key: "ops", label: "Operação & Performance", items: NAV.filter((n) => n.group === "ops") },
-    { key: "config", label: "Sistema & Integrações", items: NAV.filter((n) => n.group === "config") },
+    { key: "main", label: "Atendimento", items: NAV.filter((n) => n.group === "main") },
+    { key: "ops", label: "Gestão", items: NAV.filter((n) => n.group === "ops") },
+    { key: "config", label: "Sistema", items: NAV.filter((n) => n.group === "config") },
   ];
 
   return (
@@ -84,6 +85,7 @@ export function AppShell({
                         )}
                       />
                       {item.label}
+                      {item.badge === "overdue" && <OverdueBadge />}
                     </Link>
                   );
                 })}

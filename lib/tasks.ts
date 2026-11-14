@@ -60,3 +60,7 @@ export function visibleTo(task: Task, me: { userId: string; isManager: boolean }
   void memberIds; // gestor vê tudo, inclusive tarefa de quem saiu da organização
   return me.isManager || task.ownerId === me.userId;
 }
+
+export function countOverdue(tasks: Task[], me: { userId: string; isManager: boolean }, now: Date): number {
+  return tasks.filter((t) => visibleTo(t, me, []) && urgency(t.dueAt, now) === "vencida").length;
+}

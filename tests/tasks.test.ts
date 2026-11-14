@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { slaMinutes, demandDueAt, urgency, sortQueue, demandTitle, validateCompletion, visibleTo } from "../lib/tasks.ts";
+import { slaMinutes, demandDueAt, urgency, sortQueue, demandTitle, validateCompletion, visibleTo, countOverdue } from "../lib/tasks.ts";
 
 const now = new Date("2026-11-14T15:00:00-03:00");
 const t = (id: string, dueAt: string, ownerId: string | null = "u1") =>
@@ -44,4 +44,12 @@ test("tarefa sem responsável ou de quem saiu aparece só para o gestor", () => 
   assert.equal(visibleTo(t("a", now.toISOString(), null), boss, ["u1", "u9"]), true);
   assert.equal(visibleTo(t("a", now.toISOString(), "saiu"), boss, ["u1", "u9"]), true);
   assert.equal(visibleTo(t("a", now.toISOString(), "u1"), boss, ["u1", "u9"]), true);
+});
+test("contador de vencidas conta só as visíveis ao usuário", () => {
+  const me = { userId: "u1", isManager: false }, boss = { userId: "u9", isManager: true };
+  const past = "2026-11-14T10:00:00-03:00", future = "2026-11-15T10:00:00-03:00";
+  const tasks = [t("a", past, "u1"), t("b", past, "u2"), t("c", future, "u1"), t("d", past, null)];
+  assert.equal(countOverdue(tasks, me, now), 1);
+  assert.equal(countOverdue(tasks, boss, now), 3);
+  assert.equal(countOverdue([], me, now), 0);
 });

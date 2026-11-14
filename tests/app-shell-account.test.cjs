@@ -19,6 +19,7 @@ async function withShell(run) {
       usePathname: () => '/dashboard',
       useRouter: () => ({ push: url => calls.push(['push', url]), refresh: () => calls.push('refresh') }),
     };
+    if (name === '@tanstack/react-query') return { useQuery: () => ({ data: undefined }) };
     if (name === '@/components/org-context') return { useOrg: () => org };
     if (name === '@/lib/supabase/client') return { createClient: () => {
       calls.push('createClient');
