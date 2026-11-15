@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import ts from 'typescript';
 const require = createRequire(import.meta.url);
-const source = readFileSync(new URL('../app/(app)/dashboard/page.tsx', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../components/dashboard/dashboard-overview.tsx', import.meta.url), 'utf8');
 function loadPage(org) {
   let queries = 0;
   const supabase = { rpc() { queries++; throw Error('Unexpected query'); }, from() { queries++; throw Error('Unexpected query'); } };
@@ -19,7 +19,7 @@ function loadPage(org) {
       return {};
     },
   });
-  return { page: exports.default, queries: () => queries };
+  return { page: exports.DashboardOverview, queries: () => queries };
 }
 test('dashboard handles membership revoked after layout without querying or crashing', async () => {
   const state = loadPage(null);

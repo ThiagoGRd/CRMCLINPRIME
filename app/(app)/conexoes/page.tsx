@@ -1,2 +1,5 @@
-import { ConexoesClient } from "@/components/conexoes/conexoes-client";
-export default function ConexoesPage() { return <ConexoesClient />; }
+import { redirect } from "next/navigation";
+
+export default function ConexoesPage() {
+  redirect("/configuracoes?aba=conexoes");
+}

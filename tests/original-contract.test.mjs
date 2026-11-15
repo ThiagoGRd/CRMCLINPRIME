@@ -4,19 +4,19 @@ import { createClient } from '@supabase/supabase-js';
 import { getMyOrg } from '../lib/org.ts';
 import { moveLeadStage } from '../lib/funil-move.ts';
 
-test('organization request preserves original columns and public Org shape', async () => {
+test('organization request preserves original columns and extends public Org shape', async () => {
   const client = createClient('https://synthetic.invalid', 'synthetic-anon-key', {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     global: { headers: { Authorization: 'Bearer synthetic-token' }, fetch: async input => {
       const url = new URL(String(input));
       if (url.pathname === '/auth/v1/user') return Response.json({ id: 'synthetic-user' });
       assert.equal(url.pathname, '/rest/v1/org_members');
-      assert.equal(url.searchParams.get('select'), 'role,display_name,org_id,organizations(id,name,contact_label,logo_url,settings)');
+      assert.equal(url.searchParams.get('select'), 'role,display_name,front,is_manager,org_id,organizations(id,name,contact_label,logo_url,settings)');
       return Response.json([{ org_id: 'synthetic-org', role: 'member', organizations: { id: 'synthetic-org' } }]);
     } },
   });
   const org = await getMyOrg(client);
-  assert.deepEqual(Object.keys(org).sort(), ['id','role','displayName','name','contactLabel','logoUrl','settings'].sort());
+  assert.deepEqual(Object.keys(org).sort(), ['id','role','displayName','name','contactLabel','logoUrl','settings','front','isManager','userId'].sort());
 });
 
 for (const dealId of ['synthetic-deal', null]) {

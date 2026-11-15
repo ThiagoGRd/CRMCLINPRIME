@@ -1,5 +1,5 @@
-import { ResultadosClient } from "@/components/resultados/resultados-client";
+import { redirect } from "next/navigation";
 
 export default function ResultadosPage() {
-  return <ResultadosClient />;
+  redirect("/gestao?aba=roi");
 }

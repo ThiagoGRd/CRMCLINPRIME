@@ -1,13 +1,16 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { NAV, navByHref } from "@/lib/nav";
+import { NAV, navByHref, nextMenuOpenAt } from "@/lib/nav";
 import { useOrg } from "@/components/org-context";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ShieldCheck, LogOut, Plus } from "lucide-react";
+import { ShieldCheck, LogOut, Plus, Menu, X } from "lucide-react";
+import { OverdueBadge } from "@/components/fila/overdue-badge";
+import { OverdueWatcher } from "@/components/fila/overdue-watcher";
 import { Copilot } from "@/components/copilot/copilot";
 
 export function AppShell({
@@ -21,6 +24,30 @@ export function AppShell({
   const router = useRouter();
   const org = useOrg();
   const active = navByHref(pathname);
+  const [openAt, setOpenAt] = useState<string | null>(null);
+  const open = openAt !== null;
+  // navegar zera o estado (setState durante a render), senão voltar à rota original reabriria o menu
+  if (nextMenuOpenAt(openAt, pathname) !== openAt) setOpenAt(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const wasOpen = useRef(false);
+
+  useEffect(() => {
+    if (open) {
+      navRef.current?.querySelector("a")?.focus();
+      wasOpen.current = true;
+    } else if (wasOpen.current) {
+      menuButton.current?.focus();
+      wasOpen.current = false;
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpenAt(null);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
 
   async function logout() {
     await createClient().auth.signOut();
@@ -29,15 +56,22 @@ export function AppShell({
   }
 
   const groups: { key: string; label: string; items: typeof NAV }[] = [
-    { key: "main", label: "Comercial & Atendimento", items: NAV.filter((n) => n.group === "main") },
-    { key: "ops", label: "Operação & Performance", items: NAV.filter((n) => n.group === "ops") },
-    { key: "config", label: "Sistema & Integrações", items: NAV.filter((n) => n.group === "config") },
+    { key: "main", label: "Atendimento", items: NAV.filter((n) => n.group === "main") },
+    { key: "ops", label: "Gestão", items: NAV.filter((n) => n.group === "ops") },
+    { key: "config", label: "Sistema", items: NAV.filter((n) => n.group === "config") },
   ];
 
   return (
     <div className="flex h-dvh overflow-hidden">
       {/* Sidebar */}
-      <aside className="flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar/95 backdrop-blur-xl">
+      {open && <div className="fixed inset-0 z-30 bg-black/60 md:hidden" onClick={() => setOpenAt(null)} aria-hidden="true" />}
+      <aside
+        id="app-sidebar"
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar backdrop-blur-xl transition-transform motion-reduce:transition-none md:static md:translate-x-0 md:bg-sidebar/95 md:visible",
+          open ? "translate-x-0" : "max-md:invisible -translate-x-full"
+        )}
+      >
         <div className="flex items-center gap-3 border-b border-white/[0.06] px-5 py-4.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-indigo-500 to-emerald-500 text-white shadow-[0_4px_14px_rgba(99,102,241,0.35)]">
             <ShieldCheck className="h-5 w-5" />
@@ -50,9 +84,17 @@ export function AppShell({
               Odontologia & IA
             </span>
           </div>
+          <button
+            type="button"
+            aria-label="Fechar menu"
+            onClick={() => setOpenAt(null)}
+            className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-white/5 hover:text-foreground md:hidden"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
-        <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
+        <nav ref={navRef} className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
           {groups.map((g, gi) => (
             <div key={g.key}>
               {gi > 0 && <div className="mx-2 mb-3 border-t border-sidebar-border" />}
@@ -67,6 +109,7 @@ export function AppShell({
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={() => setOpenAt(null)}
                       className={cn(
                         "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
                         isActive
@@ -84,6 +127,7 @@ export function AppShell({
                         )}
                       />
                       {item.label}
+                      {item.badge === "overdue" && <OverdueBadge />}
                     </Link>
                   );
                 })}
@@ -118,8 +162,19 @@ export function AppShell({
 
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-20 shrink-0 items-center justify-between border-b border-border bg-background/75 px-8 backdrop-blur-xl">
-          <div>
+        <header className="flex h-20 shrink-0 items-center justify-between gap-3 border-b border-border bg-background/75 px-4 backdrop-blur-xl md:px-8">
+          <button
+            ref={menuButton}
+            type="button"
+            aria-label="Abrir menu"
+            aria-expanded={open}
+            aria-controls="app-sidebar"
+            onClick={() => setOpenAt(pathname)}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border text-foreground hover:bg-white/5 md:hidden"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="min-w-0 flex-1">
             <h1 className="font-heading text-2xl font-bold leading-tight tracking-tight">
               {active?.label ?? "ClinPrime"}
             </h1>
@@ -131,8 +186,9 @@ export function AppShell({
             </Button>
           )}
         </header>
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">{children}</main>
       </div>
+      <OverdueWatcher />
       <Copilot />
     </div>
   );

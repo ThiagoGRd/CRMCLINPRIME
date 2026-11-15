@@ -1,5 +1,5 @@
-import { MetasClient } from "@/components/metas/metas-client";
+import { redirect } from "next/navigation";
 
 export default function MetasPage() {
-  return <MetasClient />;
+  redirect("/gestao?aba=metas");
 }

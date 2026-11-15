@@ -25,7 +25,7 @@ export default function LoginPage() {
       toast.error("Não foi possível entrar", { description: error.message });
       return;
     }
-    router.push("/dashboard");
+    router.push("/fila");
     router.refresh();
   }
 

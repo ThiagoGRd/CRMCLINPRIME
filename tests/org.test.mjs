@@ -69,7 +69,7 @@ test('missing or mismatched related organization fails closed', async () => {
 test('valid object and singleton-array organization relationship preserve existing fields', async () => {
     for (const organizations of [{ id: orgA, name: 'Clínica fictícia' }, [{ id: orgA, name: 'Clínica fictícia' }]]) {
         const result = await getMyOrg(boundary([{ ...member(), organizations }]).client);
-        assert.deepEqual(result, { id: orgA, role: 'member', displayName: 'Operador fictício', name: 'Clínica fictícia', contactLabel: null, logoUrl: null, settings: null });
+        assert.deepEqual(result, { id: orgA, role: 'member', displayName: 'Operador fictício', name: 'Clínica fictícia', contactLabel: null, logoUrl: null, settings: null, front: null, isManager: false, userId: currentUser });
     }
 });
 test('real SDK auth processes success, 401 and absent organization without stored session', async () => {
@@ -107,4 +107,19 @@ test('real SDK auth processes success, 401 and absent organization without store
             assert.equal(result, null);
         assert.deepEqual(paths, authStatus === 401 ? ['/auth/v1/user'] : ['/auth/v1/user', '/rest/v1/org_members']);
     }
+});
+test('front, manager flag and user id come from the verified membership', async () => {
+    const result = await getMyOrg(boundary([{ ...member(), front: 'recepcao', is_manager: true }]).client);
+    assert.equal(result?.front, 'recepcao');
+    assert.equal(result?.isManager, true);
+    assert.equal(result?.userId, currentUser);
+});
+test('front outside the known list becomes null', async () => {
+    const result = await getMyOrg(boundary([{ ...member(), front: 'marketing', is_manager: 'true' }]).client);
+    assert.equal(result?.front, null);
+    assert.equal(result?.isManager, false);
+});
+test('admin is manager even when is_manager is false', async () => {
+    const result = await getMyOrg(boundary([{ ...member(), role: 'admin', is_manager: false }]).client);
+    assert.equal(result?.isManager, true);
 });

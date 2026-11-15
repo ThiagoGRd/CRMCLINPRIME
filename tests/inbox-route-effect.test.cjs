@@ -12,7 +12,14 @@ test('actual Inbox routed patient effect opens mobile chat for initial and later
   if(name==='@/lib/funil')return {CC_BADGE:{}};
   if(name==='@/lib/format')return {formatPhoneDisplay:()=>'',formatCurrency:()=>'',formatDateBR:()=>''};
   if(name.startsWith('@/components/ui/')||name==='lucide-react')return ui;
+  if(name==='@/components/pacientes/patient-panel')return {PatientPanel:'PatientPanel'};
   if(name==='sonner')return {toast:{}};
+  if(name==='@/lib/tasks-data')return {createTask:()=>{},listOpenTasks:async()=>[]};
+  if(name==='@/lib/task-cache')return {invalidateTaskCaches:()=>{}};
+  if(name==='@/lib/tasks')return {demandDueAt:()=>new Date(),demandTitle:()=>'',urgency:()=>'futura'};
+  if(name==='@/lib/inbox')return require('../lib/inbox.ts');
+  if(name==='@/components/fila/new-task-dialog')return {NewTaskDialog:'NewTaskDialog'};
+  if(name==='@/components/fila/fila-list')return {relativeDue:()=>''};
   if(name==='./reception-pilot-panel')return {ReceptionPilotPanel:'Pilot'};
   return originalLoad.call(this,name,...rest);
  };

@@ -1,14 +1,11 @@
 import {
-  LayoutDashboard,
-  Filter,
-  Users,
+  ListChecks,
   MessagesSquare,
-  Workflow,
+  Users,
   CalendarDays,
+  Filter,
+  Workflow,
   BarChart3,
-  TrendingUp,
-  Heart,
-  Link2,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -19,23 +16,26 @@ export type NavItem = {
   subtitle: string;
   icon: LucideIcon;
   addLead?: boolean;
+  badge?: "overdue";
   group?: "main" | "ops" | "config";
 };
 
 export const NAV: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard Clínico", subtitle: "Visão geral da operação e do comercial", icon: LayoutDashboard, group: "main" },
-  { href: "/funil", label: "Funil de Tratamentos", subtitle: "Do lead ao fechamento do orçamento, etapa por etapa", icon: Filter, addLead: true, group: "main" },
+  { href: "/fila", label: "Minha fila", subtitle: "O que fazer agora, por prazo", icon: ListChecks, badge: "overdue", group: "main" },
+  { href: "/inbox", label: "Conversas", subtitle: "Central de conversas de WhatsApp e Instagram", icon: MessagesSquare, group: "main" },
   { href: "/pacientes", label: "Pacientes", subtitle: "Base de leads e pacientes da clínica", icon: Users, addLead: true, group: "main" },
-  { href: "/inbox", label: "Multiatendimento", subtitle: "Central de conversas de WhatsApp e Instagram", icon: MessagesSquare, group: "ops" },
-  { href: "/automacoes", label: "Automações", subtitle: "Fluxos e gatilhos automáticos", icon: Workflow, group: "ops" },
-  { href: "/agenda", label: "Agenda Clínica", subtitle: "Consultas sincronizadas com o Clinicorp", icon: CalendarDays, group: "ops" },
-  { href: "/metas", label: "Metas & Vendas", subtitle: "Resultados do funil e financeiro por período", icon: BarChart3, group: "ops" },
-  { href: "/resultados", label: "Resultados", subtitle: "ROI por origem: do lead à receita aprovada", icon: TrendingUp, group: "ops" },
-  { href: "/followup", label: "Follow-up", subtitle: "Resgate de orçamentos em aberto e faltas", icon: Heart, group: "ops" },
-  { href: "/conexoes", label: "Conexões", subtitle: "Canais de WhatsApp e Instagram conectados", icon: Link2, group: "config" },
-  { href: "/configuracoes", label: "Configurações", subtitle: "Organização, funil, regra do CRC e equipe", icon: Settings, group: "config" },
+  { href: "/agenda", label: "Agenda", subtitle: "Consultas sincronizadas com o Clinicorp", icon: CalendarDays, group: "main" },
+  { href: "/funil", label: "Funil", subtitle: "Do lead ao fechamento do orçamento, etapa por etapa", icon: Filter, addLead: true, group: "main" },
+  { href: "/automacoes", label: "Cadências", subtitle: "Fluxos e gatilhos automáticos", icon: Workflow, group: "ops" },
+  { href: "/gestao", label: "Gestão", subtitle: "Visão geral, metas e ROI por origem", icon: BarChart3, group: "ops" },
+  { href: "/configuracoes", label: "Configurações", subtitle: "Organização, funil, equipe e conexões", icon: Settings, group: "config" },
 ];
 
 export function navByHref(pathname: string): NavItem | undefined {
   return NAV.find((n) => pathname === n.href || pathname.startsWith(n.href + "/"));
+}
+
+// Estado do menu móvel: guarda a rota em que abriu e zera ao navegar, para que voltar à rota original não o reabra.
+export function nextMenuOpenAt(openAt: string | null, pathname: string): string | null {
+  return openAt !== null && openAt !== pathname ? null : openAt;
 }
