@@ -11,6 +11,9 @@ function json(b: unknown, s = 200) {
   return new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'Content-Type': 'application/json' } });
 }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Só estes tipos saem com o tipo real. Qualquer outro (html, svg...) vira download binário:
+// um arquivo enviado por um paciente nunca pode ser interpretado como página pelo navegador.
+const SAFE_TYPE = /^(image\/(jpeg|png|webp|gif)|audio\/[a-z0-9.+-]+|application\/pdf)$/;
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -47,23 +50,33 @@ Deno.serve(async (req: Request) => {
   if (!cfg.cadence_secret) return json({ error: 'Mídia indisponível.' }, 503);
 
   let upstream: Response;
+  // O limite de tempo vale só até a resposta começar; cortar depois interromperia arquivo grande em rede lenta.
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 20_000);
   try {
     upstream = await fetch(`${bridge}/media?wamid=${encodeURIComponent(wamid)}`, {
       headers: { 'x-system-key': cfg.cadence_secret },
-      signal: AbortSignal.timeout(20_000),
+      signal: ctl.signal,
     });
   } catch {
     return json({ error: 'Mídia indisponível no momento.' }, 502);
+  } finally {
+    clearTimeout(timer);
   }
   if (upstream.status === 404) return json({ error: 'Mensagem sem mídia.' }, 404);
   if (!upstream.ok) return json({ error: 'Mídia indisponível no momento.' }, 502);
 
+  const upstreamType = (upstream.headers.get('Content-Type') ?? '').split(';')[0].trim().toLowerCase();
+  const safe = SAFE_TYPE.test(upstreamType);
   return new Response(upstream.body, {
     status: 200,
     headers: {
       ...cors,
-      'Content-Type': upstream.headers.get('Content-Type') ?? 'application/octet-stream',
-      'Cache-Control': 'private, max-age=86400',
+      'Content-Type': safe ? upstreamType : 'application/octet-stream',
+      'Content-Disposition': safe ? 'inline' : 'attachment',
+      'Content-Security-Policy': "sandbox; default-src 'none'",
+      // Dado de saúde: não deixar cópia no disco do navegador.
+      'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',
     },
   });
