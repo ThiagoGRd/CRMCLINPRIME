@@ -24,7 +24,7 @@ export function ChatHeader({ patient, nextTask, now, onBack, onOpenPatient, onDe
         <ArrowLeft className="h-4 w-4" />
       </Button>
       <ContactAvatar name={patient.name} seed={patient.id} size={42} />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-[7rem] flex-1">
         <button
           type="button" onClick={onOpenPatient}
           className="block max-w-full truncate rounded text-left font-heading text-base leading-tight font-semibold outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
@@ -51,7 +51,7 @@ export function ChatHeader({ patient, nextTask, now, onBack, onOpenPatient, onDe
       <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
         <Button variant="outline" size="sm" onClick={onSync} title="Puxar histórico completo da VPS" aria-label="Histórico">
           <RefreshCw className="h-3.5 w-3.5" />
-          <span className="hidden lg:inline">Histórico</span>
+          <span className="hidden 2xl:inline">Histórico</span>
         </Button>
         {children}
         <Button variant="outline" size="icon-sm" title="Painel do paciente" aria-label="Painel do paciente" onClick={onToggleDetails}>

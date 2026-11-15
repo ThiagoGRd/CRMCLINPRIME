@@ -511,8 +511,8 @@ export function InboxClient() {
             >
               <Button variant="outline" size="sm" onClick={() => turnIntoDemand()} disabled={creatingDemand}>
                 <ClipboardList className="h-4 w-4" />
-                <span className="hidden lg:inline">Virar demanda</span>
-                <span className="sr-only lg:hidden">Virar demanda</span>
+                <span className="hidden 2xl:inline">Virar demanda</span>
+                <span className="sr-only 2xl:hidden">Virar demanda</span>
               </Button>
             </ChatHeader>
             <MessageThread
