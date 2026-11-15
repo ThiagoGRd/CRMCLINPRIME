@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseMediaContent, lastByPatient, awaitingReply, listTime, dayLabel, avatarColor, AVATAR_PALETTE, hasFetchableMedia } from "../lib/inbox.ts";
+import { safeMediaType, parseMediaContent, lastByPatient, awaitingReply, listTime, dayLabel, avatarColor, AVATAR_PALETTE, hasFetchableMedia } from "../lib/inbox.ts";
 
 const now = new Date("2026-11-14T15:00:00-03:00");
 
@@ -34,6 +34,16 @@ test("hasFetchableMedia exige tipo com arquivo e id com dois-pontos", () => {
   assert.equal(hasFetchableMedia({ message_type: "audio", whatsapp_message_id: "ABC" }), false);
   assert.equal(hasFetchableMedia({ message_type: "video", whatsapp_message_id: "chat:ABC" }), false);
   assert.equal(hasFetchableMedia({ message_type: null, whatsapp_message_id: null }), false);
+});
+
+test("safeMediaType só deixa passar foto, áudio e PDF", () => {
+  assert.equal(safeMediaType("image/jpeg"), "image/jpeg");
+  assert.equal(safeMediaType("IMAGE/PNG; charset=x"), "image/png");
+  assert.equal(safeMediaType("audio/ogg; codecs=opus"), "audio/ogg");
+  assert.equal(safeMediaType("application/pdf"), "application/pdf");
+  for (const bad of ["text/html", "image/svg+xml", "application/xhtml+xml", "text/javascript", "", null]) {
+    assert.equal(safeMediaType(bad), "application/octet-stream");
+  }
 });
 
 test("lastByPatient pega a primeira linha (mais nova) de cada paciente", () => {

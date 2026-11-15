@@ -45,6 +45,14 @@ export function hasFetchableMedia(m: { message_type?: string | null; whatsapp_me
     && (m.whatsapp_message_id ?? "").includes(":");
 }
 
+// Tipo vindo da rede nunca é confiável: só foto, áudio e PDF mantêm o tipo; o resto vira download binário
+// (um .html ou .svg aberto como blob rodaria script na origem do app).
+const SAFE_MEDIA = /^(image\/(jpeg|png|webp|gif)|audio\/[a-z0-9.+-]+|application\/pdf)$/;
+export function safeMediaType(type: string | null): string {
+  const t = (type ?? "").split(";")[0].trim().toLowerCase();
+  return SAFE_MEDIA.test(t) ? t : "application/octet-stream";
+}
+
 // rows já vêm do mais novo para o mais velho
 export function lastByPatient<T extends { patient_id: string }>(rows: T[]): Map<string, T> {
   const out = new Map<string, T>();

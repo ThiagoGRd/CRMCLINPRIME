@@ -20,16 +20,16 @@ function Tail({ out, color }: { out: boolean; color: string }) {
   );
 }
 
-export function MessageBubble({ message, first, sender, contactName, onDemand, demandDisabled }: {
+export function MessageBubble({ message, first, sender, contactName, onDemand, demandDisabled, afterSeparator }: {
   message: InboxMessage; first: boolean; sender: SenderLabel; contactName: string;
-  onDemand: (id: string) => void; demandDisabled: boolean;
+  onDemand: (id: string) => void; demandDisabled: boolean; afterSeparator?: boolean;
 }) {
   const out = message.direction === "outbound";
   const { kind, text } = parseMediaContent(message.content, message.message_type ?? null);
   const bg = out ? OUT_BG : IN_BG;
   const who = out ? sender?.label ?? "equipe" : contactName;
   return (
-    <div className={`group flex items-center gap-1 ${out ? "justify-end pl-8 sm:pl-16" : "justify-start pr-8 sm:pr-16"} ${first ? "mt-3" : "mt-[3px]"}`}>
+    <div className={`group flex items-center gap-1 ${out ? "justify-end pl-8 sm:pl-16" : "justify-start pr-8 sm:pr-16"} ${afterSeparator ? "" : first ? "mt-3" : "mt-[3px]"}`}>
       <div
         className={`relative max-w-[min(100%,520px)] min-w-[88px] rounded-xl px-2.5 pt-1.5 pb-1.5 text-[14px] leading-[1.42] text-foreground shadow-[0_1px_1px_rgba(0,0,0,0.35)] ${
           first ? (out ? "rounded-tr-[3px]" : "rounded-tl-[3px]") : ""
@@ -62,30 +62,42 @@ export function MessageBubble({ message, first, sender, contactName, onDemand, d
 
 const prefersReducedMotion = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-export function MessageThread({ patientId, messages, now, contactName, senderOf, onDemand, demandDisabled }: {
-  patientId: string; messages: InboxMessage[]; now: Date | null; contactName: string;
+export function MessageThread({ messages, loading, now, contactName, senderOf, onDemand, demandDisabled }: {
+  messages: InboxMessage[]; loading: boolean; now: Date | null; contactName: string;
   senderOf: (channelId?: string | null) => SenderLabel; onDemand: (id: string) => void; demandDisabled: boolean;
 }) {
+  // montado de novo a cada conversa (key no pai): o primeiro lote pula direto para o fim
   const scrollRef = useRef<HTMLDivElement>(null);
-  const shownFor = useRef<string | null>(null);
-  const [awayFromBottom, setAwayFromBottom] = useState(false);
+  const placed = useRef(false);
+  const nearBottom = useRef(true);
+  const [away, setAway] = useState(false);
+  const [countWhenLeft, setCountWhenLeft] = useState(0);
 
-  // Ancorada no fim: ao abrir a conversa pula direto; mensagem nova desce suave.
+  // Mensagem nova só desce a lista se a pessoa já estava perto do fim (~120px).
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || messages.length === 0) return;
-    const jump = shownFor.current !== patientId || prefersReducedMotion();
-    shownFor.current = patientId;
-    el.scrollTo({ top: el.scrollHeight, behavior: jump ? "auto" : "smooth" });
-  }, [patientId, messages.length]);
+    if (!placed.current) { placed.current = true; el.scrollTop = el.scrollHeight; return; }
+    if (nearBottom.current) el.scrollTo({ top: el.scrollHeight, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  }, [messages.length]);
+
+  function onScroll(el: HTMLDivElement) {
+    const near = el.scrollHeight - el.scrollTop - el.clientHeight <= 120;
+    nearBottom.current = near;
+    if (near === !away) return;
+    setAway(!near);
+    if (!near) setCountWhenLeft(messages.length);
+  }
+  const toBottom = () => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  const hasNew = away && messages.length > countWhenLeft;
 
   return (
     <div className="relative min-h-0 flex-1">
       <div
         ref={scrollRef}
         data-chat-scroll
-        onScroll={(e) => { const el = e.currentTarget; setAwayFromBottom(el.scrollHeight - el.scrollTop - el.clientHeight > 320); }}
-        className="h-full overflow-y-auto overscroll-contain"
+        onScroll={(e) => onScroll(e.currentTarget)}
+        className="h-full overflow-y-auto overscroll-contain [overflow-anchor:none]"
         style={{
           backgroundColor: "#0c0e17",
           backgroundImage:
@@ -94,12 +106,16 @@ export function MessageThread({ patientId, messages, now, contactName, senderOf,
         }}
       >
         <div className="flex min-h-full flex-col justify-end px-3 py-4 sm:px-[5%]">
-          {messages.length === 0 && (
+          {loading ? (
+            <p role="status" className="mx-auto mb-6 rounded-lg bg-[#1a1d30]/90 px-4 py-2 text-center text-xs text-muted-foreground motion-safe:animate-pulse">
+              Carregando mensagens...
+            </p>
+          ) : messages.length === 0 && (
             <p className="mx-auto mb-6 rounded-lg bg-[#1a1d30]/90 px-4 py-2 text-center text-xs text-muted-foreground">
               Nenhuma mensagem ainda.
             </p>
           )}
-          {messages.map((m, i) => {
+          {!loading && messages.map((m, i) => {
             const prev = messages[i - 1];
             const day = dayKey(m.created_at);
             const newDay = !prev || dayKey(prev.created_at) !== day;
@@ -108,30 +124,37 @@ export function MessageThread({ patientId, messages, now, contactName, senderOf,
             return (
               <Fragment key={m.id}>
                 {newDay && (
-                  <div className="sticky top-2 z-10 my-3 flex justify-center first:mt-0">
-                    <span className="rounded-full bg-[#1a1d30]/90 px-3 py-1 text-[11px] font-medium text-foreground/70 shadow-[0_1px_2px_rgba(0,0,0,0.4)] ring-1 ring-white/[0.05] backdrop-blur">
+                  <div className="mt-5 mb-2 flex justify-center first:mt-0">
+                    <span className="rounded-full bg-[#1a1d30]/90 px-3 py-1 text-[11px] font-medium text-foreground/70 shadow-[0_1px_2px_rgba(0,0,0,0.4)] ring-1 ring-white/[0.05]">
                       {now ? dayLabel(m.created_at, now) : ""}
                     </span>
                   </div>
                 )}
                 <MessageBubble
                   message={m} first={first} sender={m.direction === "outbound" ? senderOf(m.channel_id) : null}
-                  contactName={contactName} onDemand={onDemand} demandDisabled={demandDisabled}
+                  contactName={contactName} onDemand={onDemand} demandDisabled={demandDisabled} afterSeparator={newDay}
                 />
               </Fragment>
             );
           })}
         </div>
       </div>
-      {awayFromBottom && (
-        <button
-          type="button"
-          aria-label="Ir para a última mensagem"
-          onClick={() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: prefersReducedMotion() ? "auto" : "smooth" })}
-          className="absolute right-4 bottom-4 grid size-10 place-items-center rounded-full bg-[#1d2032] text-foreground/80 shadow-lg ring-1 ring-white/10 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-90"
-        >
-          <ArrowDown className="size-4" />
-        </button>
+      {away && (
+        hasNew ? (
+          <button
+            type="button" onClick={toBottom}
+            className="absolute bottom-4 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-lg outline-none focus-visible:ring-2 focus-visible:ring-ring motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2"
+          >
+            <ArrowDown className="size-3.5" /> Novas mensagens
+          </button>
+        ) : (
+          <button
+            type="button" aria-label="Ir para a última mensagem" onClick={toBottom}
+            className="absolute right-4 bottom-4 grid size-10 place-items-center rounded-full bg-[#1d2032] text-foreground/80 shadow-lg ring-1 ring-white/10 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-90"
+          >
+            <ArrowDown className="size-4" />
+          </button>
+        )
       )}
     </div>
   );

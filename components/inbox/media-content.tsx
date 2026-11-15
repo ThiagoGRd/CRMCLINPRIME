@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { hasFetchableMedia, type InboxMessage, type MediaKind } from "@/lib/inbox";
+import { hasFetchableMedia, safeMediaType, type InboxMessage, type MediaKind } from "@/lib/inbox";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Camera, Download, FileText, Mic, Pause, Play, Sticker, Video } from "lucide-react";
 
@@ -12,18 +12,20 @@ import { Camera, Download, FileText, Mic, Pause, Play, Sticker, Video } from "lu
 async function fetchMedia(id: string): Promise<Blob> {
   const supabase = createClient();
   const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("sem sessão");
   const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/wa-media`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      Authorization: `Bearer ${session?.access_token ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+      Authorization: `Bearer ${session.access_token}`,
     },
     body: JSON.stringify({ id }),
   });
-  const blob = res.ok ? await res.blob() : null;
-  if (!blob || blob.type.startsWith("application/json")) throw new Error("media");
-  return blob;
+  const type = res.headers.get("Content-Type");
+  if (!res.ok || (type ?? "").toLowerCase().startsWith("application/json")) throw new Error("media");
+  // o blob é refeito com um tipo da lista segura: nunca HTML/SVG/JS na origem do app
+  return new Blob([await res.arrayBuffer()], { type: safeMediaType(type) });
 }
 
 function useNearViewport<T extends HTMLElement>() {
@@ -119,9 +121,34 @@ function ImageMedia({ url, blob, caption, alt }: { url: string | null; blob?: Bl
   const [open, setOpen] = useState(false);
   // altura pela proporção real da foto, entre 140 e 320px; o lightbox mostra a foto inteira
   const [ratio, setRatio] = useState(0.75);
+  const boxRef = useRef<HTMLButtonElement>(null);
+  const pending = useRef<{ sc: HTMLElement; atBottom: boolean; above: boolean; before: number } | null>(null);
+  // a caixa muda de altura uma vez (foto decodificada): mantém o fim ancorado ou a posição de leitura
+  useLayoutEffect(() => {
+    const p = pending.current;
+    const el = boxRef.current;
+    pending.current = null;
+    if (!p || !el) return;
+    if (p.atBottom) p.sc.scrollTop = p.sc.scrollHeight;
+    else if (p.above) p.sc.scrollTop += el.offsetHeight - p.before;
+  }, [ratio]);
+  function onDecoded(img: HTMLImageElement) {
+    const el = boxRef.current;
+    if (!img.naturalWidth || !el) return;
+    const sc = el.closest<HTMLElement>("[data-chat-scroll]");
+    if (sc) {
+      pending.current = {
+        sc, before: el.offsetHeight,
+        atBottom: sc.scrollHeight - sc.scrollTop - sc.clientHeight < 120,
+        above: el.getBoundingClientRect().top < sc.getBoundingClientRect().top,
+      };
+    }
+    setRatio(img.naturalHeight / img.naturalWidth);
+  }
   return (
     <div className="space-y-1.5">
       <button
+        ref={boxRef}
         type="button"
         onClick={() => setOpen(true)}
         disabled={!url}
@@ -133,7 +160,7 @@ function ImageMedia({ url, blob, caption, alt }: { url: string | null; blob?: Bl
           // eslint-disable-next-line @next/next/no-img-element -- blob em memória, next/image não se aplica
           <img
             src={url} alt={alt}
-            onLoad={(e) => { const i = e.currentTarget; if (i.naturalWidth) setRatio(i.naturalHeight / i.naturalWidth); }}
+            onLoad={(e) => onDecoded(e.currentTarget)}
             className="block h-full max-h-[320px] w-full max-w-[280px] object-cover transition-transform duration-300 group-hover/img:scale-[1.03] motion-reduce:transition-none" />
         ) : (
           <span className="flex size-full items-center justify-center motion-safe:animate-pulse">
@@ -270,7 +297,8 @@ function AudioMedia({ url, seed, transcript, outbound }: { url: string | null; s
 }
 
 function DocumentMedia({ url, blob, name }: { url: string | null; blob?: Blob; name: string }) {
-  const ext = extOf(blob?.type ?? "");
+  const pdf = blob?.type === "application/pdf";
+  const ext = pdf ? "pdf" : (name.match(/\.([a-z0-9]{1,5})$/i)?.[1] ?? "");
   return (
     <div className="space-y-1">
       <div className="flex w-[260px] max-w-full items-center gap-3 rounded-lg bg-black/20 p-2.5 ring-1 ring-white/[0.06]">
@@ -283,13 +311,23 @@ function DocumentMedia({ url, blob, name }: { url: string | null; blob?: Blob; n
             {blob ? `${ext || "arquivo"} · ${fileSize(blob.size)}` : <span className="inline-block h-2.5 w-16 rounded bg-white/10 align-middle motion-safe:animate-pulse" />}
           </p>
         </div>
-        {url && (
+        {/* só PDF abre em nova aba; qualquer outro tipo é baixado, nunca exibido na origem do app */}
+        {url && pdf && (
           <a
             href={url} target="_blank" rel="noopener noreferrer"
             aria-label={`Abrir ${name || "documento"}`}
             className="shrink-0 rounded-md px-2.5 py-1.5 text-xs font-semibold text-primary outline-none hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring"
           >
             Abrir
+          </a>
+        )}
+        {url && !pdf && (
+          <a
+            href={url} download={name || "documento"}
+            aria-label={`Baixar ${name || "documento"}`}
+            className="shrink-0 rounded-md px-2.5 py-1.5 text-xs font-semibold text-primary outline-none hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Baixar
           </a>
         )}
       </div>
@@ -317,8 +355,9 @@ export function MediaContent({ message, kind, text, alt, outbound }: {
   if (!fetchable) body = <Placeholder kind={kind} text={text} />;
   // sem arquivo (404) ou falha: mostra o texto como antes, sem aviso
   else if (q.isError) body = <BubbleText text={message.content} />;
-  else if (kind === "image") body = <ImageMedia url={url} blob={q.data} caption={text} alt={alt} />;
-  else if (kind === "audio") body = <AudioMedia url={url} seed={message.id} transcript={text} outbound={outbound} />;
+  // o tipo real (já saneado) decide: foto só se image/*, áudio só se audio/*, senão cartão de arquivo
+  else if (kind === "image" && (!q.data || q.data.type.startsWith("image/"))) body = <ImageMedia url={url} blob={q.data} caption={text} alt={alt} />;
+  else if (kind === "audio" && (!q.data || q.data.type.startsWith("audio/"))) body = <AudioMedia url={url} seed={message.id} transcript={text} outbound={outbound} />;
   else body = <DocumentMedia url={url} blob={q.data} name={text} />;
 
   return <div ref={ref}>{body}</div>;

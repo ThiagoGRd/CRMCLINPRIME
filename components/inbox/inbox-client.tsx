@@ -60,6 +60,9 @@ export function InboxClient() {
   const [sendChannelId, setSendChannelId] = useState<string>("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  // de quem são as mensagens em "messages": até a nova conversa carregar, nada da anterior aparece nem vira demanda
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const loadedForRef = useRef<string | null>(null);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [creatingDemand, setCreatingDemand] = useState(false);
@@ -117,15 +120,12 @@ export function InboxClient() {
       return (data ?? []) as QuickReply[];
     },
   });
-  // Última mensagem de cada conversa (prévia, hora e "aguardando resposta"); o RLS limita à organização.
+  // Última mensagem de cada paciente (180 dias), uma linha por paciente; o RLS limita à organização.
   const { data: lastRows } = useQuery({
     queryKey: ["inbox-last", org.id],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("messages")
-        .select("patient_id,direction,content,message_type,created_at")
-        .order("created_at", { ascending: false })
-        .limit(1500);
+      const { data, error } = await supabase.rpc("inbox_last_messages");
+      if (error) throw error;
       return (data ?? []) as LastMessage[];
     },
   });
@@ -184,7 +184,7 @@ export function InboxClient() {
 
   // Histórico da conversa ativa
   useEffect(() => {
-    if (!activeId) { setMessages([]); return; }
+    if (!activeId) return;
     let cancelled = false;
     (async () => {
       // Garantir que o paciente selecionado via ?p= esteja na lista convs mesmo se for antigo
@@ -206,6 +206,8 @@ export function InboxClient() {
       if (!cancelled) {
         const rows = (data ?? []) as Message[];
         setMessages(rows);
+        setLoadedFor(activeId);
+        loadedForRef.current = activeId;
         const lastWithCh = [...rows].reverse().find((m) => m.channel_id);
         if (lastWithCh?.channel_id) {
           setSendChannelId(lastWithCh.channel_id);
@@ -235,20 +237,37 @@ export function InboxClient() {
     return () => { cancelled = true; };
   }, [activeId, supabase, channelFilter, activeChannels, org.id]);
 
-  // Realtime: setAuth ANTES de subscrever (senão falha em silêncio sob RLS)
+  // Realtime: setAuth ANTES de subscrever (senão falha em silêncio sob RLS).
+  // Mesmo padrão da Fila: tópico único por montagem e cancelamento durante o await, para não vazar canal
+  // no cliente singleton (o próximo mount ganharia um tópico já inscrito e ficaria sem atualizações).
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let refreshLast = false;
+    // status de entrega/leitura também chega aqui: recarrega no máximo 1x/s e só busca prévias em INSERT
+    const scheduleReload = (inserted: boolean) => {
+      refreshLast ||= inserted;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        void loadConversations();
+        if (refreshLast) void qc.invalidateQueries({ queryKey: ["inbox-last", org.id] });
+        refreshLast = false;
+      }, 1000);
+    };
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
       if (session) supabase.realtime.setAuth(session.access_token);
       channel = supabase
-        .channel("rt-inbox")
+        .channel(`rt-inbox-${org.id}-${Math.random().toString(36).slice(2)}`)
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "crm_messages" },
           (payload) => {
             const row = payload.new as Message;
-            if (row && row.patient_id === activeIdRef.current) {
+            // só entra na lista se ela já é a da conversa aberta (nunca na de outro paciente)
+            if (row && row.patient_id === activeIdRef.current && row.patient_id === loadedForRef.current) {
               setMessages((prev) => {
                 const idx = prev.findIndex((m) => m.id === row.id);
                 if (idx >= 0) {
@@ -259,13 +278,12 @@ export function InboxClient() {
                 return [...prev, row];
               });
             }
-            loadConversations();
-            void qc.invalidateQueries({ queryKey: ["inbox-last", org.id] });
+            scheduleReload(payload.eventType === "INSERT");
           }
         )
         .subscribe();
     })();
-    return () => { if (channel) supabase.removeChannel(channel); };
+    return () => { cancelled = true; clearTimeout(timer); if (channel) supabase.removeChannel(channel); };
   }, [supabase, loadConversations, qc, org.id]);
 
   async function send() {
@@ -330,9 +348,10 @@ export function InboxClient() {
   async function turnIntoDemand(messageId?: string) {
     if (!activeId || creatingDemand) return;
     const patient = convs.find((c) => c.id === activeId);
+    const loaded = loadedFor === activeId ? messages : [];
     const source = messageId
-      ? messages.find((m) => m.id === messageId)
-      : [...messages].reverse().find((m) => m.direction !== "outbound");
+      ? loaded.find((m) => m.id === messageId)
+      : [...loaded].reverse().find((m) => m.direction !== "outbound");
     const front = org.front ?? "recepcao";
     const dueAt = demandDueAt(new Date(), front, org.settings);
     setCreatingDemand(true);
@@ -415,6 +434,7 @@ export function InboxClient() {
   }, [convs, panels, channelFilter, search]);
 
   const active = convs.find((c) => c.id === activeId);
+  const shownMessages = activeId && loadedFor === activeId ? messages : [];
   const memberName = (uid: string | null) =>
     (members ?? []).find((m) => m.user_id === uid)?.display_name ?? "Sem atendente";
   const nextTask = useMemo(
@@ -496,7 +516,7 @@ export function InboxClient() {
               </Button>
             </ChatHeader>
             <MessageThread
-              patientId={active.id} messages={messages} now={now} contactName={active.name}
+              key={active.id} messages={shownMessages} loading={loadedFor !== active.id} now={now} contactName={active.name}
               senderOf={panelOf} onDemand={(id) => turnIntoDemand(id)} demandDisabled={creatingDemand}
             />
             <ChatComposer
